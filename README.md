@@ -40,7 +40,7 @@ _carrier_ of the semantics.
 
 In practice this is achieved by creating a type class instance.
 The natural carrier for evaluating arithmetic expressions will be
-called |Eval|:
+called `Eval`:
 ```haskell
 newtype Eval = Eval Int deriving Show
 ```
