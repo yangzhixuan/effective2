@@ -42,3 +42,13 @@ eval gen (Op op) = alg (fmap (eval gen) op)
 instance (Alg f a, Alg g a) => Alg (f :+: g) a where
   alg (L x) = alg x
   alg (R y) = alg y
+
+-- | Algebra for product carriers
+instance (Alg f a, Alg f b) => Alg f (a, b) where
+  alg = (alg . fmap fst) /\ (alg . fmap snd)
+
+(><) :: (a -> c) -> (b -> d) -> (a, b) -> (c, d)
+(f >< g) (x, y) = (f x, g y)
+
+(/\) :: (a -> b) -> (a -> c) -> a -> (b, c)
+(f /\ g) x = (f x, g x)
