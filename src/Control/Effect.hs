@@ -20,13 +20,6 @@ instance Functor f => Monad (Free f) where
   Var x >>= k = k x
   Op op >>= k = Op (fmap (>>= k) op)
 
-class Functor f => Alg f a where
-  alg :: f a -> a
-
-eval :: Alg f b => (a -> b) -> Free f a -> b
-eval gen (Var x) = gen x
-eval gen (Op op) = alg (fmap (eval gen) op)
-
 -- * Coproducts
 
 data (f :+: g) a = L (f a) | R (g a)
@@ -34,3 +27,12 @@ data (f :+: g) a = L (f a) | R (g a)
 instance (Functor f, Functor g) => Functor (f :+: g) where
   fmap f (L x) = L (fmap f x)
   fmap f (R y) = R (fmap f y)
+
+-- * Algebras
+
+class Functor f => Alg f a where
+  alg :: f a -> a
+
+eval :: Alg f b => (a -> b) -> Free f a -> b
+eval gen (Var x) = gen x
+eval gen (Op op) = alg (fmap (eval gen) op)
