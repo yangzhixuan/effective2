@@ -1,4 +1,5 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeOperators #-}
 
 module Control.Effect where
 
@@ -26,3 +27,10 @@ eval :: Alg f b => (a -> b) -> Free f a -> b
 eval gen (Var x) = gen x
 eval gen (Op op) = alg (fmap (eval gen) op)
 
+-- * Coproducts
+
+data (f :+: g) a = L (f a) | R (g a)
+
+instance (Functor f, Functor g) => Functor (f :+: g) where
+  fmap f (L x) = L (fmap f x)
+  fmap f (R y) = R (fmap f y)
