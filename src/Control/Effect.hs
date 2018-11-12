@@ -1,5 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Control.Effect where
 
@@ -36,3 +37,8 @@ class Functor f => Alg f a where
 eval :: Alg f b => (a -> b) -> Free f a -> b
 eval gen (Var x) = gen x
 eval gen (Op op) = alg (fmap (eval gen) op)
+
+-- | Algebra of coproduct functors
+instance (Alg f a, Alg g a) => Alg (f :+: g) a where
+  alg (L x) = alg x
+  alg (R y) = alg y
