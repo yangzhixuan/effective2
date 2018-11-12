@@ -47,8 +47,11 @@ instance (Alg f a, Alg g a) => Alg (f :+: g) a where
 instance (Alg f a, Alg f b) => Alg f (a, b) where
   alg = (alg . fmap fst) /\ (alg . fmap snd)
 
+-- * Miscellaneous
+-- | The product of two functions
 (><) :: (a -> c) -> (b -> d) -> (a, b) -> (c, d)
 (f >< g) (x, y) = (f x, g y)
 
+-- | The split of two functions
 (/\) :: (a -> b) -> (a -> c) -> a -> (b, c)
 (f /\ g) x = (f x, g x)
