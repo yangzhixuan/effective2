@@ -10,15 +10,22 @@ license-file:        LICENSE
 author:              Nicolas Wu
 maintainer:          nicolas.wu@gmail.com
 -- copyright:           
-category:            Effects
+category:            Control
 build-type:          Simple
 extra-source-files:  ChangeLog.md
 cabal-version:       >=1.10
 
-executable effective
-  main-is:             Main.hs
+library
+  exposed-modules:    Control.Effect
   -- other-modules:       
   -- other-extensions:    
-  build-depends:       base >=4.10 && <4.11
-  -- hs-source-dirs:      
+  build-depends:       base >=4.10 && <4.12
+  hs-source-dirs:      src
   default-language:    Haskell2010
+
+test-suite doctests
+  type:          exitcode-stdio-1.0
+  ghc-options:   -threaded
+  main-is:       DocTest.hs
+  hs-source-dirs:  test, src
+  build-depends: base, doctest >= 0.8, markdown-unlit
