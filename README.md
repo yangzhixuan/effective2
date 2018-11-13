@@ -4,15 +4,19 @@ The `effective` library is an effect handlers library that is designed
 to allow users to define and interpret their own languages and
 effects.
 
-This library requires several language extensions to be used properly,
-and can be imported via `Control.Effect`:
+Various language extensions are required for the `effective` library:
 ```haskell
 {-# LANGUAGE MultiParamTypeClasses #-}
-module Readme where
-import Control.Effect
 ```
 This `README` file is a literate Haskell file that can be downloaded
-separately.
+separately and executed. We define the module `README`:
+```haskell
+module README where
+```
+The `effective` library is imported via `Control.Effect`:
+```haskell
+import Control.Effect
+```
 
 Consider a language that can only perform addition.
 ```haskell
