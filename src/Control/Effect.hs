@@ -52,6 +52,14 @@ instance {-# OVERLAPPABLE #-} sub <: sup => sub <: (sub' :+: sup) where
   prj (R g) = prj g
   prj _     = Nothing
 
+
+var :: a -> Free sig a
+var = Var
+
+op :: (eff <: sig) => eff (Free sig a) -> Free sig a
+op = Op . inj
+
+
 -- * Algebras
 
 class Functor f => Alg f a where
