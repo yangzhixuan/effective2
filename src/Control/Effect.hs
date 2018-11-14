@@ -5,6 +5,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE InstanceSigs #-}
 
 module Control.Effect where
 
@@ -77,6 +78,11 @@ instance (Alg f a, Alg g a) => Alg (f :+: g) a where
 -- | Algebra for product carriers
 instance (Alg f a, Alg f b) => Alg f (a, b) where
   alg = (alg . fmap fst) /\ (alg . fmap snd)
+
+instance {-# OVERLAPS #-} (Alg f a, Alg f b, Alg g a, Alg g b) => Alg (f :+: g) (a, b) where
+  alg :: (Functor f, Functor g) => (f :+: g) (a, b) -> (a, b)
+  alg (L xy) = alg xy
+  alg (R xy) = alg xy
 
 -- * Miscellaneous
 -- | The product of two functions
