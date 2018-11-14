@@ -3,4 +3,4 @@ module Main
 ) where
 
 import Test.DocTest
-main = doctest $ words "-isrc -pgmL markdown-unlit docs/README.lhs"
+main = doctest $ words "-isrc -pgmL markdown-unlit -XTypeOperators docs/README.lhs"
