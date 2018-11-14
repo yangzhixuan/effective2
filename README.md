@@ -80,6 +80,8 @@ Evaluating with this environment is achieved by invoking `eval`:
 -- Eval 42
 ```
 
+# Modularity
+
 ## Modular Operations
 
 Adding additional operations is achieved by composing functors. To add
@@ -114,6 +116,43 @@ The composition of algebras is handled automatically:
 -- Eval 27
 ```
 
+## Modular Semantics
+
+Additional semantics can be given by simply creating new instances of
+the `Alg` class. As before, it is good practice to create a `newtype`
+that represents the carrier of interest.
+
+For instance, an interesting carrier collects all the bound variables
+in an expression:
+
+```haskell
+newtype Vars = Vars [Var] deriving Show
+
+instance Alg Add Vars where
+  alg (Add (Vars x) (Vars y)) = Vars (x ++ y)
+
+instance Alg Mul Vars where
+  alg (Mul (Vars x) (Vars y)) = Vars (x ++ y)
+```
+
+The generator required here wraps an element into a list by applying
+`pure`, and adds a `Vars` constructor:
+```haskell
+vars :: Var -> Vars
+vars x = Vars [x]
+```
+Changing the generator involved is enough to retreive a different
+semantics:
+```haskell
+-- | >>> eval vars (add (var "x") (mul (var "y") (var "z")) :: Free (Mul :+: Add) Var)
+-- Vars ["x","y","z"]
+```
+
+It is also possible to extract multiple semantics too:
+```haskell
+-- | >>> eval (env /\ vars) (add (var "x") (mul (var "y") (var "z")) :: Free (Mul :+: Add) Var)
+-- (Eval 27,Vars ["x","y","z"])
+```
 
 
 
