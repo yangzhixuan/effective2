@@ -2,18 +2,19 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Control.Effect.Expr where
 import Control.Effect
 
-data Add k = Add k k deriving (Functor, Show)
-data Sub k = Sub k k deriving (Functor, Show)
-data Mul k = Mul k k deriving (Functor, Show)
-data Neg k = Neg k   deriving (Functor, Show)
-data Abs k = Abs k   deriving (Functor, Show)
-data Sig k = Sig k   deriving (Functor, Show)
+data Add k = Add k k deriving (Functor, Show, Foldable)
+data Sub k = Sub k k deriving (Functor, Show, Foldable)
+data Mul k = Mul k k deriving (Functor, Show, Foldable)
+data Neg k = Neg k   deriving (Functor, Show, Foldable)
+data Abs k = Abs k   deriving (Functor, Show, Foldable)
+data Sig k = Sig k   deriving (Functor, Show, Foldable)
 
 type Expr = Add :+: Sub :+: Mul :+: Neg :+: Abs :+: Sig
 

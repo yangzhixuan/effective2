@@ -3,11 +3,13 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE InstanceSigs #-}
 
 module Control.Effect where
+import Data.Foldable
 
 data Free f a
   = Var a
@@ -30,11 +32,9 @@ instance Functor f => Monad (Free f) where
 
 -- * Coproducts
 
-data (f :+: g) a = L (f a) | R (g a)
+data (f :+: g) a = L (f a) | R (g a) deriving (Show, Functor, Foldable)
 infixr 5 :+:
 
-deriving instance (Show (f a), Show (g a)) => Show ((f :+: g) a)
-deriving instance (Functor f, Functor g) => Functor (f :+: g)
 
 class (sub :: * -> *) <: sup where
   inj :: sub a -> sup a
@@ -71,27 +71,34 @@ eval :: Alg f b => (a -> b) -> Free f a -> b
 eval gen (Var x) = gen x
 eval gen (Op op) = alg (fmap (eval gen) op)
 
+
+-- | Algebra for product carriers
+instance  (Alg f a, Alg f b) => Alg f (a, b) where
+  alg = (alg . fmap fst) /\ (alg . fmap snd)
+
+instance {-# OVERLAPPING #-} (Alg f a, Alg f b, Alg g a, Alg g b) => Alg (f :+: g) (a, b) where
+  alg :: (Functor f, Functor g) => (f :+: g) (a, b) -> (a, b)
+  alg (L xy) = alg xy
+  alg (R xy) = alg xy
+
 -- | Algebra of coproduct functors
 instance (Alg f a, Alg g a) => Alg (f :+: g) a where
   alg (L x) = alg x
   alg (R y) = alg y
 
--- | Algebra for product carriers
-instance (Alg f a, Alg f b) => Alg f (a, b) where
-  alg = (alg . fmap fst) /\ (alg . fmap snd)
+-- | Foldable algebra
+instance {-# OVERLAPPABLE #-} (Functor f, Foldable f, Monoid m) => Alg f m where
+  alg = fold
 
-instance {-# OVERLAPS #-} (Alg f a, Alg f b, Alg g a, Alg g b) => Alg (f :+: g) (a, b) where
-  alg :: (Functor f, Functor g) => (f :+: g) (a, b) -> (a, b)
-  alg (L xy) = alg xy
-  alg (R xy) = alg xy
+-- * Carriers
 
 -- * Carriers
 
 -- | The default evaluation carrier
-newtype Eval a = Eval a
+newtype Eval a = Eval a deriving Show
 
 --- | The variables carrier
-newtype Vars a = Vars [a]
+newtype Vars a = Vars [a] deriving Show
 instance Semigroup (Vars a) where
   (Vars xs) <> (Vars ys) = Vars (xs ++ ys)
 instance Monoid (Vars a) where
