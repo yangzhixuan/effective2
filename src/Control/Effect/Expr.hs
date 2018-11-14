@@ -2,6 +2,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Control.Effect.Expr where
 import Control.Effect
@@ -24,15 +26,18 @@ instance Num a => Num (Free Expr a) where
   signum x = op (Sig x)
   fromInteger x = var (fromInteger x)
 
-instance Num a => Alg Add a where
+deriving instance Num a => Num (Eval a)
+
+instance Num a => Alg Add (Eval a) where
   alg (Add x y) = x + y
-instance Num a => Alg Sub a where
+instance Num a => Alg Sub (Eval a) where
   alg (Sub x y) = x - y
-instance Num a => Alg Mul a where
+instance Num a => Alg Mul (Eval a) where
   alg (Mul x y) = x * y
-instance Num a => Alg Neg a where
+instance Num a => Alg Neg (Eval a) where
   alg (Neg x)   = negate x
-instance Num a => Alg Abs a where
+instance Num a => Alg Abs (Eval a) where
   alg (Abs x)   = abs x
-instance Num a => Alg Sig a where
+instance Num a => Alg Sig (Eval a) where
   alg (Sig x)   = signum x
+

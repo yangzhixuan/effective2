@@ -85,6 +85,11 @@ instance {-# OVERLAPS #-} (Alg f a, Alg f b, Alg g a, Alg g b) => Alg (f :+: g) 
   alg (L xy) = alg xy
   alg (R xy) = alg xy
 
+-- * Carriers
+
+-- | The default evaluation carrier
+newtype Eval a = Eval a
+
 -- * Miscellaneous
 -- | The product of two functions
 (><) :: (a -> c) -> (b -> d) -> (a, b) -> (c, d)
