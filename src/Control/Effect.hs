@@ -1,12 +1,18 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Control.Effect where
 
 data Free f a
   = Var a
   | Op (f (Free f a))
+
+deriving instance (Show a, Show (f (Free f a))) => Show (Free f a)
 
 instance Functor f => Functor (Free f) where
   fmap f (Var x) = Var (f x)
@@ -25,9 +31,26 @@ instance Functor f => Monad (Free f) where
 
 data (f :+: g) a = L (f a) | R (g a)
 
-instance (Functor f, Functor g) => Functor (f :+: g) where
-  fmap f (L x) = L (fmap f x)
-  fmap f (R y) = R (fmap f y)
+deriving instance (Show (f a), Show (g a)) => Show ((f :+: g) a)
+deriving instance (Functor f, Functor g) => Functor (f :+: g)
+
+class (sub :: * -> *) <: sup where
+  inj :: sub a -> sup a
+  prj :: sup a -> Maybe (sub a)
+
+instance sub <: sub where
+  inj = id
+  prj = Just
+
+instance {-# OVERLAPPABLE #-} sub <: (sub :+: sup) where
+  inj = L . inj
+  prj (L f) = Just f
+  prj _     = Nothing
+
+instance {-# OVERLAPPABLE #-} sub <: sup => sub <: (sub' :+: sup) where
+  inj = R . inj
+  prj (R g) = prj g
+  prj _     = Nothing
 
 -- * Algebras
 
