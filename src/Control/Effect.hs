@@ -31,6 +31,7 @@ instance Functor f => Monad (Free f) where
 -- * Coproducts
 
 data (f :+: g) a = L (f a) | R (g a)
+infixr 5 :+:
 
 deriving instance (Show (f a), Show (g a)) => Show ((f :+: g) a)
 deriving instance (Functor f, Functor g) => Functor (f :+: g)
