@@ -41,3 +41,16 @@ instance Num a => Alg Abs (Eval a) where
 instance Num a => Alg Sig (Eval a) where
   alg (Sig x)   = signum x
 
+
+instance Num a => Alg Add (Vars a) where
+  alg (Add x y) = x <> y
+instance Num a => Alg Sub (Vars a) where
+  alg (Sub x y) = x <> y
+instance Num a => Alg Mul (Vars a) where
+  alg (Mul x y) = x <> y
+instance Num a => Alg Neg (Vars a) where
+  alg (Neg x)   = x
+instance Num a => Alg Abs (Vars a) where
+  alg (Abs x)   = x
+instance Num a => Alg Sig (Vars a) where
+  alg (Sig x)   = x

@@ -90,6 +90,13 @@ instance {-# OVERLAPS #-} (Alg f a, Alg f b, Alg g a, Alg g b) => Alg (f :+: g) 
 -- | The default evaluation carrier
 newtype Eval a = Eval a
 
+--- | The variables carrier
+newtype Vars a = Vars [a]
+instance Semigroup (Vars a) where
+  (Vars xs) <> (Vars ys) = Vars (xs ++ ys)
+instance Monoid (Vars a) where
+  mempty = Vars []
+
 -- * Miscellaneous
 -- | The product of two functions
 (><) :: (a -> c) -> (b -> d) -> (a, b) -> (c, d)
