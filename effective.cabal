@@ -17,7 +17,7 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:    Control.Effect,
-                      Control.Effect.Syntax.Expr
+                      Control.Effect.Expr
   -- other-modules:       
   -- other-extensions:    
   build-depends:       base >=4.10 && <4.12
