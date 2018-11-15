@@ -95,8 +95,6 @@ instance {-# OVERLAPPABLE #-} (Functor f, Foldable f, Monoid m) => Alg f m where
 
 -- * Carriers
 
--- * Carriers
-
 -- | The default evaluation carrier
 newtype Eval a = Eval a deriving Show
 
