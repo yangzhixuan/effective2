@@ -6,7 +6,7 @@ effects.
 
 ## Preamble
 
-Various language extensions are required for the `effective` library:
+Various language extensions are useful when using the `effective` library:
 ```haskell
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeOperators #-}
@@ -188,7 +188,14 @@ the variables can be easily collected:
 
 ### Footnote
 
-For the curious, this README file is a literate Haskell file:
+For the curious, this `README` file is a literate Haskell file, and
+can be interpreted in `ghci` by supplying an argument that specifies
+how the liteerate file should be preprocessed:
+```
+ghci -pgmL markdown-unlit
+```
+This requires the `markdown-unlit` package to be installed.
+
 ```haskell
 main = pure ()
 ```
