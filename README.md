@@ -11,7 +11,10 @@ Various language extensions are required for the `effective` library:
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE StandaloneDeriving #-}
 ```
 The `effective` library is imported via `Control.Effect`:
 ```haskell
@@ -54,34 +57,26 @@ The semantics of a language with a signature `f` is given by providing
 an _algebra_, which is a function of type `f a -> a`, where `a` is the
 _carrier_ of the semantics.
 
-
-In practice this is achieved by creating a type class instance.
-The natural carrier for evaluating arithmetic expressions will be
-called `Eval`:
+For simplicity, we will interpret the syntax of `Add` into the type
+`Int`.
 ```haskell
-newtype Eval = Eval Int deriving Show
-```
-The instance for the `Add` language that interprets into the `Eval`
-carrier is:
-```haskell
-instance Alg Add Eval where
-  alg (Add (Eval x) (Eval y)) = Eval (x + y)
+instance Alg Add Int where
+  alg (Add x y) = x + y
 ```
 In order to give a semantics to this expression, a suitable generator
 must be given. For the purposes of illustration `env :: Var -> Eval`
 is as follows:
 ```haskell
-env :: Var -> Eval
-env var = Eval (case var of {"x" -> 27 ; "y" -> 15; _ -> 0})
+env :: Var -> Int
+env var = case var of {"x" -> 27 ; "y" -> 15; _ -> 0}
 ```
 Evaluating with this environment is achieved by invoking `eval`:
 ```haskell
 -- | >>> eval env (add (var "x") (var "y") :: Free Add Var)
--- Eval 42
+-- 42
 ```
 
 # Modularity
-
 ## Modular Operations
 
 Adding additional operations is achieved by composing functors. To add
@@ -94,8 +89,8 @@ mul x y = op (Mul x y)
 ```
 The associated algebra must also be defined:
 ```haskell
-instance Alg Mul Eval where
-  alg (Mul (Eval x) (Eval y)) = Eval (x * y)
+instance Alg Mul Int where
+  alg (Mul x y) = x * y
 ```
 
 Using `add` and `mul` together allows expressions with a flexible
@@ -113,7 +108,7 @@ The composition of algebras is handled automatically:
 
 ```haskell
 -- | >>> eval env (add (var "x") (mul (var "y") (var "z")) :: Free (Mul :+: Add) Var)
--- Eval 27
+-- 27
 ```
 
 ## Modular Semantics
@@ -122,39 +117,76 @@ Additional semantics can be given by simply creating new instances of
 the `Alg` class. As before, it is good practice to create a `newtype`
 that represents the carrier of interest.
 
-For instance, an interesting carrier collects all the bound variables
+For instance, consider a carrier that counts the number of multiplications
 in an expression:
 
 ```haskell
-newtype Vars = Vars [Var] deriving Show
+newtype Muls = Muls Int deriving Show
 
-instance Alg Add Vars where
-  alg (Add (Vars x) (Vars y)) = Vars (x ++ y)
+instance Alg Add Muls where
+  alg (Add (Muls x) (Muls y)) = Muls (x + y)
 
-instance Alg Mul Vars where
-  alg (Mul (Vars x) (Vars y)) = Vars (x ++ y)
+instance Alg Mul Muls where
+  alg (Mul (Muls x) (Muls y)) = Muls (1 + x + y)
 ```
 
 The generator required here wraps an element into a list by applying
 `pure`, and adds a `Vars` constructor:
 ```haskell
-vars :: Var -> Vars
-vars x = Vars [x]
+muls :: Var -> Muls
+muls x = Muls 0
 ```
 Changing the generator involved is enough to retreive a different
 semantics:
+```haskell
+-- | >>> eval muls (add (var "x") (mul (var "y") (var "z")) :: Free (Mul :+: Add) Var)
+-- Muls 1
+```
+
+It is also possible to extract multiple semantics too:
+```haskell
+-- | >>> eval (env /\ muls) (add (var "x") (mul (var "y") (var "z")) :: Free (Mul :+: Add) Var)
+-- (27,Muls 1)
+```
+
+# Semantics
+
+## Evaluation Semantics
+
+A natural semantics can often be given to a fragment of syntax,
+and this is expressed using the `Eval` carrier.
+
+```haskell
+instance Alg Add (Eval Int) where
+  alg (Add (Eval x) (Eval y)) = Eval (x + y)
+instance Alg Mul (Eval Int) where
+  alg (Mul (Eval x) (Eval y)) = Eval (x * y)
+```
+
+```haskell
+-- | >>> eval (Eval . env) (add (var "x") (mul (var "y") (var "z")) :: Free (Mul :+: Add) Var)
+-- Eval 27
+```
+
+## Bound Variables
+
+Tracking bound variables can be achieved by the `Vars` carrier, which
+requires the signature functors to be foldable.
+
+```haskell
+deriving instance Foldable Mul
+deriving instance Foldable Add
+```
+
+When a functor has a foldable instance, a natural consequence is that
+the variables can be easily collected:
+
 ```haskell
 -- | >>> eval vars (add (var "x") (mul (var "y") (var "z")) :: Free (Mul :+: Add) Var)
 -- Vars ["x","y","z"]
 ```
 
-It is also possible to extract multiple semantics too:
-```haskell
--- | >>> eval (env /\ vars) (add (var "x") (mul (var "y") (var "z")) :: Free (Mul :+: Add) Var)
--- (Eval 27,Vars ["x","y","z"])
-```
-
-
+### Footnote
 
 For the curious, this README file is a literate Haskell file:
 ```haskell

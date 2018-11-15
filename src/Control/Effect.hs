@@ -99,6 +99,9 @@ newtype Eval a = Eval a deriving Show
 
 --- | The variables carrier
 newtype Vars a = Vars [a] deriving Show
+vars :: a -> Vars a
+vars x = Vars [x]
+
 instance Semigroup (Vars a) where
   (Vars xs) <> (Vars ys) = Vars (xs ++ ys)
 instance Monoid (Vars a) where
