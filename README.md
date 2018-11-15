@@ -39,14 +39,14 @@ following:
 ```haskell ignore
 Op (Add (Var "x") (Op (Add (Var "y") (Var "z"))))
 ```
-This is somewhat cumbersome notation, so instead we use a smart
-constructor that injects syntax:
+This is somewhat cumbersome notation, so instead a smart
+constructor is built that builds operations:
 
 ```haskell
 add :: Add <: sig => Free sig a -> Free sig a -> Free sig a
 add x y = op (Add x y)
 ```
-With this in place we can write:
+With this in place the following is much easier to write:
 ```haskell
 -- | >>> add (var "x") (add (var "y") (var "z")) :: Free Add Var
 -- Op (Add (Var "x") (Op (Add (Var "y") (Var "z"))))
@@ -57,7 +57,7 @@ The semantics of a language with a signature `f` is given by providing
 an _algebra_, which is a function of type `f a -> a`, where `a` is the
 _carrier_ of the semantics.
 
-For simplicity, we will interpret the syntax of `Add` into the type
+For simplicity, the syntax of `Add` will be interpreted into the type
 `Int`.
 ```haskell
 instance Alg Add Int where
