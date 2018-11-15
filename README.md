@@ -130,13 +130,13 @@ instance Alg Mul Muls where
   alg (Mul (Muls x) (Muls y)) = Muls (1 + x + y)
 ```
 
-The generator required here wraps an element into a list by applying
-`pure`, and adds a `Vars` constructor:
+The generator required here initialises the counter for
+multiplications to `0`.
 ```haskell
 muls :: Var -> Muls
 muls x = Muls 0
 ```
-Changing the generator involved is enough to retreive a different
+Changing the generator involved is enough to retrieve a different
 semantics:
 ```haskell
 -- | >>> eval muls (add (var "x") (mul (var "y") (var "z")) :: Free (Mul :+: Add) Var)
