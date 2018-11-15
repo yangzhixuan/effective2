@@ -67,9 +67,12 @@ op = Op . inj
 class Functor f => Alg f a where
   alg :: f a -> a
 
+extract :: Alg f a => Free f a -> a
+extract (Var x) = x
+extract (Op op) = alg (fmap extract op)
+
 eval :: Alg f b => (a -> b) -> Free f a -> b
-eval gen (Var x) = gen x
-eval gen (Op op) = alg (fmap (eval gen) op)
+eval gen = extract . fmap gen
 
 
 -- | Algebra for product carriers
