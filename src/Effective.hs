@@ -699,12 +699,6 @@ instance MonadTrans ListT where
   lift :: Monad m => m a -> ListT m a
   lift = ListT . liftM (\x -> Just (x, empty))
 
--- nondetAlg
---   :: Monad m => (forall x. oeff m x -> m x)
---   -> (forall x. (Stop + Or) (ListT m) x -> ListT m x)
--- nondetAlg oalg (HInL (Stop))     = empty
--- nondetAlg oalg (HInR ((Or x y))) = return x <|> return y
-
 nondetAlg
   :: (MonadTrans t, Alternative (t m) , Monad m)
   => (forall x. Effs oeff m x -> m x)
