@@ -876,9 +876,9 @@ fact = or (int)
 -- fact' = int <|> (symbol '(' *> expr' <* symbol ')')
 
 -- A parser!
-parse :: [Char]
-  -> Prog [Put [Char], Get [Char], Local [Char], Stop, Or] a
-  -> [([Char], a)]
+parse :: text
+  -> Prog [Put text, Get text, Local text, Stop, Or] a
+  -> [(text, a)]
 parse cs p  = handle (state cs <&> nondet) p
 
 exampleParse1 = parse "2+3*5" expr
@@ -887,8 +887,8 @@ exampleParse1 = parse "2+3*5" expr
 
 -- Not a parser!
 notParse
-  :: [Char] -> Prog [Stop, Or, Put [Char], Get [Char], Local [Char]] a
-  -> ([Char], [a])
+  :: text -> Prog [Stop, Or, Put text, Get text, Local text] a
+  -> (text, [a])
 notParse cs p = handle (nondet <&> state cs) p
 
 exampleNotParse = notParse "2+3*5" expr
@@ -1099,6 +1099,7 @@ exampleOnce = handle onceNondet onceEx
 -- [1,2]
 --
 -- A different parser!
+parse' :: text -> Prog [Put text, Get text, Local text, Once, Stop, Or, CutFail, CutCall] a -> [(text, a)]
 parse' cs p  = handle (state cs <&> onceNondet) p
 
 exampleParse2 = parse' "2+3*5" expr'
