@@ -876,8 +876,8 @@ fact = or (int)
 -- fact' = int <|> (symbol '(' *> expr' <* symbol ')')
 
 -- A parser!
-parse :: text
-  -> Prog [Put text, Get text, Local text, Stop, Or] a
+parse
+  :: text -> Prog [Put text, Get text, Local text, Stop, Or] a
   -> [(text, a)]
 parse cs p  = handle (state cs <&> nondet) p
 
