@@ -245,6 +245,17 @@ handler runMonadT monadAlg monadFwd
       (\oalg -> hcomps . monadAlg oalg . hmap hdecomps)
       (\alg  -> hcomps . monadFwd alg . hmap hdecomps)
 
+interp
+  :: (forall m . Monad m
+    => (forall x . Effs oeffs m x -> m x)
+    -> (forall x . Effs effs m x -> m x))
+  -> Handler effs '[] '[] oeffs
+interp monadAlg
+  = Handler
+      (const (\(HNil x) -> fmap CNil x))
+      (\oalg -> HNil . monadAlg oalg . hmap (\(HNil x) -> x))
+      (\alg  -> HNil . alg . hmap (\(HNil x) -> x))
+
 type Fuse :: 
   [Signature] -> [Signature] -> [Signature] ->
   [Signature] -> [Signature] ->
@@ -920,22 +931,6 @@ data CutCall a :: Type where
 cutCall :: Member CutCall sig => Prog sig a -> Prog sig a
 cutCall p = injCall (Scp (CutCall (fmap return p)))
 
-
-cut' :: (Monad m, Members [CutFail, Or] sig)
-  => (forall a . Effs sig m a -> m a) -> m ()
-cut' alg = (call' alg . inj) (Alg (Or (return ()) (cutFail' alg)))
-
-cutFail' :: (Monad m, Member CutFail sig)
-  => (forall a . Effs sig m a -> m a) -> m a
-cutFail' alg = (call' alg . inj) (Alg CutFail)
-
-cutCall' :: (Monad m, Member CutCall sig)
-  => (forall a . Effs sig m a -> m a) -> m a -> m a
-cutCall' alg p = (alg . inj) (Scp (CutCall p))
-
-call' :: Monad m => (forall a . sig m a -> m a) -> (sig m (m a) -> m a)
-call' alg x = join (alg x)
-
 skip :: Monad m => m ()
 skip = return ()
 
@@ -1049,15 +1044,8 @@ instance HFunctor CutListT' where
   hmap h NilT       = NilT
   hmap h (x :<< xs) = x :<< fmap (hmap h) (h xs)
 
--- TODO: I would want to use a function called `interp` that
--- is like `handle`, but creates an eff -> oeff interpretation
--- An alternative way to interpret `once` is to put it into `CutCall` and  `CutFail`
 onceCut :: Members [CutCall, CutFail, Or] oeff => Handler '[Once] '[] '[] oeff
-onceCut = Handler
-  (const (\(HNil x) -> fmap CNil x))
-  (\oalg -> HNil . onceCutAlg oalg . hmap (\(HNil x) -> x))
-  (\alg  -> HNil . onceCutFwd alg . hmap (\(HNil x) -> x))
-
+onceCut = interp onceCutAlg
 
 onceCutAlg :: forall oeff m . (Monad m , Members [CutCall, CutFail, Or] oeff)
   => (forall x. Effs oeff m x -> m x)
@@ -1068,10 +1056,20 @@ onceCutAlg oalg op
     oalg' :: forall a . Effs oeff m a -> m a
     oalg' = oalg
 
+cut' :: (Monad m, Members [CutFail, Or] sig)
+  => (forall a . Effs sig m a -> m a) -> m ()
+cut' alg = (call' alg . inj) (Alg (Or (return ()) (cutFail' alg)))
 
-onceCutFwd :: Monad m => (forall x . Effs sig m x -> m x)
-        -> (forall x . Effs sig m x -> m x)
-onceCutFwd alg = alg
+cutFail' :: (Monad m, Member CutFail sig)
+  => (forall a . Effs sig m a -> m a) -> m a
+cutFail' alg = (call' alg . inj) (Alg CutFail)
+
+cutCall' :: (Monad m, Member CutCall sig)
+  => (forall a . Effs sig m a -> m a) -> m a -> m a
+cutCall' alg p = (alg . inj) (Scp (CutCall p))
+
+call' :: Monad m => (forall a . sig m a -> m a) -> (sig m (m a) -> m a)
+call' alg x = join (alg x)
 
 
 -- This example demonstrates the use of Cut
