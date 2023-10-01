@@ -657,8 +657,7 @@ instance (Members [Or, Stop] sig) => Alternative (Prog sig) where
   (<|>) = or
 
 select :: Members [Or, Stop] sig => [a] -> Prog sig a
-select = foldr or stop . map return
-
+select = foldr (or . return) stop
 
 
 newtype AListT m e a = AListT { runAListT :: m (Either e (a, ListT m a)) }
