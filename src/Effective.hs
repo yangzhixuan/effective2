@@ -25,7 +25,7 @@ import Control.Monad.Trans.Class (MonadTrans, lift)
 import Control.Monad.Identity
 import qualified Control.Monad.Trans.State.Lazy as S
 
-import Data.SOP.Constraint
+import Data.SOP.Constraint ( All )
 
 type Effect = (Type -> Type) -> (Type -> Type)
 type Signature = Type -> Type
