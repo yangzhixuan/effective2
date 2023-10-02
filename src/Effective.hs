@@ -16,6 +16,7 @@ import Data.List.TypeLevel
 import Data.Functor.Composes
 import Data.HFunctor
 import Data.HFunctor.HComposes
+import Data.CutList
 
 import Control.Applicative
 import Control.Arrow
@@ -934,70 +935,6 @@ cutCall p = injCall (Scp (CutCall (fmap return p)))
 skip :: Monad m => m ()
 skip = return ()
 
-data CutList a = a :< CutList a | Nil | Zero
-  deriving Functor
-
-toCutList :: [a] -> CutList a
-toCutList (x : xs) = x :< toCutList xs
-toCutList []       = Nil
-
-fromCutList :: CutList a -> [a]
-fromCutList (x :< xs) = x : fromCutList xs
-fromCutList _         = []
-
-instance Semigroup (CutList a) where
-  Zero      <> ys = Zero
-  Nil       <> ys = ys
-  (x :< xs) <> ys = x :< (xs <> ys)
-
-instance Monoid (CutList a) where
-  mempty = Nil
-
-instance Applicative CutList where
-  pure x = x :< Nil
-  (<*>)  = ap
-
-instance Monad CutList where
-  m >>= f = join (fmap f m) where
-    join :: CutList (CutList a) -> CutList a
-    join ((a :< xs) :< xss) = a :< join (xs :< xss)
-    join (Nil  :< xss) = join xss
-    join (Zero :< _)   = Zero
-    join Nil           = Nil
-    join Zero          = Zero
-
-instance Alternative CutList where
-  empty            = Nil
-  Zero      <|> ys = Nil
-  Nil       <|> ys = ys
-  (x :< xs) <|> ys = x :< (xs <|> ys)
-
-data CutListT' m a = a :<< (m (CutListT' m a)) | NilT | ZeroT
-  deriving Functor
-
-newtype CutListT m a = CutListT { runCutListT :: m (CutListT' m a) }
-  deriving Functor
-
-fromCutListT' :: Monad m => CutListT m a -> m [a]
-fromCutListT' (CutListT mxs) =
-  do xs <- mxs
-     case xs of
-       x :<< mys -> (x :) <$> fromCutListT' (CutListT mys)
-       NilT      -> return []
-       ZeroT     -> return []
-
-instance Monad m => Applicative (CutListT m) where
-  pure x = CutListT (return (x :<< return NilT))
-  (<*>) = ap
-
-instance Monad m => Alternative (CutListT m) where
-  empty = CutListT $ return NilT
-  CutListT m <|> CutListT n = CutListT $ m >>= aux
-   where
-    aux (a :<< k) = return $ a :<< (k >>= aux)
-    aux NilT        = n
-    aux ZeroT       = return ZeroT -- aux ZeroT       = return NilT
-
 callAlg :: Monad m => CutListT m a -> CutListT m a
 callAlg (CutListT mxs) = CutListT $
   do xs <- mxs
@@ -1005,16 +942,6 @@ callAlg (CutListT mxs) = CutListT $
        x :<< mys -> return (x :<< runCutListT (callAlg (CutListT mys)))
        NilT      -> return NilT
        ZeroT     -> return NilT   -- clear the cut flag at the boundary of call
-
-instance Monad m => Monad (CutListT m) where
-  CutListT m >>= f = CutListT $ m >>= \x -> case x of
-    a :<< m -> runCutListT $ f a <|> (CutListT m >>= f)
-    NilT    -> return NilT
-    ZeroT   -> return ZeroT
-
-instance MonadTrans CutListT where
-  lift :: Monad m => m a -> CutListT m a
-  lift m = CutListT $ liftM (\a -> a :<< return NilT) m
 
 cutListFwd
   :: Monad m
