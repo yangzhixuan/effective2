@@ -73,9 +73,9 @@ data P n = P
 -- The element must exist
 -- This closed type family disambiguates otherwise overlapping
 -- instances
-type family FindElem (sig :: Signature) (sigs :: [Signature]) :: Nat where
-  FindElem sig (sig  ': sigs) = Z
-  FindElem sig (sig' ': sigs) = S (FindElem sig sigs)
+type family ElemIndex (x :: a) (xs :: [a]) :: Nat where
+  ElemIndex x (x ': xs) = Z
+  ElemIndex x (_ ': xs) = S (ElemIndex x xs)
 
 class (Functor sig, HFunctor (Effs sigs)) => Member' sig sigs (n :: Nat) where
   inj' :: P n -> Eff sig f a -> Effs sigs f a
@@ -97,14 +97,13 @@ instance (sigs' ~ (sig' ': sigs), Functor sig, Member' sig sigs n) => Member' si
   prj' _ (Effs x) = prj' (P :: P n) x
 
 type Member :: Signature -> [Signature] -> Constraint
-class (Member' sig sigs (FindElem sig sigs)) => Member sig sigs where
+class (Member' sig sigs (ElemIndex sig sigs)) => Member sig sigs where
   inj :: Eff sig f a -> Effs sigs f a
   prj :: Effs sigs m a -> Maybe (Eff sig m a)
 
-
-instance (Member' sig sigs (FindElem sig sigs)) => Member sig sigs where
-  inj = inj' (P :: P (FindElem sig sigs))
-  prj = prj' (P :: P (FindElem sig sigs))
+instance (Member' sig sigs (ElemIndex sig sigs)) => Member sig sigs where
+  inj = inj' (P :: P (ElemIndex sig sigs))
+  prj = prj' (P :: P (ElemIndex sig sigs))
 
 type family Members (xs :: [Signature]) (xys :: [Signature]) :: Constraint where
   Members '[] xys       = ()
@@ -987,6 +986,7 @@ instance HFunctor CutListT' where
   hmap h NilT       = NilT
   hmap h (x :<< xs) = x :<< fmap (hmap h) (h xs)
 
+-- TODO: Can we make it so that oeff is always a "Members"?
 onceCut :: Members [CutCall, CutFail, Or] oeff => Handler '[Once] '[] '[] oeff
 onceCut = interp onceCutAlg
 
