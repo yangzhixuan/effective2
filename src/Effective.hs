@@ -4,6 +4,12 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
+{-# HLINT ignore "Eta reduce" #-}
+{-# HLINT ignore "Redundant return" #-}
+{-# HLINT ignore "Redundant bracket" #-}
+{-# HLINT ignore "Fuse foldr/fmap" #-}
 
 module Effective where
 
@@ -102,20 +108,22 @@ instance (Member' sig sigs (FindElem sig sigs)) => Member sig sigs where
 
 type family Members (xs :: [Signature]) (xys :: [Signature]) :: Constraint where
   Members '[] xys       = ()
-  Members (x ': xs) xys = (Member x xys, Members xs xys)
+  Members (x ': xs) xys = (Member x xys, Members xs xys, Injects (x ': xs) xys)
 
-type Embed :: [Signature] -> [Signature] -> Constraint
-class Embed xs xys where
-  embed :: Effs xs f a -> Effs xys f a
+-- Injects xs ys means that all of xs is in xys
+-- Some other effects may be in xys, so xs <= ys
+type Injects :: [Signature] -> [Signature] -> Constraint
+class Injects xs xys where
+  injs :: Effs xs f a -> Effs xys f a
 
-instance Embed '[] xys where
-  embed :: Effs '[] f a -> Effs xys f a
-  embed = habsurd'
+instance Injects '[] xys where
+  injs :: Effs '[] f a -> Effs xys f a
+  injs = habsurd'
 
-instance (Member x (y ': xys), Embed xs (y ': xys)) => Embed (x ': xs) (y ': xys) where
-  embed (Eff x)  = inj x
-  embed (Effs x) = embed @xs @(y ': xys) x
-
+instance (Member x xys, Injects xs xys)
+  => Injects (x ': xs) xys where
+  injs (Eff x)  = inj x
+  injs (Effs x) = injs x
 
 class Append xs ys where
   heither :: (Effs xs h a -> b) -> (Effs ys h a -> b) -> (Effs (xs :++ ys) h a -> b)
@@ -201,8 +209,11 @@ fold falg gen (Return x) = gen x
 fold falg gen (Call op)  =
   falg ((fmap (fold falg gen) . hmap (fold falg gen)) op)
 
-injCall :: forall sub sup a . Member sub sup => Eff sub (Prog sup) (Prog sup a) -> Prog sup a
-injCall = Call . (inj  @sub @sup)
+injCall :: Member sub sup => Eff sub (Prog sup) (Prog sup a) -> Prog sup a
+injCall = Call . inj
+
+-- injCall :: forall sub sup a . (Functor sub, Injects '[sub] sup) => Eff sub (Prog sup) (Prog sup a) -> Prog sup a
+-- injCall = Call . (injs  @'[sub] @sup) . Eff
 
 prjCall :: Member sub sup => Prog sup a -> Maybe (Eff sub (Prog sup) (Prog sup a))
 prjCall (Call op) = prj op
@@ -267,7 +278,7 @@ type Fuse ::
 class Fuse eff12 oeff1 oeff2 eff1 eff2 ts1 ts2 fs1 fs2 where
   fuse 
     :: ( Append oeff1 eff12, Append oeff1 oeff2, Append eff1 eff2
-       , Embed eff12 eff2
+       , Injects eff12 eff2
        , All Functor (fs2 :++ fs1)
        , All MonadTrans (ts1 :++ ts2)
        , HExpose ts1
@@ -283,7 +294,7 @@ instance (forall m . Monad m => Monad (HComps ts2 m)) => Fuse eff12 oeff1 oeff2 
   fuse
     :: (forall (m :: Type -> Type). Monad m => Monad (HComps ts2 m),
       Append oeff1 eff12, Append oeff1 oeff2, Append eff1 eff2,
-      Embed eff12 eff2, All Functor (fs2 :++ fs1),
+      Injects eff12 eff2, All Functor (fs2 :++ fs1),
       All MonadTrans ('[] :++ ts2), HExpose '[], Expose fs2)
     => Handler eff1 '[] fs1 (oeff1 :++ eff12) -> Handler eff2 ts2 fs2 oeff2
     -> Handler (eff1 :++ eff2) ('[] :++ ts2) (fs2 :++ fs1) (oeff1 :++ oeff2)
@@ -296,7 +307,7 @@ instance (forall m . Monad m => Monad (HComps ts2 m)) => Fuse eff12 oeff1 oeff2 
         = fmap unexpose
         . run2 (oalg . hinr @oeff1 @oeff2)
         . run1 (heither @oeff1 @eff12 (mfwd2 (oalg . hinl @oeff1 @oeff2))
-                                      (malg2 (oalg . hinr @oeff1 @oeff2) . embed @eff12 @eff2))
+                                      (malg2 (oalg . hinr @oeff1 @oeff2) . injs @eff12 @eff2))
         . hexpose
 
       malg :: forall m sig . Monad m
@@ -306,7 +317,7 @@ instance (forall m . Monad m => Monad (HComps ts2 m)) => Fuse eff12 oeff1 oeff2 
         = hunexpose @'[]
         . heither @eff1 @eff2
             ( malg1 (heither @oeff1 @eff12 (mfwd2 (oalg . hinl @oeff1 @oeff2))
-                                           (malg2 (oalg . hinr @oeff1 @oeff2) . embed @eff12 @eff2)))
+                                           (malg2 (oalg . hinr @oeff1 @oeff2) . injs @eff12 @eff2)))
             ( mfwd1 (malg2 (oalg . hinr @oeff1 @oeff2)))
         . hmap (hexpose @'[])
 
@@ -322,7 +333,7 @@ instance (forall m . Monad m => Monad (HComps ts2 m)) => Fuse eff12 oeff1 oeff2 
 instance (forall m . Monad m => Monad (HComps ts2 m)) => Fuse eff12 oeff1 oeff2 eff1 eff2 (t1 ': ts1) ts2 fs1 fs2 where
   fuse :: (forall (m :: Type -> Type). Monad m => Monad (HComps ts2 m),
     Append oeff1 eff12, Append oeff1 oeff2, Append eff1 eff2,
-    Embed eff12 eff2, All Functor (fs2 :++ fs1),
+    Injects eff12 eff2, All Functor (fs2 :++ fs1),
     All MonadTrans ((t1 : ts1) :++ ts2), HExpose (t1 : ts1),
     Expose fs2) => Handler eff1 (t1 : ts1) fs1 (oeff1 :++ eff12)
       -> Handler eff2 ts2 fs2 oeff2
@@ -336,7 +347,7 @@ instance (forall m . Monad m => Monad (HComps ts2 m)) => Fuse eff12 oeff1 oeff2 
       = fmap unexpose
       . run2 (oalg . hinr @oeff1 @oeff2)
       . run1 (heither @oeff1 @eff12 (mfwd2 (oalg . hinl @oeff1 @oeff2))
-                                    (malg2 (oalg . hinr @oeff1 @oeff2) . embed @eff12 @eff2))
+                                    (malg2 (oalg . hinr @oeff1 @oeff2) . injs @eff12 @eff2))
       . hexpose
 
     malg :: forall m sig . Monad m
@@ -346,7 +357,7 @@ instance (forall m . Monad m => Monad (HComps ts2 m)) => Fuse eff12 oeff1 oeff2 
       = hunexpose @(t1 ': ts1)
       . heither @eff1 @eff2
           ( malg1 (heither @oeff1 @eff12 (mfwd2 (oalg . hinl @oeff1 @oeff2))
-                                         (malg2 (oalg . hinr @oeff1 @oeff2) . embed @eff12 @eff2)))
+                                         (malg2 (oalg . hinr @oeff1 @oeff2) . injs @eff12 @eff2)))
           ( mfwd1 (malg2 (oalg . hinr @oeff1 @oeff2)))
       . hmap (hexpose @(t1 ': ts1))
 
@@ -389,14 +400,14 @@ handle' (Handler run malg mfwd)
 -- The parameters sig and sig' should always be instantiated manually. Good luck.
 handleOne
   :: forall sig sig' eff oeffs ts fs a m
-  . ( Embed oeffs sig', Embed sig sig', Append eff sig
+  . ( Injects oeffs sig', Injects sig sig', Append eff sig
   , Monad (HComps ts (Prog sig')), Recompose fs)
   => Handler eff ts fs oeffs -> Prog (eff :++ sig) a -> Prog sig' (Composes fs a)
 handleOne (Handler run malg mfwd)
   = fmap recompose
-  . run (Call . embed . fmap return)
-  . eval (heither @eff @sig (malg @(Prog sig') (Call . embed . fmap return))
-                            (mfwd @(Prog sig') (Call . embed . fmap return)))
+  . run (Call . injs . fmap return)
+  . eval (heither @eff @sig (malg @(Prog sig') (Call . injs . fmap return))
+                            (mfwd @(Prog sig') (Call . injs . fmap return)))
 
 -----------------------------------------
 -- Example: Exceptions
@@ -410,9 +421,15 @@ data Catch k where
   Catch :: k -> k -> Catch k
   deriving Functor
 
+-- Either works:
+-- throw :: Members '[Throw] sig => Prog sig a
 throw :: Member Throw sig => Prog sig a
 throw = injCall (Alg Throw)
 
+-- also Members '[Catch] sig works
+-- catch :: Member Catch sig => Prog sig a -> Prog sig a -> Prog sig a
+-- catch p q = injCall (Scp (Catch (fmap return p) (fmap return q)))
+-- catch :: Injects '[Catch] sig => Prog sig a -> Prog sig a -> Prog sig a
 catch :: Member Catch sig => Prog sig a -> Prog sig a -> Prog sig a
 catch p q = injCall (Scp (Catch (fmap return p) (fmap return q)))
 
@@ -452,7 +469,7 @@ except = Handler
 -----------------------------------------
 
 monus 
-  :: Members [Throw, Catch] sig 
+  :: Members [Throw, Catch] sig
   => Int -> Int -> Prog sig Int
 monus x y = do if x < y then throw else return (x - y)
 
@@ -641,8 +658,6 @@ catchDecr' = do
 -- and a bit more ... and so on.
 exampleRetry1 :: (Int, Maybe ())
 exampleRetry1 = handle (retry <&> state 2) catchDecr'
-
-
 
 
 -----------------------------------------
@@ -892,6 +907,7 @@ notParse
   -> (text, [a])
 notParse cs p = handle (nondet <&> state cs) p
 
+exampleNotParse :: (String, [Int])
 exampleNotParse = notParse "2+3*5" expr
 -- ghci> exampleNotParse
 -- ("",[])
