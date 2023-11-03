@@ -19,7 +19,7 @@ source-repository head
 library
   default-language: GHC2021
   exposed-modules:
-    Effective
+    Control.Effect
     Data.Functor.Composes
     Data.HFunctor
     Data.HFunctor.HComposes
@@ -28,9 +28,8 @@ library
     src
   build-depends:
     base, mtl, transformers, ghc,
-    -- ghc-tcplugins-extra,
-    containers
-      , sop-core
+    containers,
+    sop-core
 
 test-suite doctests
   type:          exitcode-stdio-1.0

@@ -11,7 +11,7 @@
 {-# HLINT ignore "Redundant bracket" #-}
 {-# HLINT ignore "Fuse foldr/fmap" #-}
 
-module Effective where
+module Control.Effect where
 
 import Prelude hiding (or)
 
