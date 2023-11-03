@@ -65,9 +65,9 @@ habsurd' = error "habsurd!"
 
 data Nat = Z | S Nat
 
-type P :: Nat -> Type
-data P n = P
--- injecting/projecting at a specified position P n
+type SNat :: Nat -> Type
+data SNat n = SNat
+-- injecting/projecting at a specified position SNat n
 
 -- Find an index of an element in a `list'
 -- The element must exist
@@ -78,23 +78,23 @@ type family ElemIndex (x :: a) (xs :: [a]) :: Nat where
   ElemIndex x (_ ': xs) = S (ElemIndex x xs)
 
 class (Functor sig, HFunctor (Effs sigs)) => Member' sig sigs (n :: Nat) where
-  inj' :: P n -> Eff sig f a -> Effs sigs f a
-  prj' :: P n -> Effs sigs f a -> Maybe (Eff sig f a)
+  inj' :: SNat n -> Eff sig f a -> Effs sigs f a
+  prj' :: SNat n -> Effs sigs f a -> Maybe (Eff sig f a)
 
 
 instance (Functor sig, (sigs' ~ (sig ': sigs))) => Member' sig sigs' Z where
-  inj' :: (Functor sig, sigs' ~ (sig : sigs)) => P Z -> Eff sig f a -> Effs sigs' f a
+  inj' :: (Functor sig, sigs' ~ (sig : sigs)) => SNat Z -> Eff sig f a -> Effs sigs' f a
   inj' _ = Eff
 
-  prj' :: (Functor sig, sigs' ~ (sig : sigs)) => P Z -> Effs sigs' f a -> Maybe (Eff sig f a)
+  prj' :: (Functor sig, sigs' ~ (sig : sigs)) => SNat Z -> Effs sigs' f a -> Maybe (Eff sig f a)
   prj' _ (Eff x) = Just x
   prj' _ _        = Nothing
 
 instance (sigs' ~ (sig' ': sigs), Functor sig, Member' sig sigs n) => Member' sig sigs' (S n) where
-  inj' _ = Effs . inj' (P :: P n)
+  inj' _ = Effs . inj' (SNat :: SNat n)
 
   prj' _ (Eff _)  = Nothing
-  prj' _ (Effs x) = prj' (P :: P n) x
+  prj' _ (Effs x) = prj' (SNat :: SNat n) x
 
 type Member :: Signature -> [Signature] -> Constraint
 class (Member' sig sigs (ElemIndex sig sigs)) => Member sig sigs where
@@ -102,8 +102,8 @@ class (Member' sig sigs (ElemIndex sig sigs)) => Member sig sigs where
   prj :: Effs sigs m a -> Maybe (Eff sig m a)
 
 instance (Member' sig sigs (ElemIndex sig sigs)) => Member sig sigs where
-  inj = inj' (P :: P (ElemIndex sig sigs))
-  prj = prj' (P :: P (ElemIndex sig sigs))
+  inj = inj' (SNat :: SNat (ElemIndex sig sigs))
+  prj = prj' (SNat :: SNat (ElemIndex sig sigs))
 
 type family Members (xs :: [Signature]) (xys :: [Signature]) :: Constraint where
   Members '[] xys       = ()
