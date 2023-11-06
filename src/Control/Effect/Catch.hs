@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeFamilies #-}
+
 module Control.Effect.Catch where
 import Control.Effect
 

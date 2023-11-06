@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Control.Effect.State where
 import Control.Monad.Trans.Class (MonadTrans, lift)
