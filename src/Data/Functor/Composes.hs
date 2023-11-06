@@ -5,7 +5,7 @@ module Data.Functor.Composes where
 
 import Data.Kind ( Type )
 
-import Data.List.TypeLevel ( type (:++) )
+import Data.List.Kind ( type (:++) )
 
 ----------------------------------------------
 -- Composes is a non-injective type family because it has:
