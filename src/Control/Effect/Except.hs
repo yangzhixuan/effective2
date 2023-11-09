@@ -4,13 +4,14 @@
 
 module Control.Effect.Except where
 
-import Data.Functor.Composes
-import Data.HFunctor
-import Data.HFunctor.HComposes
+import Data.Functor.Composes ( comps )
+import Data.HFunctor ( HFunctor(hmap) )
+import Data.HFunctor.HComposes ( hdecomps, hcomps )
 
 import Control.Effect
-import Control.Effect.Throw
-import Control.Effect.Catch
+    ( Handler(Handler), Member(prj), Effs(..), Eff(Scp, Alg), handler )
+import Control.Effect.Throw ( Throw(..) )
+import Control.Effect.Catch ( Catch(..) )
 
 
 import Control.Monad.Trans.Maybe

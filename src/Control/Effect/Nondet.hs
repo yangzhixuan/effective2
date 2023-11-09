@@ -6,14 +6,14 @@ module Control.Effect.Nondet where
 
 import Prelude hiding (or)
 
-import Data.HFunctor
+import Data.HFunctor ( HFunctor(..) )
 import Data.List.Kind ( type (:++) )
 
 import Control.Effect
-import Control.Applicative
+import Control.Applicative ( Alternative(empty, (<|>)) )
 import Control.Monad ( join, ap, liftM, replicateM)
-import Control.Monad.Trans
-import Control.Arrow
+import Control.Monad.Trans ( MonadTrans(..) )
+import Control.Arrow ( Arrow(second) )
 
 
 data Stop a where

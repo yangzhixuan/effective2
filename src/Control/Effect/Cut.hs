@@ -4,12 +4,12 @@
 module Control.Effect.Cut where
 
 import Control.Effect
-import Control.Effect.Nondet
+import Control.Effect.Nondet ( Once(..), Or(..), Stop(..) )
 
-import Data.CutList
-import Data.HFunctor
-import Data.HFunctor.HComposes
-import Control.Applicative
+import Data.CutList ( CutListT(..), CutListT'(..), fromCutListT' )
+import Data.HFunctor ( HFunctor(..) )
+import Data.HFunctor.HComposes ( HComposes )
+import Control.Applicative ( Alternative((<|>), empty) )
 import Control.Monad ( join, ap, liftM, replicateM)
 import Control.Monad.Trans (lift)
 
