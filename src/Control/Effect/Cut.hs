@@ -11,7 +11,7 @@ import Data.HFunctor ( HFunctor(..) )
 import Data.HFunctor.HComposes ( HComposes )
 import Control.Applicative ( Alternative((<|>), empty) )
 import Control.Monad ( join, ap, liftM, replicateM)
-import Control.Monad.Trans (lift)
+import Control.Monad.Trans.Class (lift)
 
 {-
 Idea:

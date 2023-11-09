@@ -16,13 +16,13 @@ module Control.Effect where
 import Data.Kind ( Type, Constraint )
 
 import Data.List.Kind ( type (:++) )
+import Data.Functor.Identity
 import Data.Functor.Composes
 import Data.HFunctor
 import Data.HFunctor.HComposes
 
 import Control.Monad ( join, ap, liftM )
-import Control.Monad.Identity
-import Control.Monad.Trans
+import Control.Monad.Trans.Class
 
 import Data.SOP.Constraint ( All )
 

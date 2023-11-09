@@ -11,7 +11,7 @@ module Data.HFunctor.HComposes where
 import Data.Kind ( Type )
 import Data.HFunctor ( HFunctor(..) )
 import Data.List.Kind ( type (:++) )
-import Control.Monad.Trans ( MonadTrans )
+import Control.Monad.Trans.Class ( MonadTrans )
 
 import Data.SOP.Constraint ( All )
 

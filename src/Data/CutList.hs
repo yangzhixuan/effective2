@@ -2,7 +2,7 @@ module Data.CutList where
 
 import Control.Applicative ( Alternative((<|>), empty) )
 import Control.Monad ( ap, liftM )
-import Control.Monad.Trans ( MonadTrans(..) )
+import Control.Monad.Trans.Class ( MonadTrans(..) )
 
 data CutList a = a :< CutList a | Nil | Zero
   deriving Functor

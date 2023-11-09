@@ -12,7 +12,7 @@ import Data.List.Kind ( type (:++) )
 import Control.Effect
 import Control.Applicative ( Alternative(empty, (<|>)) )
 import Control.Monad ( join, ap, liftM, replicateM)
-import Control.Monad.Trans ( MonadTrans(..) )
+import Control.Monad.Trans.Class ( MonadTrans(..) )
 import Control.Arrow ( Arrow(second) )
 
 

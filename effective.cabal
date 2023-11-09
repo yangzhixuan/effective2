@@ -35,25 +35,27 @@ library
   hs-source-dirs:
     src
   build-depends:
-    base, mtl, transformers, ghc,
+    base, transformers, ghc,
     containers,
     sop-core
 
-test-suite doctests
+test-suite readme
   type:          exitcode-stdio-1.0
   ghc-options:   -threaded
-  main-is:       DocTest.hs
+  main-is:       README.lhs
   default-language: GHC2021
-  hs-source-dirs:  test, src
+  hs-source-dirs:  docs, src
   build-depends: base, doctest >= 0.8, markdown-unlit,
-    sop-core
+    sop-core, transformers
+  ghc-options:    -pgmL markdown-unlit
+
 
 test-suite examples
   type:          exitcode-stdio-1.0
   ghc-options:   -threaded
   main-is:       Main.hs
   hs-source-dirs: examples, src
-  build-depends: base, hedgehog, transformers, sop-core, mtl
+  build-depends: base, hedgehog, transformers, sop-core
   default-language: GHC2021
 
   other-modules:
