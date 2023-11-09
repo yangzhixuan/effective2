@@ -8,7 +8,6 @@ import Control.Effect
 import Control.Effect.Cut
 import Control.Effect.Nondet
 
-
 knapsack
   :: Members [Stop, Or] sig
   => Int -> [Int] -> Prog sig [Int]
@@ -39,12 +38,12 @@ exampleNondet3 = handle backtrack $ knapsack 3 [3, 2, 1]
 -- [[3],[2,1],[1,2],[1,1,1]]
 
 -- onceEx :: (Member Or sig, Member Once sig) => Prog sig Int
-onceEx :: Members [Or, Once] sig => Prog sig Int
-onceEx = do x <- once (or (return 0) (return 5))
-            or (return (x + 1)) (return (x + 2))
 
 exampleOnce :: [Int]
-exampleOnce = handle onceNondet onceEx
+exampleOnce = handle onceNondet p where
+  p :: Members [Or, Once] sig => Prog sig Int
+  p = do x <- once (or (return 0) (return 5))
+         or (return (x + 1)) (return (x + 2))
 -- ghci> exampleOnce
 -- [1,2]
 
