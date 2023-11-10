@@ -48,6 +48,13 @@ test-suite readme
   build-depends: base, doctest >= 0.8, markdown-unlit,
     sop-core, transformers
   ghc-options:    -pgmL markdown-unlit
+  other-modules:
+    Control.Effect
+    Control.Effect.State
+    Data.Functor.Composes
+    Data.HFunctor
+    Data.HFunctor.HComposes
+    Data.List.Kind
 
 
 test-suite examples
