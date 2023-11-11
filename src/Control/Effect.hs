@@ -251,13 +251,13 @@ handler runMonadT monadAlg monadFwd
 
 interp
   :: (forall m . Monad m
-    => (forall x . Effs oeffs m x -> m x)
-    -> (forall x . Effs effs m x -> m x))
+     => (forall x . Effs oeffs m x -> m x)
+     -> (forall x . Effs effs m x -> m x))
   -> Handler effs '[] '[] oeffs
-interp monadAlg
+interp alg
   = Handler
       (const (\(HNil x) -> fmap CNil x))
-      (\oalg -> HNil . monadAlg oalg . hmap (\(HNil x) -> x))
+      (\oalg -> HNil . alg oalg . hmap (\(HNil x) -> x))
       (\alg  -> HNil . alg . hmap (\(HNil x) -> x))
 
 type Fuse :: 
@@ -472,11 +472,18 @@ instance (forall m . Monad m => Monad (HComps ts2 m)) => Pipe eff12 oeff1 oeff2 
       . mfwd1 (mfwd2 alg)
       . hmap (hexpose @(t1 ': ts1))
 
+handleM :: forall m effs ts fs oeffs a .
+  (Monad m, Monad (HComps ts m), Recompose fs)
+  => (forall a. Effs oeffs m a -> m a)
+  -> Handler effs ts fs oeffs
+  -> Prog effs a -> m (Composes fs a)
+handleM oalg (Handler run malg mfwd)
+  = fmap recompose . run @m oalg . eval (malg @m oalg)
+
 handle :: (Monad (HComps ts Identity), Recompose fs)  =>
   Handler effs ts fs '[] -> Prog effs a -> Composes fs a
-handle (Handler run malg mfwd)
-  -- = runIdentity . run @Identity habsurd' . eval (malg @Identity habsurd')
-  = recompose . runIdentity . run @Identity habsurd' . eval (malg @Identity habsurd')
+handle h
+  = runIdentity . handleM habsurd' h
 
 handle'
   :: (Monad (HComps ts (Prog oeffs)), Recompose fs)
