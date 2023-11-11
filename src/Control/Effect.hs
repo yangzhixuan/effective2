@@ -376,6 +376,101 @@ instance (forall m . Monad m => Monad (HComps ts2 m)) => Fuse eff12 oeff1 oeff2 
   -> Handler (eff1 :++ eff2) (ts1 :++ ts2) (fs2 :++ fs1) '[]
 (<&>) = fuse @'[] @'[] @'[] @eff1 @eff2 @ts1 @ts2 @fs1 @fs2
 
+type Pipe :: 
+  [Signature] -> [Signature] -> [Signature] ->
+  [Signature] -> [Signature] ->
+  [(Type -> Type) -> (Type -> Type)] ->
+  [(Type -> Type) -> (Type -> Type)] ->
+  [Type -> Type] ->
+  [Type -> Type] -> Constraint
+class Pipe eff12 oeff1 oeff2 eff1 eff2 ts1 ts2 fs1 fs2 where
+  pipe 
+    :: ( Append oeff1 eff12, Append oeff1 oeff2, Append eff1 eff2
+       , Injects eff12 eff2
+       , All Functor (fs2 :++ fs1)
+       , All MonadTrans (ts1 :++ ts2)
+       , HExpose ts1
+       , Expose fs2
+       )
+    => Handler eff1 ts1 fs1 (oeff1 :++ eff12)
+    -> Handler eff2 ts2 fs2 oeff2
+    -> Handler eff1 (ts1 :++ ts2) (fs2 :++ fs1) (oeff1 :++ oeff2)
+
+instance (forall m . Monad m => Monad (HComps ts2 m)) => Pipe eff12 oeff1 oeff2 eff1 eff2 '[] ts2 fs1 fs2 where
+  pipe
+    :: (forall (m :: Type -> Type). Monad m => Monad (HComps ts2 m),
+      Append oeff1 eff12, Append oeff1 oeff2, Append eff1 eff2,
+      Injects eff12 eff2, All Functor (fs2 :++ fs1),
+      All MonadTrans ('[] :++ ts2), HExpose '[], Expose fs2)
+    => Handler eff1 '[] fs1 (oeff1 :++ eff12) -> Handler eff2 ts2 fs2 oeff2
+    -> Handler eff1 ('[] :++ ts2) (fs2 :++ fs1) (oeff1 :++ oeff2)
+  pipe (Handler run1 malg1 mfwd1) (Handler run2 malg2 mfwd2) =
+    Handler run malg mfwd where
+      run  :: forall m . Monad m
+        => (forall x . Effs (oeff1 :++ oeff2) m x -> m x)
+        -> (forall x . HComps ('[] :++ ts2) m x -> m (Comps (fs2 :++ fs1) x))
+      run oalg
+        = fmap unexpose
+        . run2 (oalg . hinr @oeff1 @oeff2)
+        . run1 (heither @oeff1 @eff12 (mfwd2 (oalg . hinl @oeff1 @oeff2))
+                                      (malg2 (oalg . hinr @oeff1 @oeff2) . injs @eff12 @eff2))
+        . hexpose
+
+      malg :: forall m sig . Monad m
+        => (forall x . Effs (oeff1 :++ oeff2) m x -> m x)
+        -> (forall x . Effs (eff1) (HComps ('[] :++ ts2) m) x -> HComps ('[] :++ ts2) m x)
+      malg oalg
+        = hunexpose @'[]
+        . (malg1 (heither @oeff1 @eff12 (mfwd2 (oalg . hinl @oeff1 @oeff2))
+                                        (malg2 (oalg . hinr @oeff1 @oeff2) . injs @eff12 @eff2)))
+        . hmap (hexpose @'[])
+
+      mfwd
+        :: forall m sig . Monad m
+        => (forall x. Effs sig m x -> m x)
+        -> forall x. Effs sig (HComps ts2 m) x -> HComps ts2 m x
+      mfwd alg
+        = hunexpose @'[]
+        . mfwd1 (mfwd2 alg)
+        . hmap (hexpose @'[])
+
+instance (forall m . Monad m => Monad (HComps ts2 m)) => Pipe eff12 oeff1 oeff2 eff1 eff2 (t1 ': ts1) ts2 fs1 fs2 where
+  pipe :: (forall (m :: Type -> Type). Monad m => Monad (HComps ts2 m),
+    Append oeff1 eff12, Append oeff1 oeff2, Append eff1 eff2,
+    Injects eff12 eff2, All Functor (fs2 :++ fs1),
+    All MonadTrans ((t1 : ts1) :++ ts2), HExpose (t1 : ts1),
+    Expose fs2) => Handler eff1 (t1 : ts1) fs1 (oeff1 :++ eff12)
+      -> Handler eff2 ts2 fs2 oeff2
+      -> Handler eff1 ((t1 : ts1) :++ ts2) (fs2 :++ fs1) (oeff1 :++ oeff2)
+  pipe (Handler run1 malg1 mfwd1) (Handler run2 malg2 mfwd2) =
+    Handler run malg mfwd where
+    run  :: forall m . Monad m
+      => (forall x . Effs (oeff1 :++ oeff2) m x -> m x)
+      -> (forall x . HComps ((t1 ': ts1) :++ ts2) m x -> m (Comps (fs2 :++ fs1) x))
+    run oalg
+      = fmap unexpose
+      . run2 (oalg . hinr @oeff1 @oeff2)
+      . run1 (heither @oeff1 @eff12 (mfwd2 (oalg . hinl @oeff1 @oeff2))
+                                    (malg2 (oalg . hinr @oeff1 @oeff2) . injs @eff12 @eff2))
+      . hexpose
+
+    malg :: forall m sig . Monad m
+      => (forall x . Effs (oeff1 :++ oeff2) m x -> m x)
+      -> (forall x . Effs eff1 (HComps ((t1 ': ts1) :++ ts2) m) x -> HComps ((t1 ': ts1) :++ ts2) m x)
+    malg oalg
+      = hunexpose @(t1 ': ts1)
+      . (malg1 (heither @oeff1 @eff12 (mfwd2 (oalg . hinl @oeff1 @oeff2))
+                                      (malg2 (oalg . hinr @oeff1 @oeff2) . injs @eff12 @eff2)))
+      . hmap (hexpose @(t1 ': ts1))
+
+    mfwd
+      :: forall m sig . Monad m
+      => (forall x. Effs sig m x -> m x)
+      -> forall x. Effs sig (HComps ((t1 ': ts1) :++ ts2) m) x -> HComps ((t1 ': ts1) :++ ts2) m x
+    mfwd alg
+      = hunexpose @(t1 ': ts1)
+      . mfwd1 (mfwd2 alg)
+      . hmap (hexpose @(t1 ': ts1))
 
 handle :: (Monad (HComps ts Identity), Recompose fs)  =>
   Handler effs ts fs '[] -> Prog effs a -> Composes fs a
