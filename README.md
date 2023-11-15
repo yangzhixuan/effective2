@@ -19,15 +19,14 @@ The `effective` library is imported via `Control.Effect`:
 import Control.Effect
 import Control.Effect.State
 import Control.Monad.Trans.State.Lazy (StateT)
-import Control.Monad
 
 import Prelude hiding (putStrLn, getLine)
 import qualified Prelude
 
 ```
-We will implement the `Teletype` and `FileSystem` example, due to
-[Swierstra](https://doi.org/10.1017/S0956796808006758),
-which demonstrates how to treat IO operations as a DSL.
+We will implement the `Teletype` example, a rite of passage for monadic IO
+[^Gordon1992].
+
 
 First, the operations that need to be simulated are
 implemented:
@@ -54,7 +53,7 @@ echo = do str <- getLine
             _  -> do putStrLn str
                      echo
 ```
-This program can be undrestood as an entirely syntactic representation of the
+This program can be understood as an entirely syntactic representation of the
 program. To execute it, it must be handled by an appropriate handler.
 
 The most obvious interpretation of `getLine` and `putLine` is to
@@ -75,24 +74,11 @@ algPutStrLn eff
       do Prelude.putStrLn str
          return k
 ```
-This algebra can be used to execute into the IO Monad using `handleM algIO`:
+This algebra can be used to execute into the IO Monad using `handleM' algIO`:
 
 ```haskell
-teletypeIO :: Handler [GetLine, PutStrLn] '[] '[] [GetLine, PutStrLn]
-teletypeIO = trivialH
-
-trivialH :: Handler eff '[] '[] eff
-trivialH = interp (\alg -> alg)
-
--- handleIO :: Handler effs0 ts0 fs0 [GetLine, PutStrLn]
---                                     -> Prog effs0 a0 -> IO (Data.Functor.Composes.Composes fs0 a0)
--- handleIO = handleM algIO
-
 exampleIO :: IO ()
-exampleIO = handleM algIO teletypeIO echo
-
-main :: IO ()
-main = exampleIO
+exampleIO = eval algIO echo
 ```
 Since forwarding to IO is a usual case, `effective` provides `handleIO`
 as a convenience function.
@@ -135,24 +121,28 @@ and extracting the resulting string:
 ```
 handle (getLinePure ["hello", "world"]) :: Prog '[GetLine] a -> ([String], a)
 ```
-
 This cannot be applied to the `echo` program, because the type of echo indicates
 that the program also uses the `PutStrLn` effect, which must also be handled.
-
-One way to deal with this is to fuse the `getLinePure` handler with `trivialH`,
-so that `PutStrLn` can be exposed:
-```haskell
-teletypeO
-  :: [String] 
-  -> Handler '[GetLine, PutStrLn]
-             '[StateT [String]]
-             '[(,) [String]] '[PutStrLn]
-teletypeO str = fuse @'[] @'[] @'[PutStrLn] (getLinePure str) (trivialH @'[PutStrLn])
+Trying to do so returns a type error:
 ```
-Now this can be handled with `handleM` to output to IO, while redirecting the input
-from a pure list:
+ghci> :t handle (getLinePure ["hello", "world"]) echo
+
+<interactive>:1:41: error: [GHC-83865]
+    • Couldn't match type: '[PutStrLn]
+                     with: '[]
+      Expected: Prog '[GetLine] ()
+        Actual: Prog [GetLine, PutStrLn] ()
+    • In the second argument of ‘handle’, namely ‘echo’
+      In the expression: handle (getLinePure ["hello", "world"]) echo
+```
+This is saying that GHC has no way to handle the `PutStrLn` effect
+using this handler.
+
+Now this can be handled with `handleM'` to output to IO, while redirecting the
+input to come from a pure list:
 ```haskell
-exampleO = handleM algPutStrLn (teletypeO ["hello", "world"]) echo
+exampleO :: IO ([String], ())
+exampleO = handleM' algPutStrLn (getLinePure ["hello", "world"]) echo
 ```
 This outputs:
 ```
@@ -162,12 +152,4 @@ world
 ([],())
 ```
 
-
-
-The following performs fusion, which is not exactly what we want here.
-```haskell
-huh :: [String] 
-    -> Handler '[GetLine, Put [String], Get [String], Local [String]] 
-               '[StateT [String]] '[(,) [String]] '[]
-huh str = fuse @'[Get [String], Put [String]] @'[] getLineState (state str)
-```
+[^Gordon1992]: A. Gordon. Functional Programming and Input/Output. PhD Thesis, King's College London. 1992
