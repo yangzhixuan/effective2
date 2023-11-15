@@ -37,11 +37,8 @@ exceptFwd alg (Eff (Alg x)) = lift (alg (Eff (Alg x)))
 exceptFwd alg (Eff (Scp x)) = MaybeT (alg (Eff (Scp (fmap runMaybeT x))))
 exceptFwd alg (Effs effs)   = exceptFwd (alg . Effs) effs
 
-except :: Handler [Throw, Catch] '[MaybeT] '[Maybe] oeff
-except = Handler
-  (const (fmap comps . runMaybeT . hdecomps))
-  (\oalg -> hcomps . exceptAlg oalg . hmap hdecomps)
-  (\alg  -> hcomps . exceptFwd alg . hmap hdecomps)
+except :: Handler [Throw, Catch] '[MaybeT] '[Maybe] '[]
+except = handler runMaybeT exceptAlg exceptFwd
 
 
 -- multiple semantics such as retry after handling is difficult in MTL
