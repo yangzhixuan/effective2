@@ -226,7 +226,7 @@ data Handler effs ts fs oeffs =
 
   , malg :: forall m . Monad m
          => (forall x . Effs oeffs m x -> m x)
-         -> (forall x . Effs effs (HComps ts m) x -> (HComps ts m) x)
+         -> (forall x . Effs effs (HComps ts m) x -> HComps ts m x)
 
   , mfwd :: forall m sig . Monad m
          => (forall x . Effs sig m x -> m x)
@@ -270,7 +270,6 @@ data Handler' effs ts fs oeffs =
           => (forall x . Effs sig m x -> m x)
           -> (forall x . Effs sig (HComps ts m) x -> HComps ts m x)
   }
-
 
 interp
   :: (forall m . Monad m
