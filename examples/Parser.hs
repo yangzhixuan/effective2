@@ -54,7 +54,7 @@ fact = or (int)
 parse
   :: text -> Prog [Put text, Get text, Local text, Stop, Or] a
   -> [(text, a)]
-parse p cs = handle (state cs <&> nondet) p
+parse cs p = handle (state cs <&> nondet) p
 
 exampleParse1 = parse "2+3*5" expr
 -- ghci> exampleParse
