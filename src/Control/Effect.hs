@@ -513,12 +513,23 @@ handleM :: forall m effs ts fs oeffs a .
 handleM oalg (Handler run malg mfwd)
   = fmap recompose . run @m oalg . eval (malg @m oalg)
 
+handleM' 
+  :: forall eff eff' fs ts m a 
+  .  (ts ~ ts :++ '[], Monad m, Append eff eff', All Functor fs
+     , All MonadTrans ts, Recompose fs
+     , Monad (HComps ts m)
+     , Fuse '[] '[] eff' eff eff' ts '[] fs '[], HExpose ts)
+  => (forall a . Effs eff' m a -> m a)
+  -> Handler eff ts fs '[]
+  -> Prog (eff :++ eff') a -> m (Composes fs a)
+handleM' alg h = handleM alg (weaken' h)
 
 weakenAlg
   :: forall eff eff' m x . (Injects eff (eff :++ eff'))
   => (Effs (eff :++ eff') m x -> m x)
   -> (Effs eff m x -> m x)
 weakenAlg alg = alg . injs
+
 
 
 
@@ -557,6 +568,15 @@ handleOne (Handler run malg mfwd)
   . eval (heither @eff @sig (malg @(Prog sig') (Call . injs . fmap return))
                             (mfwd @(Prog sig') (Call . injs . fmap return)))
 
+weaken'
+  :: forall ts fs eff eff' 
+  . ( ts :++ '[] ~ ts, Append eff eff', All Functor fs, All MonadTrans ts
+    , Fuse '[] '[] eff' eff eff' ts '[] fs '[]
+    , HExpose ts
+    )
+  => Handler eff ts fs '[] -- TODO: replace '[] with oeff, using the new machinery
+  -> Handler (eff :++ eff') ts fs eff'
+weaken' h = fuse @'[] @'[] @eff' @eff @eff' @ts @'[] @fs @'[] h (trivial @eff')
 
 weaken
   :: forall ts fs eff eff' oeff oeff'

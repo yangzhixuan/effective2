@@ -12,7 +12,6 @@ Various language extensions are useful when using the `effective` library:
 ```haskell
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE MonoLocalBinds #-}
-{-# LANGUAGE ImplicitParams #-}
 ```
 The `effective` library is imported via `Control.Effect`:
 ```haskell
@@ -25,8 +24,35 @@ import qualified Prelude
 
 ```
 We will implement the `Teletype` example, a rite of passage for monadic IO
-[^Gordon1992].
+[^Gordon1992] where the challenge is to show how IO of reading from and writing
+to the terminal can be achieved.
 
+A sample program that will use these operations is `echo`. This is a simple
+program that will continue to echo the input to the output until there is no
+more input received by `getLine`:
+```haskell
+echo :: Prog [GetLine, PutStrLn] ()
+echo = do str <- getLine
+          case str of
+            [] -> return ()
+            _  -> do putStrLn str
+                     echo
+```
+The type signature says that this is a program that requires
+both `GetLine` and `PutStrLn` operations.
+
+When all of the operations of a program are standard Prelude IO
+operations, it is enough to simply execute IO
+```haskell
+exampleIO :: IO ()
+exampleIO = evalIO echo
+
+evalIO :: Prog [GetLine, PutStrLn] a -> IO a
+evalIO = eval algIO
+```
+
+
+To execute this program, it must be handled by an appropriate handler.
 
 First, the operations that need to be simulated are
 implemented:
@@ -41,20 +67,6 @@ putStrLn :: Member PutStrLn sig => String -> Prog sig ()
 putStrLn str = injCall (Alg (PutStrLn str (return ())))
 ```
 
-Now a sample program that will use these operations.
-Here is a simple echo program that will continue
-to echo the input to the output until there is no
-more input received by `getLine`:
-```haskell
-echo :: Prog [GetLine, PutStrLn] ()
-echo = do str <- getLine
-          case str of
-            [] -> return ()
-            _  -> do putStrLn str
-                     echo
-```
-This program can be understood as an entirely syntactic representation of the
-program. To execute it, it must be handled by an appropriate handler.
 
 The most obvious interpretation of `getLine` and `putLine` is to
 invoke their corresponding values from the prelude.
@@ -76,10 +88,6 @@ algPutStrLn eff
 ```
 This algebra can be used to execute into the IO Monad using `handleM' algIO`:
 
-```haskell
-exampleIO :: IO ()
-exampleIO = eval algIO echo
-```
 Since forwarding to IO is a usual case, `effective` provides `handleIO`
 as a convenience function.
 ```haskell
