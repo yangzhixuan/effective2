@@ -1,201 +1,141 @@
 # Effective
 
-The `effective` library is an effect handlers library that is designed
-to allow users to define and interpret their own languages and
-effects.
+The `effective` library is an effect handlers library that is designed to allow
+users to define and interpret their own languages and effects.
+This library incorporates support for both algebraic and scoped effects,
+and is an implementation of the theory presented in [Modular Models of
+Monids with Operations](https://dl.acm.org/doi/10.1145/3607850) by Yang and Wu.
 
 ## Preamble
 
 Various language extensions are useful when using the `effective` library:
 ```haskell
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE MonoLocalBinds #-}
+{-# LANGUAGE ImplicitParams #-}
 ```
 The `effective` library is imported via `Control.Effect`:
 ```haskell
 import Control.Effect
+import Control.Effect.State
+import Control.Monad.Trans.State.Lazy (StateT)
+import Control.Monad
+
+import Prelude hiding (putStrLn, getLine)
+import qualified Prelude
+
 ```
+We will implement the `Teletype` and `FileSystem` example, due to
+[Swierstra](https://doi.org/10.1017/S0956796808006758),
+which demonstrates how to treat IO operations as a DSL.
 
-## Introduction
-
-Consider a language that can only perform addition.
+First, the operations that need to be simulated are
+implemented:
 ```haskell
-data Add k = Add k k deriving (Show, Functor)
-```
-Using the free monad, values of type `Free Add Var` represents
-a language with operations formed by from the `Add` syntax and
-variables from the type `Var`, which are `String` values for
-simplicity.
-```haskell
-type Var = String
-```
-In this setting, the expression `x + (y + z)` is represented by the
-following:
-```haskell ignore
-Op (Add (Var "x") (Op (Add (Var "y") (Var "z"))))
-```
-This is somewhat cumbersome notation, so instead a smart
-constructor is built that builds operations:
+data GetLine k  = GetLine (String -> k) deriving Functor
+data PutStrLn k = PutStrLn String k     deriving Functor
 
-```haskell
-add :: Add <: sig => Free sig a -> Free sig a -> Free sig a
-add x y = op (Add x y)
-```
-With this in place the following is much easier to write:
-```haskell
--- | >>> add (var "x") (add (var "y") (var "z")) :: Free Add Var
--- Op (Add (Var "x") (Op (Add (Var "y") (Var "z"))))
+getLine :: Member GetLine sig => Prog sig String
+getLine = injCall (Alg (GetLine return))
+
+putStrLn :: Member PutStrLn sig => String -> Prog sig ()
+putStrLn str = injCall (Alg (PutStrLn str (return ())))
 ```
 
-
-The semantics of a language with a signature `f` is given by providing
-an _algebra_, which is a function of type `f a -> a`, where `a` is the
-_carrier_ of the semantics.
-
-For simplicity, the syntax of `Add` will be interpreted into the type
-`Int`.
+Now a sample program that will use these operations.
+Here is a simple echo program that will continue
+to echo the input to the output until there is no
+more input received by `getLine`:
 ```haskell
-instance Alg Add Int where
-  alg (Add x y) = x + y
+echo :: Prog [GetLine, PutStrLn] ()
+echo = do str <- getLine
+          case str of
+            [] -> return ()
+            _  -> do putStrLn str
+                     echo
 ```
-In order to give a semantics to this expression, a suitable generator
-must be given. For the purposes of illustration `env :: Var -> Eval`
-is as follows:
-```haskell
-env :: Var -> Int
-env var = case var of {"x" -> 27 ; "y" -> 15; _ -> 0}
-```
-Evaluating with this environment is achieved by invoking `eval`:
-```haskell
--- | >>> eval env (add (var "x") (var "y") :: Free Add Var)
--- 42
-```
+This program can be undrestood as an entirely syntactic representation of the
+program. To execute it, it must be handled by an appropriate handler.
 
-# Modularity
-## Modular Operations
-
-Adding additional operations is achieved by composing functors. To add
-the ability to multiply numbers the appropriate functor is introduced:
+The most obvious interpretation of `getLine` and `putLine` is to
+invoke their corresponding values from the prelude.
 ```haskell
-data Mul k = Mul k k deriving (Show, Functor)
+algIO :: Effs [GetLine, PutStrLn] IO a -> IO a
+algIO eff
+  | Just (Alg (GetLine k))    <- prj eff =
+      do str <- Prelude.getLine
+         return (k str)
+  | Just (Alg (PutStrLn str k)) <- prj eff =
+      do Prelude.putStrLn str
+         return k
 
-mul :: Mul <: sig => Free sig a -> Free sig a -> Free sig a
-mul x y = op (Mul x y)
+algPutStrLn :: Effs '[PutStrLn] IO a -> IO a
+algPutStrLn eff
+  | Just (Alg (PutStrLn str k)) <- prj eff =
+      do Prelude.putStrLn str
+         return k
 ```
-The associated algebra must also be defined:
-```haskell
-instance Alg Mul Int where
-  alg (Mul x y) = x * y
-```
-
-Using `add` and `mul` together allows expressions with a flexible
-type:
+This algebra can be used to execute into the IO Monad using `handleM algIO`:
 
 ```haskell
--- | >>> add (var "x") (mul (var "y") (var "z")) :: Free (Add :+: Mul) Var
--- Op (L (Add (Var "x") (Op (R (Mul (Var "y") (Var "z"))))))
+teletypeIO :: Handler [GetLine, PutStrLn] '[] '[] [GetLine, PutStrLn]
+teletypeIO = trivialH
 
--- | >>> add (var "x") (mul (var "y") (var "z")) :: Free (Mul :+: Add) Var
--- Op (R (Add (Var "x") (Op (L (Mul (Var "y") (Var "z"))))))
+trivialH :: Handler eff '[] '[] eff
+trivialH = interp (\alg -> alg)
+
+-- handleIO :: Handler effs0 ts0 fs0 [GetLine, PutStrLn]
+--                                     -> Prog effs0 a0 -> IO (Data.Functor.Composes.Composes fs0 a0)
+-- handleIO = handleM algIO
+
+exampleIO :: IO ()
+exampleIO = handleM algIO teletypeIO echo
+
+main :: IO ()
+main = exampleIO
+```
+Since forwarding to IO is a usual case, `effective` provides `handleIO`
+as a convenience function.
+```haskell
+-- exampleIO' :: IO ()
+-- exampleIO' = handleIO echo
 ```
 
-The composition of algebras is handled automatically:
+The power of effects is in their ability to intercept and reinterpret operations.
+For instance, another way to implement `getLine` is in terms of
+putting and getting from a state containing a strings:
+
+Here, the |GetLine| effect is reinterpretted in terms of `put` and `get`.
 
 ```haskell
--- | >>> eval env (add (var "x") (mul (var "y") (var "z")) :: Free (Mul :+: Add) Var)
--- 27
-```
-
-## Modular Semantics
-
-Additional semantics can be given by simply creating new instances of
-the `Alg` class. As before, it is good practice to create a `newtype`
-that represents the carrier of interest.
-
-For instance, consider a carrier that counts the number of multiplications
-in an expression:
-
-```haskell
-newtype Muls = Muls Int deriving Show
-
-instance Alg Add Muls where
-  alg (Add (Muls x) (Muls y)) = Muls (x + y)
-
-instance Alg Mul Muls where
-  alg (Mul (Muls x) (Muls y)) = Muls (1 + x + y)
-```
-
-The generator required here initialises the counter for
-multiplications to `0`.
-```haskell
-muls :: Var -> Muls
-muls x = Muls 0
-```
-Changing the generator involved is enough to retrieve a different
-semantics:
-```haskell
--- | >>> eval muls (add (var "x") (mul (var "y") (var "z")) :: Free (Mul :+: Add) Var)
--- Muls 1
-```
-
-It is also possible to extract multiple semantics too:
-```haskell
--- | >>> eval (env /\ muls) (add (var "x") (mul (var "y") (var "z")) :: Free (Mul :+: Add) Var)
--- (27,Muls 1)
-```
-
-# Semantics
-
-## Evaluation Semantics
-
-A natural semantics can often be given to a fragment of syntax,
-and this is expressed using the `Eval` carrier.
-
-```haskell
-instance Alg Add (Eval Int) where
-  alg (Add (Eval x) (Eval y)) = Eval (x + y)
-instance Alg Mul (Eval Int) where
-  alg (Mul (Eval x) (Eval y)) = Eval (x * y)
+getLinePure :: forall oeff . Members '[Get [String], Put [String]] oeff => Handler '[GetLine] '[] '[] oeff
+getLinePure = reinterp malg where
+  malg :: forall x m . Effs '[GetLine] m x -> Prog oeff x
+  malg eff | Just (Alg (GetLine k)) <- prj eff =
+    do xss <- get
+       case xss of
+         []        -> return (k "")
+         (xs:xss') -> do put xss'
+                         return (k xs)
 ```
 
 ```haskell
--- | >>> eval (Eval . env) (add (var "x") (mul (var "y") (var "z")) :: Free (Mul :+: Add) Var)
--- Eval 27
+hih :: [String] -> Handler '[GetLine] '[StateT [String]] '[(,) [String]] oeff2
+hih str = pipe @'[Get [String], Put [String]] @'[] getLinePure (state str)
+
+hoh 
+  :: [String] 
+  -> Handler '[GetLine, PutStrLn]
+             '[StateT [String]]
+             '[(,) [String]] '[PutStrLn]
+hoh str = fuse @'[] @'[] @'[PutStrLn] (hih str) (trivialH @'[PutStrLn])
+
+exampleIO' = handleM algPutStrLn (hoh ["hello", "world"]) echo
 ```
-
-## Bound Variables
-
-Tracking bound variables can be achieved by the `Vars` carrier, which
-requires the signature functors to be foldable.
-
+The following performs fusion, which is not exactly what we want here.
 ```haskell
-deriving instance Foldable Mul
-deriving instance Foldable Add
-```
-
-When a functor has a foldable instance, a natural consequence is that
-the variables can be easily collected:
-
-```haskell
--- | >>> eval vars (add (var "x") (mul (var "y") (var "z")) :: Free (Mul :+: Add) Var)
--- Vars ["x","y","z"]
-```
-
-### Footnote
-
-For the curious, this `README` file is a literate Haskell file, and
-can be interpreted in `ghci` by supplying an argument that specifies
-how the liteerate file should be preprocessed:
-```
-ghci -pgmL markdown-unlit
-```
-This requires the `markdown-unlit` package to be installed.
-
-```haskell
-main = pure ()
+huh :: [String] 
+    -> Handler '[GetLine, Put [String], Get [String], Local [String]] 
+               '[StateT [String]] '[(,) [String]] '[]
+huh str = fuse @'[Get [String], Put [String]] @'[] getLinePure (state str)
 ```

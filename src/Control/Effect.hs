@@ -249,6 +249,29 @@ handler runMonadT monadAlg monadFwd
       (\oalg -> hcomps . monadAlg oalg . hmap hdecomps)
       (\alg  -> hcomps . monadFwd alg . hmap hdecomps)
 
+type Handler'
+  :: [Signature]                         -- effs  : input effects
+  -> [(Type -> Type) -> (Type -> Type)]  -- t     : monad transformer
+  -> [Type -> Type]                      -- f     : carrier type
+  -> [Signature]                         -- oeffs : output effects
+  -> Type
+data Handler' effs ts fs oeffs =
+  (All Functor fs, All MonadTrans ts) =>
+  Handler'
+  { run'  :: forall m . Monad m 
+          => (forall x . Effs oeffs m x -> m x)
+          -> (forall x . HComps ts m x -> m (Comps fs x))
+
+  , malg' :: forall m . Monad m
+          => (forall x . Effs oeffs m x -> m x)
+          -> (forall x . Effs effs (HComps ts m) x -> (HComps ts m) x)
+
+  , mfwd' :: forall m sig . Monad m
+          => (forall x . Effs sig m x -> m x)
+          -> (forall x . Effs sig (HComps ts m) x -> HComps ts m x)
+  }
+
+
 interp
   :: (forall m . Monad m
      => (forall x . Effs oeffs m x -> m x)
@@ -259,6 +282,16 @@ interp alg
       (const (\(HNil x) -> fmap CNil x))
       (\oalg -> HNil . alg oalg . hmap (\(HNil x) -> x))
       (\alg  -> HNil . alg . hmap (\(HNil x) -> x))
+
+reinterp :: forall effs oeffs 
+  . (forall x m . Effs effs m x -> Prog oeffs x)
+  -> Handler effs '[] '[] oeffs
+reinterp malg = interp alg where
+  alg :: forall m . (Monad m)
+    => (forall x . Effs oeffs m x -> m x)
+    -> (forall x . Effs effs m x -> m x)
+  alg oalg eff = eval oalg (malg eff)
+
 
 type Fuse :: 
   [Signature] -> [Signature] -> [Signature] ->
@@ -485,11 +518,23 @@ handle :: (Monad (HComps ts Identity), Recompose fs)  =>
 handle h
   = runIdentity . handleM habsurd' h
 
+-- handleIO :: (Monad (HComps ts Identity), Recompose fs)  =>
+--   Handler effs ts (IO ': fs) '[] -> Prog effs a -> Composes (IO ': fs) a
+-- handleIO (Handler run malg mfwd)
+--   = recompose . runIdentity . run @Identity habsurd' . eval (malg @Identity habsurd')
+
 handle'
   :: (Monad (HComps ts (Prog oeffs)), Recompose fs)
   => Handler effs ts fs oeffs -> Prog effs a -> Prog oeffs (Composes fs a)
 handle' (Handler run malg mfwd)
   = fmap recompose . run (Call . fmap return) . eval (malg (Call . fmap return))
+
+handleRun
+  :: (Monad (HComps ts (Prog oeffs)), Recompose fs)
+  => (forall x . Effs oeffs (Prog oeffs) x -> Prog oeffs x) 
+  -> Handler effs ts fs oeffs -> Prog effs a -> Prog oeffs (Composes fs a)
+handleRun final (Handler run malg mfwd)
+  = fmap recompose . run final . eval (malg final)
 
 -- The parameters sig and sig' should always be instantiated manually. Good luck.
 handleOne

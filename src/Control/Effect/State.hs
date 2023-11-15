@@ -3,7 +3,9 @@
 
 module Control.Effect.State where
 import Control.Monad.Trans.Class (MonadTrans, lift)
+import Control.Monad (join)
 import Data.Tuple (swap)
+
 
 import Control.Effect
 import Data.HFunctor ( HFunctor(..) )
@@ -23,8 +25,19 @@ data Local s x where
 
 type State s = '[Put s, Get s, Local s]
 
+put' :: (Member (Put s) sig, Monad m)
+  => (forall a . Effs sig m a -> m a)
+  -> s -> m ()
+put' oalg s = (join . oalg . inj) (Alg (Put s (return ())))
+
 put :: Member (Put s) sig => s -> Prog sig ()
-put s = injCall (Alg (Put s (return ())))
+-- put = put' (Call . fmap return)
+put s = (Call . inj) (Alg (Put s (return ())))
+
+get' :: (Member (Get s) sig, Monad m)
+  => (forall a . Effs sig m a -> m a)
+  -> m s
+get' oalg = (join . oalg . inj) (Alg (Get return))
 
 get :: Member (Get s) sig => Prog sig s
 get = injCall (Alg (Get return))
