@@ -102,14 +102,13 @@ as a convenience function.
 ```
 
 The power of effects is in their ability to intercept and reinterpret operations.
-For instance, another way to implement `getLine` is in terms of
-putting and getting from a state containing a strings:
-
-Here, the |GetLine| effect is reinterpretted in terms of `put` and `get`.
-
+For instance, another way to implement `getLine` is in terms of |put| and
+|get| from a state containing a list of strings:
 ```haskell
-getLinePure :: forall oeff . Members '[Get [String], Put [String]] oeff => Handler '[GetLine] '[] '[] oeff
-getLinePure = reinterp malg where
+getLineState
+  :: forall oeff . Members '[Get [String], Put [String]] oeff 
+  => Handler '[GetLine] '[] '[] oeff
+getLineState = reinterp malg where
   malg :: forall x m . Effs '[GetLine] m x -> Prog oeff x
   malg eff | Just (Alg (GetLine k)) <- prj eff =
     do xss <- get
@@ -119,23 +118,56 @@ getLinePure = reinterp malg where
                          return (k xs)
 ```
 
-```haskell
-hih :: [String] -> Handler '[GetLine] '[StateT [String]] '[(,) [String]] oeff2
-hih str = pipe @'[Get [String], Put [String]] @'[] getLinePure (state str)
+The operations |Get| and |Put| can themselves interpeted in multiple ways. The
+most standard is to use the `state` handler in `Effect.Control.State`:
+```
+state :: s -> Handler [Put s, Get s, Local s] '[S.StateT s] '[((,) s)] oeff
+```
+The output of the `getLineState` handler can be piped into the `state` handler
+to produce a new handler:
 
-hoh 
+```haskell
+getLinePure :: [String] -> Handler '[GetLine] '[StateT [String]] '[(,) [String]] oeff
+getLinePure str = pipe @'[Get [String], Put [String]] @'[] getLineState (state str)
+```
+Now we have a means of executing a program that contains only a |GetLine| effect,
+and extracting the resulting string:
+```
+handle (getLinePure ["hello", "world"]) :: Prog '[GetLine] a -> ([String], a)
+```
+
+This cannot be applied to the `echo` program, because the type of echo indicates
+that the program also uses the `PutStrLn` effect, which must also be handled.
+
+One way to deal with this is to fuse the `getLinePure` handler with `trivialH`,
+so that `PutStrLn` can be exposed:
+```haskell
+teletypeO
   :: [String] 
   -> Handler '[GetLine, PutStrLn]
              '[StateT [String]]
              '[(,) [String]] '[PutStrLn]
-hoh str = fuse @'[] @'[] @'[PutStrLn] (hih str) (trivialH @'[PutStrLn])
-
-exampleIO' = handleM algPutStrLn (hoh ["hello", "world"]) echo
+teletypeO str = fuse @'[] @'[] @'[PutStrLn] (getLinePure str) (trivialH @'[PutStrLn])
 ```
+Now this can be handled with `handleM` to output to IO, while redirecting the input
+from a pure list:
+```haskell
+exampleO = handleM algPutStrLn (teletypeO ["hello", "world"]) echo
+```
+This outputs:
+```
+ghci> exampleO
+hello
+world
+([],())
+```
+
+
+
 The following performs fusion, which is not exactly what we want here.
 ```haskell
 huh :: [String] 
     -> Handler '[GetLine, Put [String], Get [String], Local [String]] 
                '[StateT [String]] '[(,) [String]] '[]
-huh str = fuse @'[Get [String], Put [String]] @'[] getLinePure (state str)
+huh str = fuse @'[Get [String], Put [String]] @'[] getLineState (state str)
 ```
