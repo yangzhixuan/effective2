@@ -513,6 +513,15 @@ handleM :: forall m effs ts fs oeffs a .
 handleM oalg (Handler run malg mfwd)
   = fmap recompose . run @m oalg . eval (malg @m oalg)
 
+
+weakenAlg
+  :: forall eff eff' m x . (Injects eff (eff :++ eff'))
+  => (Effs (eff :++ eff') m x -> m x)
+  -> (Effs eff m x -> m x)
+weakenAlg alg = alg . injs
+
+
+
 handle :: (Monad (HComps ts Identity), Recompose fs)  =>
   Handler effs ts fs '[] -> Prog effs a -> Composes fs a
 handle h
@@ -548,3 +557,29 @@ handleOne (Handler run malg mfwd)
   . eval (heither @eff @sig (malg @(Prog sig') (Call . injs . fmap return))
                             (mfwd @(Prog sig') (Call . injs . fmap return)))
 
+
+weaken
+  :: forall ts fs eff eff' oeff oeff'
+  . ( ts :++ '[] ~ ts, Append eff eff', All Functor fs, All MonadTrans ts
+    , Append oeff oeff'
+    , Injects oeff (oeff :++ oeff')
+    , Injects eff (eff :++ eff')
+    )
+  => Handler (eff :++ eff') ts fs oeff
+  -> Handler eff ts fs (oeff :++ oeff')
+weaken (Handler run malg mfwd)
+  = Handler (\oalg -> run  (oalg . injs)) 
+            (\oalg -> malg (oalg . injs) . injs) 
+            mfwd
+
+(\/) 
+  :: forall effs1 effs2 ts fs oeffs 
+  . (Append effs1 effs2)
+  => Handler effs1 ts fs oeffs
+  -> Handler effs2 ts fs oeffs
+  -> Handler (effs1 :++ effs2) ts fs oeffs
+Handler run1 malg1 mfwd1 \/ Handler run2 malg2 mfwd2
+  = Handler run1 (\oalg -> heither (malg1 oalg) (malg2 oalg)) mfwd1 where
+ 
+trivial :: Handler eff '[] '[] eff
+trivial = interp id
