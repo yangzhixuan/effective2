@@ -314,7 +314,8 @@ class Fuse eff12 oeff1 oeff2 eff1 eff2 ts1 ts2 fs1 fs2 where
 
 -- If this were `Monad (HComposes ts2 m)` it would be illegal since
 -- type families cannot appear as instance heads. We get around this by using `HComps` instead.
-instance (forall m . Monad m => Monad (HComps ts2 m)) => Fuse eff12 oeff1 oeff2 eff1 eff2 '[] ts2 fs1 fs2 where
+instance (forall m . Monad m => Monad (HComps ts2 m)) 
+  => Fuse eff12 oeff1 oeff2 eff1 eff2 '[] ts2 fs1 fs2 where
   fuse
     :: (forall (m :: Type -> Type). Monad m => Monad (HComps ts2 m),
       Append oeff1 eff12, Append oeff1 oeff2, Append eff1 eff2,
