@@ -44,6 +44,11 @@ except = handler runMaybeT exceptAlg exceptFwd
 -- multiple semantics such as retry after handling is difficult in MTL
 -- without resorting to entirely different newtype wrapping through
 -- the whole program.
+--
+-- The result of `retryAlg` on `catch p q` is to first try `p`.
+-- If it fails, then `q` is executed as a recovering clause.
+-- If the recovery fails then the computation is failed overall.
+-- If the recovery succeeds, then `catch p q` is attempted again.
 -- TODO: joinAlg
 retryAlg :: Monad m
   => (forall x. Effs oeff m x -> m x)
@@ -61,12 +66,6 @@ retryAlg oalg eff
                                Nothing -> return Nothing
                                Just y  -> loop p q
                Just x  -> return (Just x)
-
--- retry :: Handler [Throw, Catch] '[MaybeT] '[Maybe] oeffs
--- retry = Handler
---   (const (fmap comps . runMaybeT . hdecomps))
---   (\oalg -> hcomps . retryAlg oalg . hmap hdecomps)
---   (\alg  -> hcomps . exceptFwd alg . hmap hdecomps)
 
 retry :: Handler [Throw, Catch] '[MaybeT] '[Maybe] oeffs
 retry = handler runMaybeT retryAlg exceptFwd
