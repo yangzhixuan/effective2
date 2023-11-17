@@ -9,6 +9,8 @@ import Data.Tuple (swap)
 
 import Control.Effect
 import Data.HFunctor ( HFunctor(..) )
+import Data.HFunctor.HComposes
+import Data.Functor.Composes
 import qualified Control.Monad.Trans.State.Lazy as S
 
 data Put s k where
@@ -73,4 +75,10 @@ stateFwd alg (Effs effs)   = stateFwd (alg . Effs) effs
 
 state :: s -> Handler [Put s, Get s, Local s] '[S.StateT s] '[((,) s)] oeff
 state s = handler (fmap swap . flip S.runStateT s) stateAlg stateFwd
+
+-- | The `state_` handler deals with stateful operations and silenty
+-- discards the final state.
+state_ :: s -> Handler [Put s, Get s, Local s] '[S.StateT s] '[] oeff
+state_ s = (state s)
+  { run = (\oalg -> fmap (CNil . fst) . flip S.runStateT s . hdecomps) }
 
