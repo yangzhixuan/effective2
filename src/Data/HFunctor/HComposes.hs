@@ -39,7 +39,7 @@ instance (MonadTrans t, Monad m, Monad (HComps ts m)) => Applicative (HComps (t 
   HCons mf <*> HCons mx = HCons (mf <*> mx)
 
 instance Monad m => Monad (HComps '[] m) where
-  (>>=) :: Monad m 
+  (>>=) :: Monad m
     => HComps '[] m a -> (a -> HComps '[] m b) -> HComps '[] m b
   HNil mx >>= f = HNil (mx >>= ((\(HNil x) -> x) . f))
 
@@ -47,7 +47,7 @@ instance (MonadTrans t, Monad m, Monad (HComps ts m)) => Monad (HComps (t ': ts)
   (>>=) :: (MonadTrans t, Monad m, Monad (HComps ts m))
     => HComps (t : ts) m a -> (a -> HComps (t : ts) m b) -> HComps (t : ts) m b
   HCons mx >>= f = HCons (mx >>= ((\(HCons x) -> x) . f))
- 
+
 hdecomps :: (HFunctor h, Functor f) => HComps '[h] f x -> h f x
 hdecomps (HCons x) = hmap (\(HNil y) -> y) x
 
@@ -65,9 +65,9 @@ instance HRecompose '[] f where
   hdecompose :: HComposes '[] f a -> HComps '[] f a
   hdecompose = HNil
 
-instance (All MonadTrans ts, Functor m, Functor (HComposes ts m), HRecompose ts m, HFunctor t) 
+instance (All MonadTrans ts, Functor m, Functor (HComposes ts m), HRecompose ts m, HFunctor t)
   => HRecompose (t ': ts) m where
-  hrecompose :: (All MonadTrans ts, Functor m, Functor (HComposes ts m), HRecompose ts m, HFunctor t) 
+  hrecompose :: (All MonadTrans ts, Functor m, Functor (HComposes ts m), HRecompose ts m, HFunctor t)
     => HComps (t : ts) m a -> HComposes (t : ts) m a
   hrecompose (HCons x) = hmap hrecompose x
 
@@ -86,7 +86,7 @@ instance HExpose '[] where
 
   hunexpose :: Monad m => HComps '[] (HComps ks m) a -> HComps ('[] :++ ks) m a
   hunexpose (HNil x)  = x
- 
+
 instance (HExpose hs , HFunctor h) => HExpose (h ': hs) where
   hexpose (HCons x) = HCons (hmap hexpose x)
   hunexpose (HCons x) = HCons (hmap hunexpose x)
