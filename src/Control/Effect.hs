@@ -15,13 +15,14 @@ module Control.Effect where
 
 import Data.Kind ( Type, Constraint )
 
-import Data.List.Kind ( type (:++) )
+import Data.List.Kind ( type (:++), Union )
 import Data.Functor.Identity
 import Data.Functor.Composes
 import Data.HFunctor
 import Data.HFunctor.HComposes
 
 import Control.Monad ( join, ap, liftM )
+import qualified Control.Monad.Graded as Graded
 import Control.Monad.Trans.Class
 
 import Data.SOP.Constraint ( All )
@@ -150,7 +151,7 @@ instance Append xs ys => Append (x ': xs) ys where
 
   hinl :: Effs (x : xs) f a -> Effs ((x : xs) :++ ys) f a
   hinl (Eff x)  = Eff x
-  hinl (Effs x) = Effs (hinl @xs @ys x) -- hinl @xs @ys _
+  hinl (Effs x) = Effs (hinl @xs @ys x)
 
   hinr :: Effs ys f a -> Effs ((x : xs) :++ ys) f a
   hinr = Effs . hinr @xs @ys
@@ -182,6 +183,30 @@ instance Applicative (Prog effs) where
 instance Monad (Prog effs) where
   Return x >>= f = f x
   Call op  >>= f = Call (fmap (>>= f) op)
+
+instance Graded.GradedMonad Prog where
+  type Unit Prog = '[] :: [Signature]
+  type Plus Prog effs effs' = Union effs effs'
+  type Inv Prog effs effs' =
+    ( Injects effs (Union effs effs')
+    , Injects effs' (Union effs effs'))
+
+  return = Return
+  (>>=) :: forall (i :: [Signature]) (j :: [Signature]) a b.
+           Graded.Inv Prog i j =>
+           Prog i a -> (a -> Prog j b) -> Prog (Graded.Plus Prog i j) b
+  (Return x)  >>= f = weakenProg (f x)
+  (Call op)   >>= f = Call ((hmap weakenProg . injs @i @(Union i j) . fmap (Graded.>>= f)) op)
+
+weakenProg :: forall effs effs' a
+  .  Injects effs effs'
+  => Prog effs a -> Prog effs' a
+weakenProg (Return x) = Return x
+weakenProg (Call op)   =
+    Call ( injs @effs @effs'
+         . hmap (weakenProg @effs @effs')
+         . fmap (weakenProg @effs @effs')
+         $ op )
 
 -- Universal property from initial monad `Prog sig a` equipped with
 -- `sig m -> m`
