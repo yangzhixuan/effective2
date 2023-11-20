@@ -15,7 +15,14 @@ type family Insert (x :: k) (ys :: [k]) where
   Insert x (x ': ys) = x ': ys
   Insert x (y ': ys) = y ': Insert x ys
 
+type family Delete (x :: k) (ys :: [k]) :: [k] where
+  Delete x '[]       = '[]
+  Delete x (x ': ys) = ys
+  Delete x (y ': ys) = y ': Delete x ys
+
+type family ((xs :: [k]) :\\ (ys :: [k]))  :: [k] where
+  xs :\\ '[]       = xs
+  xs :\\ (y ': ys) = (Delete y xs) :\\ ys
 
 type family Union (xs :: [k]) (ys :: [k]) :: [k] where
-  Union '[]       ys = ys
-  Union (x ': xs) ys = Insert x (Union xs ys)
+  Union xs ys = xs :++ (ys :\\ xs)
