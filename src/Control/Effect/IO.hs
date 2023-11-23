@@ -1,0 +1,58 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE MonoLocalBinds #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+
+module Control.Effect.IO where
+
+import Control.Effect
+import Data.List.Kind
+import Data.Functor.Composes
+import Data.HFunctor.HComposes
+import Data.SOP.Constraint
+import Control.Monad.Trans.Class
+
+data GetLine k  = GetLine (String -> k) deriving Functor
+
+getLine :: Members '[GetLine] sig => Prog sig String
+getLine = injCall (Alg (GetLine return))
+
+
+data PutStrLn k = PutStrLn String k     deriving Functor
+
+putStrLn :: Members '[PutStrLn] sig => String -> Prog sig ()
+putStrLn str = injCall (Alg (PutStrLn str (return ())))
+
+
+algIO :: Effs [GetLine, PutStrLn] IO a -> IO a
+algIO eff
+  | Just (Alg (GetLine k))    <- prj eff =
+      do str <- Prelude.getLine
+         return (k str)
+  | Just (Alg (PutStrLn str k)) <- prj eff =
+      do Prelude.putStrLn str
+         return k
+
+algPutStrLn :: Effs '[PutStrLn] IO a -> IO a
+algPutStrLn eff
+  | Just (Alg (PutStrLn str k)) <- prj eff =
+      do Prelude.putStrLn str
+         return k
+
+evalIO :: Prog [GetLine, PutStrLn] a -> IO a
+evalIO = eval algIO
+
+handleIO
+  :: forall ieffs oeffs ts fs a xeffs
+  .  ( Injects ieffs (ieffs :++ xeffs)
+     , Injects oeffs xeffs
+     , Injects (ieffs :++ xeffs) (ieffs :++ xeffs)
+     , Monad (HComps ts IO)
+     , Append ieffs xeffs
+     , Recompose fs
+     , xeffs ~ '[GetLine, PutStrLn]
+     )
+  => Handler ieffs ts fs oeffs
+  -> Prog (ieffs :++ xeffs) a -> IO (Composes fs a)
+handleIO = handleWith algIO
+
+
