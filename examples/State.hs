@@ -78,6 +78,29 @@ example_localState' = property $
   ===
     Just (1, ())
 
+example_decr = property $ do
+  n <- forAll $ Gen.int $ Range.linear (-1000) 1000
+  if n > 0
+    then handle (localState n) decr === Just (n - 1,())
+    else handle (localState n) decr === Nothing
+
+example_incrDecr = property $ do
+  n <- forAll $ Gen.int $ Range.linear (-1000) 1000
+  if n >= 0
+    then handle (localState n) (do incr; decr) === Just (n, ())
+    else handle (localState n) (do incr; decr) === Nothing
+
+example_decr' = property $ do
+  n <- forAll $ Gen.int $ Range.linear (-1000) 1000
+  if n > 0
+    then handle (globalState n) decr === (n - 1, Just ())
+    else handle (globalState n) decr === (n, Nothing)
+
+example_incrDecr' = property $ do
+  n <- forAll $ Gen.int $ Range.linear 0 1000
+  if n >= 0
+    then handle (globalState n) (do incr; decr) === (n, Just ())
+    else handle (globalState n) (do incr; decr) === (n+1, Nothing)
 
 catchDecr44 :: Members [Get Int, Put Int, Throw, Catch] sig => Prog sig ()
 catchDecr44 = do
