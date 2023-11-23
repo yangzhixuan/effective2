@@ -246,7 +246,7 @@ type Handler
 data Handler effs ts fs oeffs =
   (All Functor fs, All MonadTrans ts) =>
   Handler
-  { run  :: forall m . Monad m 
+  { run  :: forall m . Monad m
          => (forall x . Effs oeffs m x -> m x)
          -> (forall x . HComps ts m x -> m (Comps fs x))
 
@@ -261,16 +261,16 @@ data Handler effs ts fs oeffs =
 
 handler
   :: (MonadTrans t, HFunctor t, Functor f)
-  => (forall m a . Monad m => t m a -> m (f a)) 
-  -> (forall m . Monad m 
+  => (forall m a . Monad m => t m a -> m (f a))
+  -> (forall m . Monad m
     => (forall x . Effs oeffs m x -> m x)
     -> (forall x . Effs effs (t m) x -> t m x))
-  -> (forall m sigs . Monad m 
+  -> (forall m sigs . Monad m
     => (forall x . Effs sigs m x -> m x)
     -> (forall x . Effs sigs (t m) x -> t m x))
   -> Handler effs '[t] '[f] oeffs
 handler runMonadT monadAlg monadFwd
-  = Handler 
+  = Handler
       (const (fmap comps . runMonadT . hdecomps))
       (\oalg -> hcomps . monadAlg oalg . hmap hdecomps)
       (\alg  -> hcomps . monadFwd alg . hmap hdecomps)
