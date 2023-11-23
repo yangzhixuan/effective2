@@ -555,6 +555,24 @@ weakenAlg
   => (Effs (eff :++ eff') m x -> m x)
   -> (Effs eff m x -> m x)
 weakenAlg alg = alg . injs
+handleWith
+  :: forall ieffs oeffs xeffs m ts fs a
+  .  ( Monad m, Monad (HComps ts m)
+     , Recompose fs
+     , Append ieffs xeffs
+     , Injects oeffs xeffs
+     )
+  => (forall x. Effs xeffs m x -> m x)
+  -> Handler ieffs ts fs oeffs
+  -> Prog (ieffs :++ xeffs) a -> m (Composes fs a)
+handleWith xalg (Handler run malg mfwd) p
+  = fmap @m (recompose @fs @a)
+  . run @m (xalg . injs)
+  . eval (heither @ieffs @xeffs (malg (xalg . injs)) (mfwd xalg))
+  $ p'
+    where
+      p' :: Prog (ieffs :++ xeffs) a
+      p' = eval (Call . fmap (return @(Prog (ieffs :++ xeffs))))p
 
 
 
