@@ -28,21 +28,12 @@ example_incr = property $ do
   handle (state n) incr === (n+1,())
 
 -- decr :: Prog' '[Get Int, Put Int] ()
-decr :: Members [Get Int, Put Int] sig => Prog sig ()
+decr :: Members [Get Int, Put Int, Throw] sig => Prog sig ()
 decr = do
   x <- get
   if x > 0
     then put @Int (x - 1)
-    else return ()
-
-
-example_decr = property $ do
-  n <- forAll $ Gen.int $ Range.linear 1 1000
-  handle (state n) decr === (n- 1,())
-
-example_incrDecr = property $ do
-  n <- forAll $ Gen.int $ Range.linear 0 1000
-  (handle (state n) (do incr; decr) :: (Int, ())) === (n, ())
+    else throw
 
 catchDecr :: Members [Get Int, Put Int, Throw, Catch] sig => Prog sig ()
 catchDecr = do
