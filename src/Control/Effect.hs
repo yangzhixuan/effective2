@@ -165,6 +165,7 @@ instance Append xs ys => Append (x ': xs) ys where
   houtr (Effs x) = houtr @xs @ys x
 
 ---------------------------------------
+type Prog' sig a = forall sig' . Members sig sig' => Prog sig' a
 data Prog (sigs :: [Signature]) a where
   Return :: a -> Prog sigs a
   Call   :: (Effs sigs) (Prog sigs) (Prog sigs a) -> Prog sigs a
