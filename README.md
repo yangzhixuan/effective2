@@ -394,7 +394,7 @@ incr = do x <- get
 --   :: forall oeff . Members '[GetLine, Get Int, Put Int] oeff
 --   => Handler '[GetLine] '[] '[] oeff
 getLineIncr'
-  :: Handler' '[GetLine] '[] '[] [GetLine, Get Int, Put Int]
+  :: Handler '[GetLine] '[] '[] [GetLine, Get Int, Put Int]
 getLineIncr' = reinterp malg where
   -- malg :: forall x m . Effs '[GetLine] m x -> Prog [GetLine, Get Int, Put Int] x
   malg eff | Just (Alg (GetLine k)) <- prj eff =
