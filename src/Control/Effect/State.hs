@@ -27,26 +27,14 @@ data Local s x where
 
 type State s = '[Put s, Get s, Local s]
 
-put' :: (Member (Put s) sig, Monad m)
-  => (forall a . Effs sig m a -> m a)
-  -> s -> m ()
-put' oalg s = (join . oalg . inj) (Alg (Put s (return ())))
-
 put :: Member (Put s) sig => s -> Prog sig ()
--- put = put' (Call . fmap return)
 put s = (Call . inj) (Alg (Put s (return ())))
-
-get' :: (Member (Get s) sig, Monad m)
-  => (forall a . Effs sig m a -> m a)
-  -> m s
-get' oalg = (join . oalg . inj) (Alg (Get return))
 
 get :: Member (Get s) sig => Prog sig s
 get = injCall (Alg (Get return))
 
 local :: Member (Local s) sig => s -> Prog sig a -> Prog sig a
 local s p = injCall (Scp (Local s (fmap return p)))
-
 
 instance HFunctor (S.StateT s) where
   hmap h (S.StateT p) = S.StateT (\s -> h (p s))
@@ -73,12 +61,12 @@ stateFwd alg (Eff (Alg x)) = lift (alg (Eff (Alg x)))
 stateFwd alg (Eff (Scp x)) = S.StateT (\s -> (alg (Eff (Scp (fmap (flip S.runStateT s) x)))))
 stateFwd alg (Effs effs)   = stateFwd (alg . Effs) effs
 
-state :: s -> Handler [Put s, Get s, Local s] '[S.StateT s] '[((,) s)] oeff
+state :: s -> Handler [Put s, Get s, Local s] '[S.StateT s] '[((,) s)] '[]
 state s = handler (fmap swap . flip S.runStateT s) stateAlg stateFwd
 
 -- | The `state_` handler deals with stateful operations and silenty
 -- discards the final state.
-state_ :: s -> Handler [Put s, Get s, Local s] '[S.StateT s] '[] oeff
+state_ :: s -> Handler [Put s, Get s, Local s] '[S.StateT s] '[] '[]
 state_ s = (state s)
   { run = (\oalg -> fmap (CNil . fst) . flip S.runStateT s . hdecomps) }
 
