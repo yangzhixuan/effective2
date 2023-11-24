@@ -1,6 +1,11 @@
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE QualifiedDo #-}
 
 module Parser where
+
+import Hedgehog
+import Hedgehog.Internal.TH
 
 import Prelude hiding (or)
 
@@ -11,23 +16,32 @@ import Control.Effect.Cut
 import Control.Effect.Nondet
 import Control.Effect.State
 
+import qualified Control.Monad.Graded as Graded
 
-char :: Members [Get [Char], Put [Char], Stop, Or] sig => Prog sig Char
-char = do xxs <- get
-          case xxs of
-            []     -> stop
-            (x:xs) -> do put xs
-                         return x
+-- char :: Members [Get [Char], Put [Char], Stop, Or] sig => Prog sig Char
+-- char = do xxs <- get
+--           case xxs of
+--             []     -> stop
+--             (x:xs) -> do put xs
+--                          return x
+
+char :: Members '[Get [Char], Put [Char], Stop, Or] sig => Prog sig Char
+char = do
+  xxs <- get
+  case xxs of
+    []     -> stop
+    (x:xs) -> do put xs
+                 return x
 
 symbol :: Members [Get [Char], Put [Char], Stop, Or] sig => Char -> Prog sig Char
-symbol c = do c' <- char
-              if c == c'
-                then return c
-                else stop
+symbol c = do
+  c' <- char
+  if c == c'
+    then return c
+    else stop
 
 digit :: Members [Get [Char], Put [Char], Stop, Or] sig => Prog sig Char
 digit = foldr (<|>) stop (fmap symbol ['0' .. '9'])
-
 
 int, expr, term, fact :: Members [Get [Char], Put [Char], Stop, Or] sig => Prog sig Int
 int  = do ds <- some digit ; return (read ds)
@@ -49,6 +63,7 @@ fact = or (int)
 -- expr' = ((+) <$> term' <* symbol '+' <*> expr') <|> term'
 -- term' = ((*) <$> fact' <* symbol '*' <*> term') <|> fact'
 -- fact' = int <|> (symbol '(' *> expr' <* symbol ')')
+--
 
 -- A parser!
 parse
@@ -56,9 +71,10 @@ parse
   -> [(text, a)]
 parse cs p = handle (state cs <&> nondet) p
 
-exampleParse1 = parse "2+3*5" expr
--- ghci> exampleParse
--- [("",17),("*5",5),("+3*5",2)]
+example_Parse1 = property $
+    (parse "2+3*5" expr :: [(String, Int)])
+  ===
+    [("",17),("*5",5),("+3*5",2)]
 
 -- Not a parser!
 notParse
@@ -66,12 +82,10 @@ notParse
   -> (text, [a])
 notParse cs p = handle (nondet <&> state cs) p
 
-exampleNotParse :: (String, [Int])
-exampleNotParse = notParse "2+3*5" expr
--- ghci> exampleNotParse
--- ("",[])
-
-
+example_NotParse = property $
+    (notParse "2+3*5" expr :: (String, [Int]))
+  ===
+    ("",[])
 
 -- This example demonstrates the use of Cut
 expr', term', fact' :: forall sig .
@@ -90,6 +104,9 @@ fact' = or int
 parse' :: text -> Prog [Put text, Get text, Local text, Once, Stop, Or, CutFail, CutCall] a -> [(text, a)]
 parse' cs p  = handle (state cs <&> onceNondet) p
 
-exampleParse2 = parse' "2+3*5" expr'
--- ghci> exampleParse2
--- Compose [Identity ("",17)]
+example_Parse2 = property $
+    (parse' "2+3*5" expr' :: [(String, Int)])
+  === 
+    [("",17)]
+
+examples = $$(discoverPrefix "example_")
