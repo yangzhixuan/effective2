@@ -1,3 +1,4 @@
+```haskell
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE QualifiedDo #-}
@@ -72,3 +73,4 @@ example_Once''' = property $ handle onceNondet p === [1, 2] where
          or (return (x + 1)) (return (x + 2))
 
 examples = $$(discoverPrefix "example_")
+```haskell

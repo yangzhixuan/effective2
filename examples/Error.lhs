@@ -1,3 +1,4 @@
+```haskell
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DataKinds #-}
 
@@ -36,3 +37,4 @@ example_safeMonus = property $ do
     else handle except (safeMonus x y) === Just (x - y)
 
 examples = $$(discoverPrefix "example_")
+```

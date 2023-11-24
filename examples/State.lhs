@@ -1,3 +1,4 @@
+```haskell
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE QualifiedDo #-}
@@ -118,3 +119,4 @@ example_Retry1 = property $
     (42,Just ())
 
 examples = $$(discoverPrefix "example_")
+```haskell

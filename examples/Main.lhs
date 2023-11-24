@@ -1,3 +1,4 @@
+```haskell
 module Main where
 
 import Hedgehog
@@ -17,3 +18,4 @@ main = defaultMain $ fmap checkParallel
   , Parser.examples
   ]
 
+```haskell

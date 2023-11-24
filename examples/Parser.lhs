@@ -1,3 +1,4 @@
+```haskell
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE QualifiedDo #-}
@@ -110,3 +111,4 @@ example_Parse2 = property $
     [("",17)]
 
 examples = $$(discoverPrefix "example_")
+```haskell
