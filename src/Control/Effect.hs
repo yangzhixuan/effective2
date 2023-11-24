@@ -237,6 +237,9 @@ prjCall :: Member sub sup => Prog sup a -> Maybe (Eff sub (Prog sup) (Prog sup a
 prjCall (Call op) = prj op
 prjCall _         = Nothing
 
+progAlg :: Effs sig (Prog sig) a -> Prog sig a
+progAlg = Call . fmap return
+
 type Handler
   :: [Signature]                         -- effs  : input effects
   -> [(Type -> Type) -> (Type -> Type)]  -- t     : monad transformer
