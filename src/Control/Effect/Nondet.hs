@@ -7,7 +7,7 @@ module Control.Effect.Nondet where
 import Prelude hiding (or)
 
 import Data.HFunctor ( HFunctor(..) )
-import Data.List.Kind ( type (:++) )
+import Data.List.Kind ( type (:++), Union )
 
 import Control.Effect
 import Control.Applicative ( Alternative(empty, (<|>)) )
@@ -20,15 +20,16 @@ data Stop a where
   Stop :: Stop a
   deriving Functor
 
-stop :: forall sig a . Member Stop sig => Prog sig a
+stop :: Members '[Stop] sig => Prog sig a
 stop  = injCall (Alg Stop)
 
 data Or a where
   Or :: a -> a -> Or a
   deriving Functor
 
-or :: forall scp sig a . Member Or sig => Prog sig a -> Prog sig a -> Prog sig a
+or :: Members '[Or] sig => Prog sig a -> Prog sig a -> Prog sig a
 or x y = injCall (Alg (Or x y))
+
 
 instance (Members [Or, Stop] sig) => Alternative (Prog sig) where
   empty :: Members [Or, Stop] sig => Prog sig a
@@ -106,7 +107,8 @@ data Once a where
   Once :: a -> Once a
   deriving Functor
 
-once :: forall alg sig a . Member Once sig => Prog sig a -> Prog sig a
+once
+  :: Member Once sig => Prog sig a -> Prog sig a
 once p = injCall (Scp (Once (fmap return p)))
 
 -- Everything can be handled together. Here is the non-modular way
@@ -171,5 +173,5 @@ backtrackFwd alg (Eff (Alg x)) = lift (alg (Eff (Alg x)))
 backtrackFwd alg (Eff (Scp x)) = ListT (alg (Eff (Scp (fmap runListT x))))
 backtrackFwd alg (Effs effs)   = backtrackFwd (alg . Effs) effs
 
-backtrack :: Handler [Stop, Or, Once] '[ListT] '[[]] oeff
+backtrack :: Handler [Stop, Or, Once] '[ListT] '[[]] '[]
 backtrack = handler runListT' backtrackAlg' backtrackFwd

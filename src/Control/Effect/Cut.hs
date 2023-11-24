@@ -4,7 +4,8 @@
 module Control.Effect.Cut where
 
 import Control.Effect
-import Control.Effect.Nondet ( Once(..), Or(..), Stop(..) )
+import Control.Effect.Nondet
+import Prelude hiding (or)
 
 import Data.CutList ( CutListT(..), CutListT'(..), fromCutListT' )
 import Data.HFunctor ( HFunctor(..) )
@@ -32,10 +33,6 @@ data CutFail a where
   CutFail :: CutFail a
   deriving Functor
 
-
-cut :: (Members [Or, Stop, CutFail] sig) => Prog sig ()
-cut = skip <|> cutFail
-
 cutFail :: Member CutFail sig => Prog sig a
 cutFail = injCall (Alg CutFail)
 
@@ -43,8 +40,15 @@ data CutCall a where
   CutCall :: a -> CutCall a
   deriving Functor
 
+cut :: (Members [Or, CutFail] sig) => Prog sig ()
+cut = or skip cutFail
+
 cutCall :: Member CutCall sig => Prog sig a -> Prog sig a
-cutCall p = injCall (Scp (CutCall (fmap return p)))
+cutCall p = cutCall' progAlg p -- injCall (Scp (CutCall (fmap return p)))
+
+cutCall' :: (Monad m, Member CutCall sig)
+  => (forall a . Effs sig m a -> m a) -> m a -> m a
+cutCall' alg p = (alg . inj) (Scp (CutCall p))
 
 skip :: Monad m => m ()
 skip = return ()
@@ -85,33 +89,22 @@ instance HFunctor CutListT' where
   hmap h NilT       = NilT
   hmap h (x :<< xs) = x :<< fmap (hmap h) (h xs)
 
--- TODO: Can we make it so that oeff is always a "Members"?
 onceCut :: Members [CutCall, CutFail, Or] oeff => Handler '[Once] '[] '[] oeff
 onceCut = interp onceCutAlg
 
 onceCutAlg :: forall oeff m . (Monad m , Members [CutCall, CutFail, Or] oeff)
   => (forall x. Effs oeff m x -> m x)
-  -> (forall x. Effs '[Once] (HComposes '[] m) x -> HComposes '[] m x)
+  -> (forall x. Effs '[Once] m x -> m x)
 onceCutAlg oalg op
-  | Just (Scp (Once p)) <- prj op = cutCall' oalg' (do x <- p ; cut' oalg' ; return x)
-  where
-    oalg' :: forall a . Effs oeff m a -> m a
-    oalg' = oalg
-
-cut' :: (Monad m, Members [CutFail, Or] sig)
-  => (forall a . Effs sig m a -> m a) -> m ()
-cut' alg = (call' alg . inj) (Alg (Or (return ()) (cutFail' alg)))
-
-cutFail' :: (Monad m, Member CutFail sig)
-  => (forall a . Effs sig m a -> m a) -> m a
-cutFail' alg = (call' alg . inj) (Alg CutFail)
-
-cutCall' :: (Monad m, Member CutCall sig)
-  => (forall a . Effs sig m a -> m a) -> m a -> m a
-cutCall' alg p = (alg . inj) (Scp (CutCall p))
-
-call' :: Monad m => (forall a . sig m a -> m a) -> (sig m (m a) -> m a)
-call' alg x = join (alg x)
+  | Just (Scp (Once p)) <- prj op
+  = cutCall' oalg (do x <- p
+                      eval oalg (do cut
+                                    return x))
 
 onceNondet :: Handler [Once, Stop, Or, CutFail, CutCall] '[CutListT] '[[]] '[]
 onceNondet = fuse @'[CutCall, CutFail, Or] @'[] onceCut cutList
+
+
+
+
+
