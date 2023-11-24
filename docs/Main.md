@@ -9,6 +9,7 @@ import qualified Error
 import qualified Nondet
 import qualified State
 import qualified Parser
+import qualified Graded
 
 main :: IO ()
 main = defaultMain $ fmap checkParallel
@@ -17,5 +18,4 @@ main = defaultMain $ fmap checkParallel
   , State.examples
   , Parser.examples
   ]
-
-```haskell
+```

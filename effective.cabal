@@ -63,17 +63,11 @@ test-suite readme
     Data.List.Kind
 
 
-test-suite examples
+test-suite docs
   type:          exitcode-stdio-1.0
   ghc-options:   -threaded -pgmL markdown-unlit
   main-is:       Main.lhs
-  hs-source-dirs: examples
+  hs-source-dirs: docs
   build-depends: base, doctest, transformers, sop-core, effective, hedgehog, markdown-unlit
   build-tool-depends: markdown-unlit:markdown-unlit>=0.6
   default-language: GHC2021
-
-  other-modules:
-    Error
-    Nondet
-    Parser
-    State
