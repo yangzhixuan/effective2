@@ -4,7 +4,9 @@ The `effective` library is an effect handlers library that is designed to allow
 users to define and interpret their own languages and effects.
 This library incorporates support for both algebraic and scoped effects,
 and is an implementation of the theory presented in [Modular Models of
-Monoids with Operations](https://dl.acm.org/doi/10.1145/3607850) by Yang and Wu.
+Monoids with Operations](https://dl.acm.org/doi/10.1145/3607850) by Yang and Wu,
+as well as [Effect Handlers in Scope](https://dl.acm.org/doi/10.1145/2633357.2633358)
+by Wu, Schrijvers, and Hinze.
 
 This README is a literate Haskell file and therefore can be executed. You can interact
 its contents with `cabal repl readme` and follow the examples.
@@ -456,21 +458,18 @@ catch p q = injCall (Scp (Catch (fmap return (weakenProg p))
 Language Extensions
 --------------------
 
-The `effective` library is best served with a few language extensions:
+The `effective` library requires the `DataKinds` extenion since
+this is used to keep track of effect signatures.
+
+```haskell top
+{-# LANGUAGE DataKinds #-}    -- Used for the list of effects
+```
 
 
 Imports
 -------
 
 This file has a number of imports:
-
-
-[^Gordon1992]: A. Gordon. Functional Programming and Input/Output. PhD Thesis, King's College London. 1992
-
-```haskell top
-{-# LANGUAGE DataKinds #-}    -- Used for the list of effects
-{-# LANGUAGE QualifiedDo #-}  -- For the bottom-up graded effects
-```
 
 ```haskell top
 import Control.Effect
@@ -479,16 +478,15 @@ import Control.Effect.Writer
 import Control.Effect.IO
 import Control.Monad.Trans.State.Lazy (StateT)
 
-import Data.List.Kind
-import Data.Functor.Composes
-import Data.HFunctor.HComposes
-import Data.SOP.Constraint
-import Control.Monad.Trans.Class
-
-import qualified Control.Monad.Graded as G
-
 import Prelude hiding (putStrLn, getLine)
-import qualified Prelude
 
 main = return ()
 ```
+
+References
+-----------
+
+* [Effect Handlers in Scope. N. Wu, T. Schrijvers, R. Hinze. Haskell Symposium. 2014](https://dl.acm.org/doi/10.1145/2633357.2633358)
+* [Modular Models of Monoids with Operations. Z. Yang, N. Wu. ICFP. 2023](https://dl.acm.org/doi/10.1145/3607850)
+
+[^Gordon1992]: A. Gordon. Functional Programming and Input/Output. PhD Thesis, King's College London. 1992
