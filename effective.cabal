@@ -1,16 +1,22 @@
+cabal-version:       3.0
 name:                effective
 version:             0.1.0.0
 synopsis:            Effect handlers
 description:         Effect handlers
-license:             BSD3
+license:             BSD-3-Clause
 license-file:        LICENSE
 author:              Nicolas Wu
 maintainer:          nicolas.wu@gmail.com
 -- copyright:
 category:            Control
-build-type:          Simple
-extra-source-files:  ChangeLog.md
-cabal-version:       >=1.10
+build-type:          Custom
+extra-source-files:
+    docs/*.md
+
+custom-setup
+  setup-depends:
+    base,
+    Cabal >= 3.8.1.0
 
 source-repository head
   type: git
@@ -34,7 +40,6 @@ library
     Data.HFunctor.HComposes
     Data.CutList
     Data.List.Kind
-
   hs-source-dirs:
     src
   build-depends:
@@ -42,32 +47,26 @@ library
     containers,
     sop-core
 
-test-suite readme
-  type:          exitcode-stdio-1.0
-  ghc-options:   -threaded -pgmL markdown-unlit
-  main-is:       README.lhs
-  default-language: GHC2021
-  hs-source-dirs:  docs, src
-  build-depends: base, markdown-unlit,
-    sop-core, transformers, effective
-  build-tool-depends: markdown-unlit:markdown-unlit>=0.6
-  other-modules:
-    Control.Effect
-    Control.Effect.IO
-    Control.Effect.State
-    Control.Effect.Writer
-    Control.Monad.Graded
-    Data.Functor.Composes
-    Data.HFunctor
-    Data.HFunctor.HComposes
-    Data.List.Kind
-
-
 test-suite docs
   type:          exitcode-stdio-1.0
-  ghc-options:   -threaded -pgmL markdown-unlit
-  main-is:       Main.lhs
+  build-depends: base, transformers, sop-core, effective, hedgehog
+  main-is:       Main.hs
+  ghc-options:   -threaded
   hs-source-dirs: docs
-  build-depends: base, doctest, transformers, sop-core, effective, hedgehog, markdown-unlit
   build-tool-depends: markdown-unlit:markdown-unlit>=0.6
   default-language: GHC2021
+  other-modules:
+    Error,
+    Graded,
+    Nondet,
+    Parser,
+    State
+
+test-suite readme
+  type:          exitcode-stdio-1.0
+  ghc-options:   -threaded
+  main-is:       README.hs
+  default-language: GHC2021
+  hs-source-dirs:  .
+  build-depends: base, sop-core, transformers, effective
+  build-tool-depends: markdown-unlit:markdown-unlit>=0.6
