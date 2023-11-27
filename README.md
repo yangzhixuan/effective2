@@ -93,9 +93,15 @@ thus giving back `(Int, ())`.
 
 The type of the `state` handler promises to handle both `Put s` and `Get s`
 operations, and so it is able to work with programs that use both, or
-either one of these:
+either one of these. Here is a program that only uses `Get String`:
+```haskell
+getStringLength :: Prog' '[Get String] Int
+getStringLength = do xs <- get @String
+                     return (length xs)
+```
+It can be handled using `state`:
 ```haskell ignore
-ghci> handle (state "Hello!") (do xs <- get @String; return (length xs))
+ghci> handle (state "Hello!") getStringLEngth
 ("Hello!",6)
 ```
 Notice that the `state` handler returns the final state as well as the final
@@ -130,26 +136,14 @@ ghci> handle (state "Hello") echo
 This is essentially saying that `GetLine` is not supported by the state
 handler.
 
-Intercepting Effects
-----------------------
 
-Suppose the task is to get a line and return its length as a pure value. 
-This is achieved by the  `getLineLength` program:
-```haskell
-getLineLength :: Prog' '[GetLine] Int
-getLineLength = do xs <- getLine
-                   return (length xs)
-```
-As before, this can be evaluated using `evalIO`:
-```haskell ignore
-ghci> evalIO getLineLength
-Hello
-5
-```
+Forwarding Effects
+-------------------
 
-Now suppose that the task is to count the number of times `getLine` is called.
-One approach is to change the `echo` program, and write something like
-`echoCount`, where an `incr` has been added after each `getLine`:
+Now suppose that the task is to count the number of times `getLine` is called
+when the `echo` program is executed. One approach is to change the `echo`
+program, and write something like `echoCount`, where an `incr` has been added
+after each `getLine`:
 ```haskell
 echoCount :: Members [GetLine, Get Int, Put Int, PutStrLn] sig => Prog sig ()
 echoCount =
@@ -176,29 +170,30 @@ world!
 
 (3,())
 ```
-This program does the job but it is rather crude: asking developers to
-add `incr` after every `getLine` is only asking for trouble. One
-alternative would be to define a variation of `getLine` that
-incorporates `incr`, but that is hardly better.
-
-Better would be to allow a different interpretation of `getLine` that
-automatically increments a variable: then the `echo` program could
-remain exactly the same.
-
-
-
-
-Working with IO and State
--------------------------
+This demonstrates how unhandled effects that are recognised by I/O can be
+forwarded and dealt with after the execution of the handler.
 
 
 Intercepting Operations
 -----------------------
 
-The power of effects is in their ability to intercept and reinterpret
-operations.
-Here is how to write a handler that intercepts a `getLine` operation,
-only to perform it again while also incrementing a counter in the state:
+Forwarding effects to I/O works in many situations, but sometimes it is rather
+crude: the power of effects is in their ability to intercept and reinterpret
+operations. 
+
+Suppose the task is now to count all instances of `getLine` in the
+entire program. Adding `incr` after every `getLine` may require a large
+refactor, and remembering to add `incr` in all future calls of `getLine` is a
+burden. An alternative would be to define a variation of `getLine` that
+incorporates `incr`, but that is not necessarily better.
+
+Better would be to allow a different interpretation of `getLine` that
+automatically increments a variable: then the `echo` program could
+remain exactly the same. To do this, the `getLine` operation must 
+be intercepted.
+
+Here is how to write a handler that intercepts a `getLine` operation, only to
+emit it again while also incrementing a counter in the state:
 ```haskell
 getLineIncr
   :: forall sig . Members '[GetLine, Get Int, Put Int] sig => Handler '[GetLine] '[] '[] sig
@@ -217,16 +212,43 @@ be achieved with a `pipe`:
 ```haskell
 getLineIncrState :: Handler '[GetLine] '[StateT Int] '[(,) Int] '[GetLine]
 getLineIncrState
-  = pipe @'[Get Int, Put Int] @'[GetLine]
-      getLineIncr
-      (state (0 :: Int))
+  = pipe @'[Get Int, Put Int] @'[GetLine] getLineIncr (state (0 :: Int))
 ```
+This can then be executed using `handleIO`, which will deal with 
+the residual `GetLine` effect:
+```haskell ignore
+ghci> handleIO getLineIncrState echo
+Hello
+Hello
+world!
+world!
 
-For another example, it might be useful to test the `getLineLength` program
-without having to supply input from the terminal, but rather, directly from a
-list of strings supplied by state. Here is how `getLine` can be interpreted in
-terms of the operations `get` and `put` from a state containing a list
-of strings:
+(3,())
+```
+The `getLineIncrState` has intercepted the `getLine` operation and
+incremented the state counter on each execution.
+
+
+Redirecting Input
+-----------------
+
+Another issue is trying to test the behaviour of a program that demands input
+from the terminal. For instance, suppose the task is to get a line and return
+its length. This is achieved by the `getLineLength` program:
+```haskell
+getLineLength :: Prog' '[GetLine] Int
+getLineLength = do xs <- getLine
+                   return (length xs)
+```
+As before, this can be evaluated using `evalIO`:
+```haskell ignore
+ghci> evalIO getLineLength
+Hello
+5
+```
+Better would be to provide those lines purely from a pure
+list of strings. Here is how `getLine` can be interpreted in terms of the
+operations `get` and `put` from a state containing a list of strings:
 ```haskell
 getLineState
   :: forall sig . Members [Get [String], Put [String]] sig 
@@ -252,11 +274,11 @@ effects. These can be handled by a state handler. The output of the
 `getLineState` handler can be piped into the `state` handler to produce
 a new handler. Here are two variations:
 ```haskell
-getLinePure_ :: [String] -> Handler '[GetLine] '[StateT [String]] '[] '[]
-getLinePure_ str = pipe @'[Get [String], Put [String]] @'[] getLineState (state_ str)
-
 getLinePure :: [String] -> Handler '[GetLine] '[StateT [String]] '[(,) [String]] '[]
 getLinePure str = pipe @'[Get [String], Put [String]] @'[] getLineState (state str)
+
+getLinePure_ :: [String] -> Handler '[GetLine] '[StateT [String]] '[] '[]
+getLinePure_ str = pipe @'[Get [String], Put [String]] @'[] getLineState (state_ str)
 ```
 Now we have a means of executing a program that contains only a |GetLine| effect,
 and extracting the resulting string:
@@ -264,59 +286,96 @@ and extracting the resulting string:
 handle (getLinePure ["hello", "world!"]) :: Prog '[GetLine] a -> ([String], a)
 ```
 Executing this will get the first line in the list of strings and return its length,
-and the same program can be executed either processed with IO, o
+and the same program can be executed either processed with IO.
 ```haskell ignore
-ghci> handle (getLinePure ["Hello", "world!"]) (do xs <- getLine; return (length xs))
+ghci> handle (getLinePure ["Hello", "world!"]) getLineLength
 (["world!"],5)
 ```
+This consumes `"Hello"` as the result of `getLine`, and so the state retains
+`"world!"`.
 
 
-This cannot be applied to the `echo` program, because the type of echo indicates
-that the program also uses the `PutStrLn` effect, which must also be handled.
+Redirecting Output
+------------------
+
+Although the input of `echo` can be redirected using `getLinePure`, using this
+alone would not suffice, because the type of echo indicates that the program
+also uses the `PutStrLn` effect, which must also be handled.
 Trying to do so returns a type error:
 ```
 ghci> :t handle (getLinePure ["hello", "world"]) echo
 
-<interactive>:1:41: error: [GHC-83865]
-    • Couldn't match type: '[PutStrLn]
-                     with: '[]
-      Expected: Prog '[GetLine] ()
-        Actual: Prog [GetLine, PutStrLn] ()
+<interactive>:8:42: error: [GHC-39999]
+    • No instance for ‘Member' PutStrLn '[] (ElemIndex PutStrLn '[])’
+        arising from a use of ‘echo’
     • In the second argument of ‘handle’, namely ‘echo’
-      In the expression: handle (getLinePure ["hello", "world"]) echo
+      In the expression: handle (getLinePure ["Hello", "world!"]) echo
+      In an equation for ‘it’:
+          it = handle (getLinePure ["Hello", "world!"]) echo
 ```
-This is saying that GHC has no way to handle the `PutStrLn` effect
-using this handler.
+This is saying that GHC has no way to handle the `PutStrLn` effect using this
+handler.
 
-However, this can be handled with `handleIO` to output to IO, while redirecting the input to come from a pure list:
-```haskell
-exampleO :: IO ()
-exampleO = handleIO (getLinePure_ ["hello", "world"]) echo
-
-exampleO' :: IO Int
-exampleO' = handleIO (getLinePure_ ["hello", "world!"]) getLineLength'
-
-getLineLength' :: Prog' '[GetLine] Int
-getLineLength' = do xs <- getLine
-                    return (length xs)
-```
-This outputs:
-```
-ghci> exampleO
-hello
+One fix is to handle the program with `handleIO` to output to IO, while
+redirecting the input to come from a pure list:
+```haskell ignore
+ghci> handleIO (getLinePure_ ["Hello", "world!"]) echo
+Hello
 world
 ```
+However, there is another solution: the `putStrLn` operation can also be
+redirected to do something pure.
 
+Outputting pure values is managed by the `writer` handler, in combination
+with the `tell` operation.
+```haskell ignore
+writer :: Monoid w => Handler '[Tell w] '[WriterT w] '[(,) w] '[] 
+tell   :: (Member (Tell w) effs, Monoid w) => w -> Prog effs ()
+```
+The following simple example returns a list of strings, since a list of
+elements is a monoid:
+```haskell ignore
+ghci> handle writer (tell ["Hello", "World!"]) :: ([String], ())
+(["Hello","World!"],())
+```
+Using this, values can be written as the ouput of a program.
+
+Now the task is to reinterpret all `putStrLn` operations in terms of the
+`tell` operation:
 ```haskell
-putStrLnWriter 
+putStrLnTell
   :: forall sig . Members '[Tell [String]] sig
   => Handler '[PutStrLn] '[] '[] sig
-putStrLnWriter = reinterp malg where
+putStrLnTell = reinterp malg where
   malg :: forall x m . Effs '[PutStrLn] m x -> Prog sig x
   malg eff | Just (Alg (PutStrLn str k)) <- prj eff =
     do tell [str]
        return k
 ```
+This can in turn be piped into the `writer` handler to make
+a pure version of `putStrLn`:
+```haskell
+putStrLnPure :: Handler '[PutStrLn] '[WriterT [String]] '[(,) [String]] '[]
+putStrLnPure = pipe @'[Tell [String]] @'[] putStrLnTell writer
+```
+Now, a pure handler for both `putStrLn` and `getLine` can
+be defined as the fusion of `putStrLnPure` and `getLinePure`.
+```haskell
+teletypePure 
+  :: [String]
+  -> Handler '[GetLine, PutStrLn] 
+             '[StateT [String], WriterT [String]]
+             '[(,) [String]]
+             '[]
+teletypePure str = fuse @'[] @'[] (getLinePure_ str) putStrLnPure
+```
+Now the `echo` program can be executed in an entirely pure context:
+```haskell ignore
+ghci> handle (teletypePure ["Hello", "world!"]) echo
+(["Hello","world!"],())
+```
+The return value of `()` comes from the result of `echo` itself.
+
 Running the `echo` program will still need to output values to
 the terminal
 
@@ -403,6 +462,7 @@ import Control.Effect.State
 import Control.Effect.Writer
 import Control.Effect.IO
 import Control.Monad.Trans.State.Lazy (StateT)
+import Control.Monad.Trans.Writer.Lazy (WriterT)
 
 import Prelude hiding (putStrLn, getLine)
 
