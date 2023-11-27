@@ -35,6 +35,9 @@ writerFwd alg (Eff (Alg x)) = lift (alg (Eff (Alg x)))
 writerFwd alg (Eff (Scp x)) = W.WriterT (alg (Eff (Scp (fmap W.runWriterT x))))
 writerFwd alg (Effs effs)   = writerFwd (alg . Effs) effs
 
-writer :: Monoid w => Handler '[Tell w] '[W.WriterT w] '[(,) w] '[] 
+writer :: Monoid w => Handler '[Tell w] '[W.WriterT w] '[(,) w] '[]
 writer = handler (fmap swap . W.runWriterT) writerAlg writerFwd
 
+-- TODO: The following causes GHC to panic!
+-- writer_ :: Monoid w => Handler '[Tell w] '[W.WriterT w] '[] '[]
+-- writer_ = writer { run = \oalg -> fmap (CNil . fst) . W.runWriterT . hdecomps }
