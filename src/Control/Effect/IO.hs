@@ -1,6 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE MonoLocalBinds #-}
-{-# LANGUAGE AllowAmbiguousTypes #-}
 
 module Control.Effect.IO where
 
