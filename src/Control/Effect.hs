@@ -289,7 +289,7 @@ interp alg
       (\oalg -> HNil . alg oalg . hmap (\(HNil x) -> x))
       (\alg  -> HNil . alg . hmap (\(HNil x) -> x))
 
-reinterp :: forall effs oeffs 
+reinterp :: forall effs oeffs
   . (forall x m . Effs effs m x -> Prog oeffs x)
   -> Handler effs '[] '[] oeffs
 reinterp malg = interp alg where
@@ -297,7 +297,6 @@ reinterp malg = interp alg where
     => (forall x . Effs oeffs m x -> m x)
     -> (forall x . Effs effs m x -> m x)
   alg oalg eff = eval oalg (malg eff)
-
 
 type Fuse ::
   [Signature] -> [Signature] -> [Signature] ->
@@ -429,7 +428,7 @@ type Pipe ::
   [Type -> Type] ->
   [Type -> Type] -> Constraint
 class Pipe eff12 oeff1 oeff2 eff1 eff2 ts1 ts2 fs1 fs2 where
-  pipe 
+  pipe
     :: ( Append oeff1 eff12, Append oeff1 oeff2, Append eff1 eff2
        , Injects eff12 eff2
        , All Functor (fs2 :++ fs1)
