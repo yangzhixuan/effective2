@@ -516,24 +516,6 @@ instance (forall m . Monad m => Monad (HComps ts2 m)) => Pipe eff12 oeff1 oeff2 
       . mfwd1 (mfwd2 alg)
       . hmap (hexpose @(t1 ': ts1))
 
-handleM :: forall m effs ts fs oeffs a .
-  (Monad m, Monad (HComps ts m), Recompose fs)
-  => (forall a. Effs oeffs m a -> m a)
-  -> Handler effs ts fs oeffs
-  -> Prog effs a -> m (Composes fs a)
-handleM oalg (Handler run malg mfwd)
-  = fmap recompose . run @m oalg . eval (malg @m oalg)
-
-handleM' 
-  :: forall eff eff' fs ts m a 
-  .  (ts ~ ts :++ '[], Monad m, Append eff eff', All Functor fs
-     , All MonadTrans ts, Recompose fs
-     , Monad (HComps ts m)
-     , Fuse '[] '[] eff' eff eff' ts '[] fs '[], HExpose ts)
-  => (forall a . Effs eff' m a -> m a)
-  -> Handler eff ts fs '[]
-  -> Prog (eff :++ eff') a -> m (Composes fs a)
-handleM' alg h = handleM alg (weaken' h)
 handle
   :: forall ieffs oeffs ts fs a
   .  ( Monad (HComps ts Identity)
