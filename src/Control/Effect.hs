@@ -553,30 +553,39 @@ handleWith xalg (Handler run malg mfwd)
   . run @m (xalg . injs)
   . eval (heither @ieffs @xeffs (malg (xalg . injs)) (mfwd xalg))
 
+handleMWith
+  :: forall m effs ts fs oeffs a
+  .  (Monad m, Monad (HComps ts m), Recompose fs)
+  => (forall a. Effs oeffs m a -> m a)
+  -> Handler effs ts fs oeffs
+  -> Prog effs a -> m (Composes fs a)
+handleMWith oalg (Handler run malg mfwd)
+  = fmap recompose . run @m oalg . eval (malg @m oalg)
 
+handleOne
   :: (Monad (HComps ts (Prog oeffs)), Recompose fs)
   => Handler effs ts fs oeffs -> Prog effs a -> Prog oeffs (Composes fs a)
-handle' (Handler run malg mfwd)
+handleOne (Handler run malg mfwd)
   = fmap recompose . run (Call . fmap return) . eval (malg (Call . fmap return))
 
-handleRun
+handleOneWith
   :: (Monad (HComps ts (Prog oeffs)), Recompose fs)
-  => (forall x . Effs oeffs (Prog oeffs) x -> Prog oeffs x) 
+  => (forall x . Effs oeffs (Prog oeffs) x -> Prog oeffs x)
   -> Handler effs ts fs oeffs -> Prog effs a -> Prog oeffs (Composes fs a)
-handleRun final (Handler run malg mfwd)
-  = fmap recompose . run final . eval (malg final)
+handleOneWith xalg (Handler run malg mfwd)
+  = fmap recompose . run xalg . eval (malg xalg)
 
 -- The parameters sig and sig' should always be instantiated manually. Good luck.
-handleOne
-  :: forall sig sig' eff oeffs ts fs a m
-  . ( Injects oeffs sig', Injects sig sig', Append eff sig
-  , Monad (HComps ts (Prog sig')), Recompose fs)
-  => Handler eff ts fs oeffs -> Prog (eff :++ sig) a -> Prog sig' (Composes fs a)
-handleOne (Handler run malg mfwd)
+handleSome
+  :: forall sig eff oeffs ts fs a m
+  .  (Injects oeffs (oeffs :++ sig), Injects sig (oeffs :++ sig), Append eff sig
+  ,  Monad (HComps ts (Prog (oeffs :++ sig))), Recompose fs)
+  => Handler eff ts fs oeffs -> Prog (eff :++ sig) a -> Prog (oeffs :++ sig) (Composes fs a)
+handleSome (Handler run malg mfwd)
   = fmap recompose
   . run (Call . injs . fmap return)
-  . eval (heither @eff @sig (malg @(Prog sig') (Call . injs . fmap return))
-                            (mfwd @(Prog sig') (Call . injs . fmap return)))
+  . eval (heither @eff @sig (malg @(Prog (oeffs :++ sig)) (Call . injs . fmap return))
+                            (mfwd @(Prog (oeffs :++ sig)) (Call . injs . fmap return)))
 
 weaken'
   :: forall ts fs eff eff'
@@ -615,6 +624,51 @@ Handler run1 malg1 mfwd1 \/ Handler run2 malg2 mfwd2
 
 trivial :: Handler effs '[] '[] effs
 trivial = interp id
+
+trivial'
+  :: forall effs fs
+  . ( All Functor fs )
+  => Handler effs '[] fs effs
+trivial' = Handler run malg mfwd where
+  run  :: forall m . Monad m
+       => (forall x . Effs effs m x -> m x)
+       -> (forall x . HComps '[] m x -> m (Comps fs x))
+  run alg (HNil x)  = undefined
+
+  malg :: forall m . Monad m
+       => (forall x . Effs effs m x -> m x)
+       -> (forall x . Effs effs (HComps '[] m) x -> HComps '[] m x)
+  malg = undefined
+
+  mfwd :: forall m sig . Monad m
+       => (forall x . Effs sig m x -> m x)
+       -> (forall x . Effs sig (HComps '[] m) x -> HComps '[] m x)
+  mfwd = undefined
+
+transform
+  :: forall effs ts
+  . ( All MonadTrans ts, Functor (HComposes ts Identity) )
+  => Handler effs ts '[HComposes ts Identity] effs
+transform = Handler run malg mfwd where
+  run  :: forall m . Monad m
+       => (forall x . Effs effs m x -> m x)
+       -> (forall x . HComps ts m x -> m (Comps '[HComposes ts Identity] x))
+  run alg (HNil x)  = fmap (CCons . Identity . CNil) x
+  run alg (HCons x) = (fmap (CCons . undefined . fmap CNil) . return @m) x
+
+  malg :: forall m . Monad m
+       => (forall x . Effs effs m x -> m x)
+       -> (forall x . Effs effs (HComps ts m) x -> HComps ts m x)
+  malg = undefined
+
+  mfwd :: forall m sig . Monad m
+       => (forall x . Effs sig m x -> m x)
+       -> (forall x . Effs sig (HComps ts m) x -> HComps ts m x)
+  mfwd = undefined
+
+-- A second way:
+-- fuse the handler with a trivial one that targets
+-- all of xeffs. I expect these to be equivalent.
 
 weakenAlg
   :: forall eff eff' m x . (Injects eff eff')
