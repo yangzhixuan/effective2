@@ -534,25 +534,42 @@ handleM'
   -> Handler eff ts fs '[]
   -> Prog (eff :++ eff') a -> m (Composes fs a)
 handleM' alg h = handleM alg (weaken' h)
+handle
+  :: forall ieffs oeffs ts fs a
+  .  ( Monad (HComps ts Identity)
+     , Recompose fs)
+  => Handler ieffs ts fs '[]
+  -> Prog ieffs a -> (Composes fs a)
+handle (Handler run malg mfwd)
+  = runIdentity
+  . fmap @Identity (recompose @fs @a)
+  . run @Identity (habsurd' . injs)
+  . eval (malg (habsurd' . injs))
+
+handleM
+  :: forall ieffs oeffs m ts fs a
+  .  ( Monad m, Monad (HComps ts m)
+     , Recompose fs)
+  => Handler ieffs ts fs '[]
+  -> Prog ieffs a -> m (Composes fs a)
+handleM (Handler run malg mfwd)
+  = fmap @m (recompose @fs @a)
+  . run @m (habsurd' . injs)
+  . eval (malg (habsurd' . injs))
 
 handleWith
   :: forall ieffs oeffs xeffs m ts fs a
   .  ( Monad m, Monad (HComps ts m)
      , Recompose fs
      , Append ieffs xeffs
-     , Injects oeffs xeffs
-     )
+     , Injects oeffs xeffs )
   => (forall x. Effs xeffs m x -> m x)
   -> Handler ieffs ts fs oeffs
   -> Prog (ieffs :++ xeffs) a -> m (Composes fs a)
-handleWith xalg (Handler run malg mfwd) p
+handleWith xalg (Handler run malg mfwd)
   = fmap @m (recompose @fs @a)
   . run @m (xalg . injs)
   . eval (heither @ieffs @xeffs (malg (xalg . injs)) (mfwd xalg))
-  $ p'
-    where
-      p' :: Prog (ieffs :++ xeffs) a
-      p' = eval (Call . fmap (return @(Prog (ieffs :++ xeffs))))p
 
 
 
