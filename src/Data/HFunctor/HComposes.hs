@@ -10,10 +10,8 @@ module Data.HFunctor.HComposes where
 
 import Data.Kind ( Type )
 import Data.HFunctor ( HFunctor(..) )
-import Data.List.Kind ( type (:++) )
+import Data.List.Kind ( type (:++), All )
 import Control.Monad.Trans.Class ( MonadTrans )
-
-import Data.SOP.Constraint ( All )
 
 type family HComposes
     (hs :: [(Type -> Type) -> (Type -> Type)])

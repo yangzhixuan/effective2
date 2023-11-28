@@ -6,7 +6,6 @@ import Control.Effect
 import Data.List.Kind
 import Data.Functor.Composes
 import Data.HFunctor.HComposes
-import Data.SOP.Constraint
 import Control.Monad.Trans.Class
 
 data GetLine k  = GetLine (String -> k) deriving Functor

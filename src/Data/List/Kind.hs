@@ -5,6 +5,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 module Data.List.Kind where
+import Data.Kind (Constraint)
 
 type family (xs :: [k]) :++ (ys :: [k]) :: [k] where
   '[]       :++ ys = ys
@@ -26,3 +27,9 @@ type family ((xs :: [k]) :\\ (ys :: [k]))  :: [k] where
 
 type family Union (xs :: [k]) (ys :: [k]) :: [k] where
   Union xs ys = xs :++ (ys :\\ xs)
+
+type family All (c :: k -> Constraint) (xs :: [k]) :: Constraint where
+  All c '[]       = ()
+  All c (x ': xs) = (c x, All c xs)
+
+

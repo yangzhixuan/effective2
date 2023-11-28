@@ -15,7 +15,7 @@ module Control.Effect where
 
 import Data.Kind ( Type, Constraint )
 
-import Data.List.Kind ( type (:++), type (:\\), Union )
+import Data.List.Kind ( type (:++), type (:\\), All, Union )
 import Data.Functor.Identity
 import Data.Functor.Composes
 import Data.HFunctor
@@ -24,8 +24,6 @@ import Data.HFunctor.HComposes
 import Control.Monad ( join, ap, liftM )
 import qualified Control.Monad.Graded as Graded
 import Control.Monad.Trans.Class
-
-import Data.SOP.Constraint ( All )
 
 type Effect = (Type -> Type) -> (Type -> Type)
 type Signature = Type -> Type

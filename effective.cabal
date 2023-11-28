@@ -45,11 +45,10 @@ library
   build-depends:
     base, transformers, ghc,
     containers,
-    sop-core
 
 test-suite docs
   type:          exitcode-stdio-1.0
-  build-depends: base, transformers, sop-core, effective, hedgehog
+  build-depends: base, transformers, effective, hedgehog
   main-is:       Main.hs
   ghc-options:   -threaded
   hs-source-dirs: docs
@@ -68,5 +67,5 @@ test-suite readme
   main-is:       README.hs
   default-language: GHC2021
   hs-source-dirs:  .
-  build-depends: base, sop-core, transformers, effective
+  build-depends: base, transformers, effective
   build-tool-depends: markdown-unlit:markdown-unlit>=0.6
