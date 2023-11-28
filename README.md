@@ -116,12 +116,12 @@ of type `Prog sig a` will simply return a value of type `a`.
 ghci> handle (state_ "Hello!") (do xs <- get @String; return (length xs))
 6
 ```
+
 The effect of `handle h p` is to use the handler `h` to remove _all_ of the
 effects in interpreting the program `p`. This relates to both the effects
 of the program and effects output by a handler.
 Trying to apply a handler that does not fully evaluate the effects in `p` will
 result in a type error.
-
 For example, the `echo` program cannot be handled with a state handler:
 ```haskell ignore
 ghci> handle (state "Hello") echo
@@ -370,6 +370,11 @@ teletypePure
              '[]
 teletypePure str = fuse @'[] @'[] (getLinePure_ str) putStrLnPure
 ```
+The `fuse` combinator takes two handlers and creates one that accepts the union
+of their signatures. The handlers are run in sequence so that the output of the
+first handler is fed into the input of the second. Any any remaining output
+operations are combined and become te output of the fusion.
+
 Now the `echo` program can be executed in an entirely pure context:
 ```haskell ignore
 ghci> handle (teletypePure ["Hello", "world!"]) echo
@@ -377,24 +382,25 @@ ghci> handle (teletypePure ["Hello", "world!"]) echo
 ```
 The return value of `()` comes from the result of `echo` itself.
 
-Running the `echo` program will still need to output values to
-the terminal
-
+One challenge is to count the number of times `getLine` is executed
+while also processing it purely. No problem, the `getLineIncrState` can be used
+to reinterpret `getLine` before passing the resulting `getLine` to `teletypePure`:
 ```haskell
--- TODO: the output type of a fused handler should be a constraint
--- that adds the constraints of the other handlers, rather than
--- a fixed :++. This leaves the inteface free for resolution later.
--- teletypePure
---   :: forall sig . Members '[Tell [String], Get [String], Put [String]] sig 
---   => Handler [PutStrLn, GetLine] '[] '[] sig
--- teletypePure = fuse @'[] putStrLnWriter getLineState
+teletypeTick
+  :: [String]
+  -> Handler '[GetLine, PutStrLn] 
+             '[StateT Int, StateT [String], WriterT [String]]
+             '[(,) [String], (,) Int]
+             '[]
+teletypeTick str = fuse @'[GetLine] @'[]
+  getLineIncrState 
+  (teletypePure str)
 ```
-
-```haskell
-incrInput :: Prog' '[Put [String], GetLine] String
-incrInput = do put ["Hello", "world"]
-               xs <- getLine
-               return xs
+This can be executed using `handle`, passing in the 
+list of inputs to be fed to `getLine`:
+```haskell ignore
+ghci> handle (teletypeTick ["Hello", "world!"]) echo
+(["Hello","world!"],(3,()))
 ```
 
 Members
