@@ -142,27 +142,27 @@ Forwarding Effects
 
 Now suppose that the task is to count the number of times `getLine` is called
 when the `echo` program is executed. One approach is to change the `echo`
-program, and write something like `echoCount`, where an `incr` has been added
+program, and write something like `echoTick`, where an `incr` has been added
 after each `getLine`:
 ```haskell
-echoCount :: Members [GetLine, Get Int, Put Int, PutStrLn] sig => Prog sig ()
-echoCount =
+echoTick :: Members [GetLine, Get Int, Put Int, PutStrLn] sig => Prog sig ()
+echoTick =
   do str <- getLine
      incr
      case str of
        [] -> return ()
        _  -> do putStrLn str
-                echoCount
+                echoTick
 ```
 To execute such a program that uses both state and IO
 requires a handler that is specialised to deal with IO:
 ```haskell
-exampleEchoCount :: IO (Int, ())
-exampleEchoCount = handleIO (state (0 :: Int)) echoCount
+exampleEchoTick :: IO (Int, ())
+exampleEchoTick = handleIO (state (0 :: Int)) echoTick
 ```
 When this is executed, it counts the number of lines received:
 ```haskell ignore
-ghci> exampleEchoCount
+ghci> exampleEchoTick
 Hello
 Hello
 world!
