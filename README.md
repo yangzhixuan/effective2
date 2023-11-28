@@ -196,7 +196,8 @@ Here is how to write a handler that intercepts a `getLine` operation, only to
 emit it again while also incrementing a counter in the state:
 ```haskell
 getLineIncr
-  :: forall sig . Members '[GetLine, Get Int, Put Int] sig => Handler '[GetLine] '[] '[] sig
+  :: forall sig . Members '[GetLine, Get Int, Put Int] sig 
+  => Handler '[GetLine] '[] '[] sig
 getLineIncr = reinterp malg where
   malg :: forall x m . Effs '[GetLine] m x -> Prog sig x
   malg eff | Just (Alg (GetLine k)) <- prj eff =
