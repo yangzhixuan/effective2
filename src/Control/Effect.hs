@@ -593,27 +593,28 @@ handleOne (Handler run malg mfwd)
                             (mfwd @(Prog sig') (Call . injs . fmap return)))
 
 weaken'
-  :: forall ts fs eff eff' 
-  . ( ts :++ '[] ~ ts, Append eff eff', All Functor fs, All MonadTrans ts
+  :: forall ts fs eff eff'
+  . ( ts :++ '[] ~ ts
+    , Append eff (eff' :\\ eff)
+    , Injects (eff' :\\ eff) eff'
+    , All Functor fs, All MonadTrans ts
     , Fuse '[] '[] eff' eff eff' ts '[] fs '[]
     , HExpose ts
     )
   => Handler eff ts fs '[] -- TODO: replace '[] with oeff, using the new machinery
-  -> Handler (eff :++ eff') ts fs eff'
+  -> Handler (eff `Union` eff') ts fs eff'
 weaken' h = fuse @'[] @'[] @eff' @eff @eff' @ts @'[] @fs @'[] h (trivial @eff')
 
 weaken
-  :: forall ts fs eff eff' oeff oeff'
-  . ( ts :++ '[] ~ ts, Append eff eff', All Functor fs, All MonadTrans ts
-    , Append oeff oeff'
-    , Injects oeff (oeff :++ oeff')
-    , Injects eff (eff :++ eff')
+  :: forall ieffs ieffs' oeffs oeffs' ts fs
+  . ( Injects ieffs ieffs'
+    , Injects oeffs oeffs'
     )
-  => Handler (eff :++ eff') ts fs oeff
-  -> Handler eff ts fs (oeff :++ oeff')
+  => Handler ieffs' ts fs oeffs
+  -> Handler ieffs ts fs oeffs'
 weaken (Handler run malg mfwd)
-  = Handler (\oalg -> run  (oalg . injs)) 
-            (\oalg -> malg (oalg . injs) . injs) 
+  = Handler (\oalg -> run (oalg . injs))
+            (\oalg -> malg (oalg . injs) . injs)
             mfwd
 
 
@@ -624,7 +625,6 @@ weaken (Handler run malg mfwd)
   -> Handler effs2 ts fs oeffs
   -> Handler (effs1 :++ effs2) ts fs oeffs
 Handler run1 malg1 mfwd1 \/ Handler run2 malg2 mfwd2
- 
   = Handler run1 (\oalg -> heither (malg1 oalg) (malg2 oalg)) mfwd1
 
 trivial :: Handler effs '[] '[] effs
