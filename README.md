@@ -101,7 +101,7 @@ getStringLength = do xs <- get @String
 ```
 It can be handled using `state`:
 ```haskell ignore
-ghci> handle (state "Hello!") getStringLEngth
+ghci> handle (state "Hello!") getStringLength
 ("Hello!",6)
 ```
 Notice that the `state` handler returns the final state as well as the final
