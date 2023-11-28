@@ -616,17 +616,20 @@ weaken (Handler run malg mfwd)
             (\oalg -> malg (oalg . injs) . injs) 
             mfwd
 
-(\/) 
-  :: forall effs1 effs2 ts fs oeffs 
+
+(\/)
+  :: forall effs1 effs2 ts fs oeffs
   . (Append effs1 effs2)
   => Handler effs1 ts fs oeffs
   -> Handler effs2 ts fs oeffs
   -> Handler (effs1 :++ effs2) ts fs oeffs
 Handler run1 malg1 mfwd1 \/ Handler run2 malg2 mfwd2
-  = Handler run1 (\oalg -> heither (malg1 oalg) (malg2 oalg)) mfwd1 where
  
-trivial :: Handler eff '[] '[] eff
+  = Handler run1 (\oalg -> heither (malg1 oalg) (malg2 oalg)) mfwd1
+
+trivial :: Handler effs '[] '[] effs
 trivial = interp id
+
 weakenAlg
   :: forall eff eff' m x . (Injects eff eff')
   => (Effs eff' m x -> m x)
