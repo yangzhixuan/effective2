@@ -572,19 +572,6 @@ handleWith xalg (Handler run malg mfwd)
   . eval (heither @ieffs @xeffs (malg (xalg . injs)) (mfwd xalg))
 
 
-
-
-handle :: (Monad (HComps ts Identity), Recompose fs)  =>
-  Handler effs ts fs '[] -> Prog effs a -> Composes fs a
-handle h
-  = runIdentity . handleM habsurd' h
-
--- handleIO :: (Monad (HComps ts Identity), Recompose fs)  =>
---   Handler effs ts (IO ': fs) '[] -> Prog effs a -> Composes (IO ': fs) a
--- handleIO (Handler run malg mfwd)
---   = recompose . runIdentity . run @Identity habsurd' . eval (malg @Identity habsurd')
-
-handle'
   :: (Monad (HComps ts (Prog oeffs)), Recompose fs)
   => Handler effs ts fs oeffs -> Prog effs a -> Prog oeffs (Composes fs a)
 handle' (Handler run malg mfwd)
