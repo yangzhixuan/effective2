@@ -78,7 +78,7 @@ cutListAlg oalg op
   | Just (Alg CutFail)     <- prj op = CutListT (return ZeroT)
   | Just (Scp (CutCall x)) <- prj op = callAlg x
 
-cutList :: Handler [Stop, Or, CutFail, CutCall] '[CutListT] '[[]] oeff
+cutList :: Handler [Stop, Or, CutFail, CutCall] '[CutListT] '[[]] '[]
 cutList = handler fromCutListT' cutListAlg cutListFwd
 
 instance HFunctor CutListT where
@@ -89,7 +89,7 @@ instance HFunctor CutListT' where
   hmap h NilT       = NilT
   hmap h (x :<< xs) = x :<< fmap (hmap h) (h xs)
 
-onceCut :: Members [CutCall, CutFail, Or] oeff => Handler '[Once] '[] '[] oeff
+onceCut :: Handler '[Once] '[] '[] [CutCall, CutFail, Or]
 onceCut = interp onceCutAlg
 
 onceCutAlg :: forall oeff m . (Monad m , Members [CutCall, CutFail, Or] oeff)
@@ -102,9 +102,5 @@ onceCutAlg oalg op
                                     return x))
 
 onceNondet :: Handler [Once, Stop, Or, CutFail, CutCall] '[CutListT] '[[]] '[]
-onceNondet = fuse @'[CutCall, CutFail, Or] @'[] onceCut cutList
-
-
-
-
+onceNondet = fuse onceCut cutList
 

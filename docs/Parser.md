@@ -79,8 +79,8 @@ example_Parse1 = property $
 
 -- Not a parser!
 notParse
-  :: text -> Prog [Stop, Or, Put text, Get text, Local text] a
-  -> (text, [a])
+  :: String -> Prog [Stop, Or, Put String, Get String, Local String] a
+  -> (String, [a])
 notParse cs p = handle (nondet <&> state cs) p
 
 example_NotParse = property $

@@ -57,7 +57,7 @@ nondetFwd alg (Eff (Alg x)) = lift  (alg (Eff (Alg x)))
 nondetFwd alg (Eff (Scp x)) = ListT (alg (Eff (Scp (fmap runListT x))))
 nondetFwd alg (Effs effs)   = nondetFwd (alg . Effs) effs
 
-nondet :: Handler [Stop, Or] '[ListT] '[[]] oeff
+nondet :: Handler [Stop, Or] '[ListT] '[[]] '[]
 nondet = handler runListT' nondetAlg nondetFwd
 
 

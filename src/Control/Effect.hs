@@ -15,7 +15,7 @@ module Control.Effect where
 
 import Data.Kind ( Type, Constraint )
 
-import Data.List.Kind ( type (:++), type (:\\), All, Union )
+import Data.List.Kind ( type (:++), type (:\\), All, Union, Inter )
 import Data.Functor.Identity
 import Data.Functor.Composes
 import Data.HFunctor
@@ -115,6 +115,12 @@ instance (Member x xys, Injects xs xys)
   injs (Eff x)  = inj x
   injs (Effs x) = injs x
 
+hunion :: forall xs ys f a b
+  . ( Append xs (ys :\\ xs)
+  ,   Injects (ys :\\ xs) ys )
+  => (Effs xs f a -> b) -> (Effs ys f a -> b) -> (Effs (xs `Union` ys) f a -> b)
+hunion xalg yalg = heither @xs @(ys :\\ xs) xalg (yalg . injs)
+
 type  Append :: [Signature] -> [Signature] -> Constraint
 class Append xs ys where
   heither :: (Effs xs h a -> b) -> (Effs ys h a -> b) -> (Effs (xs :++ ys) h a -> b)
@@ -196,6 +202,7 @@ instance Graded.GradedMonad Prog where
            Prog i a -> (a -> Prog j b) -> Prog (Graded.Plus Prog i j) b
   (Return x)  >>= f = weakenProg (f x)
   (Call op)   >>= f = Call ((hmap weakenProg . injs @i @(Union i j) . fmap (Graded.>>= f)) op)
+
 
 weakenProg :: forall effs effs' a
   .  Injects effs effs'
@@ -297,59 +304,82 @@ reinterp malg = interp alg where
   alg oalg eff = eval oalg (malg eff)
 
 type Fuse ::
-  [Signature] -> [Signature] -> [Signature] ->
+  [Signature] -> [Signature] ->
   [Signature] -> [Signature] ->
   [(Type -> Type) -> (Type -> Type)] ->
   [(Type -> Type) -> (Type -> Type)] ->
   [Type -> Type] ->
-  [Type -> Type] -> Constraint
-class Fuse eff12 oeff1 oeff2 eff1 eff2 ts1 ts2 fs1 fs2 where
+  [Type -> Type] ->
+  [Signature] -> [Signature] ->
+  Constraint
+class Fuse eff1 eff2 oeff1 oeff2 ts1 ts2 fs1 fs2 eff oeff where
   fuse
-    :: ( Append oeff1 eff12, Append oeff1 oeff2, Append eff1 (eff2 :\\ eff1)
-       , Injects eff12 eff2
-       , Injects (eff2 :\\ eff1) eff2
-       , All Functor (fs2 :++ fs1)
+    :: ( All Functor (fs2 :++ fs1)
        , All MonadTrans (ts1 :++ ts2)
        , HExpose ts1
        , Expose fs2
+       , eff  ~ eff1 `Union` eff2
+       , oeff ~ (oeff1 :\\ eff2) `Union` oeff2
+       , Append eff1 (eff2 :\\ eff1)
+       , Append (oeff1 :\\ eff2) (oeff2 :\\ (oeff1 :\\ eff2))
+       , Append (oeff1 :\\ eff2) eff2
+       , Append (oeff1 :\\ eff2) oeff2
+       , Injects (oeff1 :\\ eff2) oeff, Injects oeff2 oeff
+       , Injects oeff1 ((oeff1 :\\ eff2) :++ eff2)
+       , Injects (eff2 :\\ eff1) eff2
        )
-    => Handler eff1 ts1 fs1 (oeff1 :++ eff12)
+    => Handler eff1 ts1 fs1 oeff1
     -> Handler eff2 ts2 fs2 oeff2
-    -> Handler (eff1 `Union` eff2) (ts1 :++ ts2) (fs2 :++ fs1) (oeff1 :++ oeff2)
+    -> Handler eff (ts1 :++ ts2) (fs2 :++ fs1) oeff
 
 -- If this were `Monad (HComposes ts2 m)` it would be illegal since
 -- type families cannot appear as instance heads. We get around this by using `HComps` instead.
 instance (forall m . Monad m => Monad (HComps ts2 m))
-  => Fuse eff12 oeff1 oeff2 eff1 eff2 '[] ts2 fs1 fs2 where
+  => Fuse eff1 eff2 oeff1 oeff2 '[] ts2 fs1 fs2 eff oeff where
   fuse
-    :: (forall (m :: Type -> Type). Monad m => Monad (HComps ts2 m),
-      Append oeff1 eff12, Append oeff1 oeff2, Append eff1 (eff2 :\\ eff1),
-      Injects (eff2 :\\ eff1) eff2,
-      Injects eff12 eff2, All Functor (fs2 :++ fs1),
-      All MonadTrans ('[] :++ ts2), HExpose '[], Expose fs2)
-    => Handler eff1 '[] fs1 (oeff1 :++ eff12) -> Handler eff2 ts2 fs2 oeff2
-    -> Handler (eff1 `Union` eff2) ('[] :++ ts2) (fs2 :++ fs1) (oeff1 :++ oeff2)
+    :: (forall (m :: Type -> Type) . Monad m => Monad (HComps ts2 m)
+       , All Functor (fs2 :++ fs1)
+       , All MonadTrans ('[] :++ ts2)
+       , HExpose '[]
+       , Expose fs2
+       , eff  ~ eff1 `Union` eff2
+       , oeff ~ (oeff1 :\\ eff2) `Union` oeff2
+       , Append eff1 (eff2 :\\ eff1)
+       , Append (oeff1 :\\ eff2) (oeff2 :\\ (oeff1 :\\ eff2))
+       , Append (oeff1 :\\ eff2) eff2
+       , Append (oeff1 :\\ eff2) oeff2
+       , Injects (oeff1 :\\ eff2) oeff, Injects oeff2 oeff
+       , Injects oeff1 ((oeff1 :\\ eff2) :++ eff2)
+       , Injects (eff2 :\\ eff1) eff2
+       )
+    => Handler eff1 '[] fs1 oeff1
+    -> Handler eff2 ts2 fs2 oeff2
+    -> Handler eff ('[] :++ ts2) (fs2 :++ fs1) oeff
   fuse (Handler run1 malg1 mfwd1) (Handler run2 malg2 mfwd2) =
     Handler run malg mfwd where
       run  :: forall m . Monad m
-        => (forall x . Effs (oeff1 :++ oeff2) m x -> m x)
+        => (forall x . Effs oeff m x -> m x)
         -> (forall x . HComps ('[] :++ ts2) m x -> m (Comps (fs2 :++ fs1) x))
       run oalg
         = fmap unexpose
-        . run2 (oalg . hinr @oeff1 @oeff2)
-        . run1 (heither @oeff1 @eff12 (mfwd2 (oalg . hinl @oeff1 @oeff2))
-                                      (malg2 (oalg . hinr @oeff1 @oeff2) . injs @eff12 @eff2))
+        . run2 (oalg . injs)
+          -- TODO: this heither could be tightened to a hunion
+        . run1 (weakenAlg $ heither @(oeff1 :\\ eff2) @(eff2)
+            (mfwd2 (weakenAlg oalg))
+            (malg2 (weakenAlg oalg)))
         . hexpose
 
       malg :: forall m sig . Monad m
-        => (forall x . Effs (oeff1 :++ oeff2) m x -> m x)
-        -> (forall x . Effs (eff1 `Union` eff2) (HComps ('[] :++ ts2) m) x -> HComps ('[] :++ ts2) m x)
+        => (forall x . Effs oeff m x -> m x)
+        -> (forall x . Effs eff (HComps ('[] :++ ts2) m) x -> HComps ('[] :++ ts2) m x)
       malg oalg
         = hunexpose @'[]
-        . heither @eff1 @(eff2 :\\ eff1)
-            ( malg1 (heither @oeff1 @eff12 (mfwd2 (oalg . hinl @oeff1 @oeff2))
-                                           (malg2 (oalg . hinr @oeff1 @oeff2) . injs @eff12 @eff2)))
-            (weakenAlg $ mfwd1 (malg2 (oalg . hinr @oeff1 @oeff2)))
+        . hunion @eff1 @eff2
+            -- TODO: this heither could be tightened to a hunion
+            (malg1 (weakenAlg $ heither @(oeff1 :\\ eff2) @eff2
+                                  (mfwd2 (weakenAlg oalg))
+                                  (malg2 (weakenAlg oalg))))
+            (mfwd1 (malg2 (oalg . injs)))
         . hmap (hexpose @'[])
 
       mfwd
@@ -361,36 +391,50 @@ instance (forall m . Monad m => Monad (HComps ts2 m))
         . mfwd1 (mfwd2 alg)
         . hmap (hexpose @'[])
 
-instance (forall m . Monad m => Monad (HComps ts2 m)) => Fuse eff12 oeff1 oeff2 eff1 eff2 (t1 ': ts1) ts2 fs1 fs2 where
-  fuse :: (forall (m :: Type -> Type). Monad m => Monad (HComps ts2 m),
-    Append oeff1 eff12, Append oeff1 oeff2, Append eff1 (eff2 :\\ eff1),
-    Injects (eff2 :\\ eff1) eff2,
-    Injects eff12 eff2, All Functor (fs2 :++ fs1),
-    All MonadTrans ((t1 : ts1) :++ ts2), HExpose (t1 : ts1),
-    Expose fs2) => Handler eff1 (t1 : ts1) fs1 (oeff1 :++ eff12)
-      -> Handler eff2 ts2 fs2 oeff2
-      -> Handler (eff1 `Union` eff2) ((t1 : ts1) :++ ts2) (fs2 :++ fs1) (oeff1 :++ oeff2)
+instance (forall m . Monad m => Monad (HComps ts2 m))
+  => Fuse eff1 eff2 oeff1 oeff2 (t1 ': ts1) ts2 fs1 fs2 eff oeff where
+  fuse
+    :: (forall (m :: Type -> Type). Monad m => Monad (HComps ts2 m)
+       , All Functor (fs2 :++ fs1)
+       , All MonadTrans ((t1 ': ts1) :++ ts2)
+       , HExpose (t1 ': ts1)
+       , Expose fs2
+       , eff  ~ eff1 `Union` eff2
+       , oeff ~ (oeff1 :\\ eff2) `Union` oeff2
+       , Append eff1 (eff2 :\\ eff1)
+       , Append (oeff1 :\\ eff2) (oeff2 :\\ (oeff1 :\\ eff2))
+       , Append (oeff1 :\\ eff2) eff2
+       , Append (oeff1 :\\ eff2) oeff2
+       , Injects (oeff1 :\\ eff2) oeff, Injects oeff2 oeff
+       , Injects oeff1 ((oeff1 :\\ eff2) :++ eff2)
+       , Injects (eff2 :\\ eff1) eff2
+       )
+    => Handler eff1 (t1 ': ts1) fs1 oeff1
+    -> Handler eff2 ts2         fs2 oeff2
+    -> Handler eff ((t1 ': ts1) :++ ts2) (fs2 :++ fs1) oeff
   fuse (Handler run1 malg1 mfwd1) (Handler run2 malg2 mfwd2) =
     Handler run malg mfwd where
     run  :: forall m . Monad m
-      => (forall x . Effs (oeff1 :++ oeff2) m x -> m x)
+      => (forall x . Effs oeff m x -> m x)
       -> (forall x . HComps ((t1 ': ts1) :++ ts2) m x -> m (Comps (fs2 :++ fs1) x))
     run oalg
       = fmap unexpose
-      . run2 (oalg . hinr @oeff1 @oeff2)
-      . run1 (heither @oeff1 @eff12 (mfwd2 (oalg . hinl @oeff1 @oeff2))
-                                    (malg2 (oalg . hinr @oeff1 @oeff2) . injs @eff12 @eff2))
+      . run2 (oalg . injs)
+      . run1 (weakenAlg $ heither @(oeff1 :\\ eff2) @(eff2)
+          (mfwd2 (weakenAlg oalg))
+          (malg2 (weakenAlg oalg)))
       . hexpose
 
     malg :: forall m sig . Monad m
-      => (forall x . Effs (oeff1 :++ oeff2) m x -> m x)
-      -> (forall x . Effs (eff1 `Union` eff2) (HComps ((t1 ': ts1) :++ ts2) m) x -> HComps ((t1 ': ts1) :++ ts2) m x)
+      => (forall x . Effs oeff m x -> m x)
+      -> (forall x . Effs eff (HComps ((t1 ': ts1) :++ ts2) m) x -> HComps ((t1 ': ts1) :++ ts2) m x)
     malg oalg
       = hunexpose @(t1 ': ts1)
-      . heither @eff1 @(eff2 :\\ eff1)
-          ( malg1 (heither @oeff1 @eff12 (mfwd2 (oalg . hinl @oeff1 @oeff2))
-                                         (malg2 (oalg . hinr @oeff1 @oeff2) . injs @eff12 @eff2)))
-          (weakenAlg $ mfwd1 (malg2 (oalg . hinr @oeff1 @oeff2)))
+      . hunion @eff1 @eff2
+          (malg1 (weakenAlg $ heither @(oeff1 :\\ eff2) @eff2
+                                (mfwd2 (weakenAlg oalg))
+                                (malg2 (weakenAlg oalg))))
+          (mfwd1 (malg2 (oalg . injs)))
       . hmap (hexpose @(t1 ': ts1))
 
     mfwd
@@ -403,19 +447,25 @@ instance (forall m . Monad m => Monad (HComps ts2 m)) => Fuse eff12 oeff1 oeff2 
       . hmap (hexpose @(t1 ': ts1))
 
 (<&>)
-  :: forall eff1 eff2 ts1 ts2 fs1 fs2
-  .  (Fuse '[] '[] '[] eff1 eff2 ts1 ts2 fs1 fs2
-     , Append  eff1 (eff2 :\\ eff1)
-     , Injects (eff2 :\\ eff1) eff2
-     , All Functor (fs2 :++ fs1)
-     , All MonadTrans (ts1 :++ ts2)
-     , HExpose ts1
-     , Expose fs2
-     )
-  => Handler eff1 ts1 fs1 '[]
-  -> Handler eff2 ts2 fs2 '[]
-  -> Handler (eff1 `Union` eff2) (ts1 :++ ts2) (fs2 :++ fs1) '[]
-(<&>) = fuse @'[] @'[] @'[] @eff1 @eff2 @ts1 @ts2 @fs1 @fs2
+    :: ( All Functor (fs2 :++ fs1)
+       , All MonadTrans (ts1 :++ ts2)
+       , HExpose ts1
+       , Expose fs2
+       , eff  ~ eff1 `Union` eff2
+       , oeff ~ (oeff1 :\\ eff2) `Union` oeff2
+       , Append eff1 (eff2 :\\ eff1)
+       , Append (oeff1 :\\ eff2) (oeff2 :\\ (oeff1 :\\ eff2))
+       , Append (oeff1 :\\ eff2) eff2
+       , Append (oeff1 :\\ eff2) oeff2
+       , Injects (oeff1 :\\ eff2) oeff, Injects oeff2 oeff
+       , Injects oeff1 ((oeff1 :\\ eff2) :++ eff2)
+       , Injects (eff2 :\\ eff1) eff2
+       , Fuse eff1 eff2 oeff1 oeff2 ts1 ts2 fs1 fs2 eff oeff
+       )
+    => Handler eff1 ts1 fs1 oeff1
+    -> Handler eff2 ts2 fs2 oeff2
+    -> Handler eff (ts1 :++ ts2) (fs2 :++ fs1) oeff
+(<&>) = fuse
 
 
 type Pipe ::

@@ -67,6 +67,6 @@ retryAlg oalg eff
                                Just y  -> loop p q
                Just x  -> return (Just x)
 
-retry :: Handler [Throw, Catch] '[MaybeT] '[Maybe] oeffs
+retry :: Handler [Throw, Catch] '[MaybeT] '[Maybe] '[]
 retry = handler runMaybeT retryAlg exceptFwd
 
