@@ -196,10 +196,9 @@ Here is how to write a handler that intercepts a `getLine` operation, only to
 emit it again while also incrementing a counter in the state:
 ```haskell
 getLineIncr
-  :: forall sig . Members '[GetLine, Get Int, Put Int] sig 
-  => Handler '[GetLine] '[] '[] sig
+  :: Handler '[GetLine] '[] '[] [GetLine, Get Int, Put Int]
 getLineIncr = reinterp malg where
-  malg :: forall x m . Effs '[GetLine] m x -> Prog sig x
+  malg :: forall x m . Effs '[GetLine] m x -> Prog [GetLine, Get Int, Put Int] x
   malg eff | Just (Alg (GetLine k)) <- prj eff =
     do xs <- getLine
        incr
@@ -213,7 +212,7 @@ be achieved with a `pipe`:
 ```haskell
 getLineIncrState :: Handler '[GetLine] '[StateT Int] '[(,) Int] '[GetLine]
 getLineIncrState
-  = pipe @'[Get Int, Put Int] @'[GetLine] getLineIncr (state (0 :: Int))
+  = pipe getLineIncr (state (0 :: Int))
 ```
 This can then be executed using `handleIO`, which will deal with 
 the residual `GetLine` effect:
@@ -252,10 +251,9 @@ list of strings. Here is how `getLine` can be interpreted in terms of the
 operations `get` and `put` from a state containing a list of strings:
 ```haskell
 getLineState
-  :: forall sig . Members [Get [String], Put [String]] sig 
-  => Handler '[GetLine] '[] '[] sig
+  :: Handler '[GetLine] '[] '[] [Get [String], Put [String]]
 getLineState = reinterp malg where
-  malg :: forall x m . Effs '[GetLine] m x -> Prog sig x
+  malg :: forall x m . Effs '[GetLine] m x -> Prog [Get [String], Put [String]] x
   malg eff | Just (Alg (GetLine k)) <- prj eff =
     do xss <- get
        case xss of
@@ -276,10 +274,10 @@ effects. These can be handled by a state handler. The output of the
 a new handler. Here are two variations:
 ```haskell
 getLinePure :: [String] -> Handler '[GetLine] '[StateT [String]] '[(,) [String]] '[]
-getLinePure str = pipe @'[Get [String], Put [String]] @'[] getLineState (state str)
+getLinePure str = pipe getLineState (state str)
 
 getLinePure_ :: [String] -> Handler '[GetLine] '[StateT [String]] '[] '[]
-getLinePure_ str = pipe @'[Get [String], Put [String]] @'[] getLineState (state_ str)
+getLinePure_ str = pipe getLineState (state_ str)
 ```
 Now we have a means of executing a program that contains only a |GetLine| effect,
 and extracting the resulting string:
@@ -345,10 +343,9 @@ Now the task is to reinterpret all `putStrLn` operations in terms of the
 `tell` operation:
 ```haskell
 putStrLnTell
-  :: forall sig . Members '[Tell [String]] sig
-  => Handler '[PutStrLn] '[] '[] sig
+  :: Handler '[PutStrLn] '[] '[] '[Tell [String]]
 putStrLnTell = reinterp malg where
-  malg :: forall x m . Effs '[PutStrLn] m x -> Prog sig x
+  malg :: forall x m . Effs '[PutStrLn] m x -> Prog '[Tell [String]] x
   malg eff | Just (Alg (PutStrLn str k)) <- prj eff =
     do tell [str]
        return k
@@ -357,7 +354,7 @@ This can in turn be piped into the `writer` handler to make
 a pure version of `putStrLn`:
 ```haskell
 putStrLnPure :: Handler '[PutStrLn] '[WriterT [String]] '[(,) [String]] '[]
-putStrLnPure = pipe @'[Tell [String]] @'[] putStrLnTell writer
+putStrLnPure = pipe putStrLnTell writer
 ```
 Now, a pure handler for both `putStrLn` and `getLine` can
 be defined as the fusion of `putStrLnPure` and `getLinePure`.
