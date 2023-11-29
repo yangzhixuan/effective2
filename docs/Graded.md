@@ -1,5 +1,6 @@
 ```haskell top:0
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE MonoLocalBinds #-}
 
 ```
 
