@@ -659,7 +659,7 @@ handleSome (Handler run malg mfwd)
   . eval (heither @eff @sig (malg @(Prog (oeffs :++ sig)) (Call . injs . fmap return))
                             (mfwd @(Prog (oeffs :++ sig)) (Call . injs . fmap return)))
 
-pass :: forall sig eff ts fs oeff 
+pass :: forall sig eff ts fs oeff
   .  (ts :++ '[] ~ ts
      , All Functor fs, All MonadTrans ts
      , HExpose ts
@@ -674,7 +674,7 @@ pass :: forall sig eff ts fs oeff
      )
   => Handler eff ts fs oeff
   -> Handler (eff `Union` sig) ts fs ((oeff :\\ sig) `Union` sig)
-pass h = fuse h (trivial @sig)
+pass h = fuse h (forward @sig)
 
 weaken
   :: forall ieffs ieffs' oeffs oeffs' ts fs
@@ -688,7 +688,6 @@ weaken (Handler run malg mfwd)
             (\oalg -> malg (oalg . injs) . injs)
             mfwd
 
-
 (\/)
   :: forall effs1 effs2 ts fs oeffs
   . (Append effs1 effs2)
@@ -698,28 +697,8 @@ weaken (Handler run malg mfwd)
 Handler run1 malg1 mfwd1 \/ Handler run2 malg2 mfwd2
   = Handler run1 (\oalg -> heither (malg1 oalg) (malg2 oalg)) mfwd1
 
-trivial :: Handler effs '[] '[] effs
-trivial = interp id
-
-trivial'
-  :: forall effs fs
-  . ( All Functor fs )
-  => Handler effs '[] fs effs
-trivial' = Handler run malg mfwd where
-  run  :: forall m . Monad m
-       => (forall x . Effs effs m x -> m x)
-       -> (forall x . HComps '[] m x -> m (Comps fs x))
-  run alg (HNil x)  = undefined
-
-  malg :: forall m . Monad m
-       => (forall x . Effs effs m x -> m x)
-       -> (forall x . Effs effs (HComps '[] m) x -> HComps '[] m x)
-  malg = undefined
-
-  mfwd :: forall m sig . Monad m
-       => (forall x . Effs sig m x -> m x)
-       -> (forall x . Effs sig (HComps '[] m) x -> HComps '[] m x)
-  mfwd = undefined
+forward :: Handler effs '[] '[] effs
+forward = interp id
 
 transform
   :: forall effs ts
