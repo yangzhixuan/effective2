@@ -245,9 +245,6 @@ fold falg gen (Call op)  =
 injCall :: Member sub sup => Eff sub (Prog sup) (Prog sup a) -> Prog sup a
 injCall = Call . inj
 
--- injCall :: forall sub sup a . (Functor sub, Injects '[sub] sup) => Eff sub (Prog sup) (Prog sup a) -> Prog sup a
--- injCall = Call . (injs  @'[sub] @sup) . Eff
-
 prjCall :: Member sub sup => Prog sup a -> Maybe (Eff sub (Prog sup) (Prog sup a))
 prjCall (Call op) = prj op
 prjCall _         = Nothing
@@ -647,7 +644,6 @@ handleOneWith
 handleOneWith xalg (Handler run malg mfwd)
   = fmap recompose . run xalg . eval (malg xalg)
 
--- The parameters sig and sig' should always be instantiated manually. Good luck.
 handleSome
   :: forall sig eff oeffs ts fs a
   .  (Injects oeffs (oeffs :++ sig), Injects sig (oeffs :++ sig), Append eff sig
