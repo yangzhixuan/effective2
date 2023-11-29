@@ -26,6 +26,7 @@ type family ((xs :: [k]) :\\ (ys :: [k]))  :: [k] where
   xs :\\ (y ': ys) = (Delete y xs) :\\ ys
 
 type Union xs ys = xs :++ (ys :\\ xs)
+type Inter xs ys = xs :\\ (xs :\\ ys)
 
 type family All (c :: k -> Constraint) (xs :: [k]) :: Constraint where
   All c '[]       = ()
