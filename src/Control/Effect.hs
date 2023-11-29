@@ -648,7 +648,7 @@ pass :: forall sig eff ts fs oeff
      , Injects (sig :\\ eff) sig
      , Fuse eff sig oeff sig ts '[] fs '[] (eff :++ (sig :\\ eff)) ((oeff :\\ sig) :++ (sig :\\ (oeff :\\ sig))) 
      )
-  => Handler eff ts fs oeff -- TODO: replace '[] with oeff, using the new machinery
+  => Handler eff ts fs oeff
   -> Handler (eff `Union` sig) ts fs ((oeff :\\ sig) `Union` sig)
 pass h = fuse h (trivial @sig)
 
