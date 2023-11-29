@@ -167,6 +167,16 @@ instance Append xs ys => Append (x ': xs) ys where
   houtr (Eff x)  = Nothing
   houtr (Effs x) = houtr @xs @ys x
 
+joinAlg :: forall sig1 sig2 oeff t m x .
+  ( Monad m, Append sig1 sig2 )
+  => ((forall x . Effs oeff m x -> m x) ->
+     (forall x. Effs sig1 (t m) x -> t m x))
+  -> ((forall x . Effs oeff m x -> m x) ->
+     (forall x. Effs sig2 (t m) x -> t m x))
+  -> ((forall x . Effs oeff m x -> m x) ->
+     (forall x. Effs (sig1 :++ sig2) (t m) x -> t m x))
+joinAlg falg galg oalg =
+  heither @sig1 @sig2 (falg oalg) (galg oalg)
 
 ---------------------------------------
 type Prog' sig a = forall sig' . Members sig sig' => Prog sig' a
@@ -664,6 +674,7 @@ pass :: forall sig eff ts fs oeff .
   => Handler eff ts fs oeff
   -> Handler (eff `Union` sig) ts fs ((oeff :\\ sig) `Union` sig)
 pass h = fuse h (forward @sig)
+
 
 weaken
   :: forall ieffs ieffs' oeffs oeffs' ts fs

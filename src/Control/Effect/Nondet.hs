@@ -134,17 +134,6 @@ backtrackAlg oalg op
                  Nothing       -> return Nothing
                  Just (x, mxs) -> return (Just (x, empty))
 
--- We can also define by composition
-joinAlg :: forall sig1 sig2 oeff t m x .
-  ( Monad m, Append sig1 sig2 )
-  => ((forall x . Effs oeff m x -> m x) ->
-     (forall x. Effs sig1 (t m) x -> t m x))
-  -> ((forall x . Effs oeff m x -> m x) ->
-     (forall x. Effs sig2 (t m) x -> t m x))
-  -> ((forall x . Effs oeff m x -> m x) ->
-     (forall x. Effs (sig1 :++ sig2) (t m) x -> t m x))
-joinAlg falg galg oalg =
-  heither @sig1 @sig2 (falg oalg) (galg oalg)
 
 backtrackOnceAlg
   :: Monad m
