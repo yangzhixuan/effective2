@@ -368,7 +368,7 @@ teletypePure
              '[StateT [String], WriterT [String]]
              '[(,) [String]]
              '[]
-teletypePure str = fuse @'[] @'[] (getLinePure_ str) putStrLnPure
+teletypePure str = fuse (getLinePure_ str) putStrLnPure
 ```
 The `fuse` combinator takes two handlers and creates one that accepts the union
 of their signatures. The handlers are run in sequence so that the output of the
@@ -392,9 +392,7 @@ teletypeTick
              '[StateT Int, StateT [String], WriterT [String]]
              '[(,) [String], (,) Int]
              '[]
-teletypeTick str = fuse @'[GetLine] @'[]
-  getLineIncrState 
-  (teletypePure str)
+teletypeTick str = fuse getLineIncrState (teletypePure str)
 ```
 This can be executed using `handle`, passing in the 
 list of inputs to be fed to `getLine`:
