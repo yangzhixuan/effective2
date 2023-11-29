@@ -152,7 +152,6 @@ instance Append xs ys => Append (x ': xs) ys where
   heither xalg yalg (Eff x)  = xalg (Eff x)
   heither xalg yalg (Effs x) = heither (xalg . Effs) yalg x
 
-
   hinl :: Effs (x : xs) f a -> Effs ((x : xs) :++ ys) f a
   hinl (Eff x)  = Eff x
   hinl (Effs x) = Effs (hinl @xs @ys x)
@@ -167,6 +166,7 @@ instance Append xs ys => Append (x ': xs) ys where
   houtr :: Effs ((x ': xs) :++ ys) f a -> Maybe (Effs ys f a)
   houtr (Eff x)  = Nothing
   houtr (Effs x) = houtr @xs @ys x
+
 
 ---------------------------------------
 type Prog' sig a = forall sig' . Members sig sig' => Prog sig' a
@@ -635,18 +635,22 @@ handleSome (Handler run malg mfwd)
   . eval (heither @eff @sig (malg @(Prog (oeffs :++ sig)) (Call . injs . fmap return))
                             (mfwd @(Prog (oeffs :++ sig)) (Call . injs . fmap return)))
 
-weaken'
-  :: forall ts fs eff eff'
-  . ( ts :++ '[] ~ ts
-    , Append eff (eff' :\\ eff)
-    , Injects (eff' :\\ eff) eff'
-    , All Functor fs, All MonadTrans ts
-    , Fuse '[] '[] eff' eff eff' ts '[] fs '[]
-    , HExpose ts
-    )
-  => Handler eff ts fs '[] -- TODO: replace '[] with oeff, using the new machinery
-  -> Handler (eff `Union` eff') ts fs eff'
-weaken' h = fuse @'[] @'[] @eff' @eff @eff' @ts @'[] @fs @'[] h (trivial @eff')
+pass :: forall sig eff ts fs oeff 
+  .  (ts :++ '[] ~ ts
+     , All Functor fs, All MonadTrans ts
+     , HExpose ts
+     , Append eff (sig :\\ eff)
+     , Append (oeff :\\ sig) sig
+     , Append (oeff :\\ sig) (sig :\\ (oeff :\\ sig))
+     , Injects sig ((oeff :\\ sig) :++ (sig :\\ (oeff :\\ sig)))
+     , Injects oeff ((oeff :\\ sig) :++ sig)
+     , Injects (oeff :\\ sig) ((oeff :\\ sig) :++ (sig :\\ (oeff :\\ sig)))
+     , Injects (sig :\\ eff) sig
+     , Fuse eff sig oeff sig ts '[] fs '[] (eff :++ (sig :\\ eff)) ((oeff :\\ sig) :++ (sig :\\ (oeff :\\ sig))) 
+     )
+  => Handler eff ts fs oeff -- TODO: replace '[] with oeff, using the new machinery
+  -> Handler (eff `Union` sig) ts fs ((oeff :\\ sig) `Union` sig)
+pass h = fuse h (trivial @sig)
 
 weaken
   :: forall ieffs ieffs' oeffs oeffs' ts fs
