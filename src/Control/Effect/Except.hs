@@ -4,18 +4,13 @@
 
 module Control.Effect.Except where
 
-import Data.Functor.Composes ( comps )
-import Data.HFunctor ( HFunctor(hmap) )
-import Data.HFunctor.HComposes ( hdecomps, hcomps )
-
 import Control.Effect
-    ( Handler(Handler), Member(prj), Effs(..), Eff(Scp, Alg), handler )
 import Control.Effect.Throw ( Throw(..) )
 import Control.Effect.Catch ( Catch(..) )
 
 
 import Control.Monad.Trans.Maybe
-import Control.Monad.Trans.Class (MonadTrans, lift)
+import Control.Monad.Trans.Class (lift)
 
 exceptAlg :: Monad m
   => (forall x. oeff m x -> m x)

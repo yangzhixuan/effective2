@@ -7,11 +7,10 @@ module Control.Effect.Nondet where
 import Prelude hiding (or)
 
 import Data.HFunctor ( HFunctor(..) )
-import Data.List.Kind ( type (:++), Union )
 
 import Control.Effect
 import Control.Applicative ( Alternative(empty, (<|>)) )
-import Control.Monad ( join, ap, liftM, replicateM)
+import Control.Monad ( ap, liftM )
 import Control.Monad.Trans.Class ( MonadTrans(..) )
 import Control.Arrow ( Arrow(second) )
 

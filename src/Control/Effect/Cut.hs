@@ -9,9 +9,7 @@ import Prelude hiding (or)
 
 import Data.CutList ( CutListT(..), CutListT'(..), fromCutListT' )
 import Data.HFunctor ( HFunctor(..) )
-import Data.HFunctor.HComposes ( HComposes )
 import Control.Applicative ( Alternative((<|>), empty) )
-import Control.Monad ( join, ap, liftM, replicateM)
 import Control.Monad.Trans.Class (lift)
 
 {-

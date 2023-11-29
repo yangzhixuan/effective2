@@ -4,7 +4,7 @@
 module Control.Effect.Writer where
 import Control.Effect
 import Data.Tuple (swap)
-import Control.Monad.Trans.Class (MonadTrans, lift)
+import Control.Monad.Trans.Class (lift)
 import qualified Control.Monad.Trans.Writer as W
 import Data.HFunctor ( HFunctor(..) )
 

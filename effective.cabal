@@ -24,7 +24,7 @@ source-repository head
 
 library
   default-language: GHC2021
-  ghc-options:   -Wunused-foralls
+  ghc-options:   -Wunused-foralls -Wunused-imports
   exposed-modules:
     Control.Effect
     Control.Effect.Catch

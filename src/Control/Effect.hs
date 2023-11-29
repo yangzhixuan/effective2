@@ -167,7 +167,7 @@ instance Append xs ys => Append (x ': xs) ys where
   houtr (Eff x)  = Nothing
   houtr (Effs x) = houtr @xs @ys x
 
-joinAlg :: forall sig1 sig2 oeff t m x .
+joinAlg :: forall sig1 sig2 oeff t m .
   ( Monad m, Append sig1 sig2 )
   => ((forall x . Effs oeff m x -> m x) ->
      (forall x. Effs sig1 (t m) x -> t m x))
