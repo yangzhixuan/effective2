@@ -25,8 +25,7 @@ type family ((xs :: [k]) :\\ (ys :: [k]))  :: [k] where
   xs :\\ '[]       = xs
   xs :\\ (y ': ys) = (Delete y xs) :\\ ys
 
-type family Union (xs :: [k]) (ys :: [k]) :: [k] where
-  Union xs ys = xs :++ (ys :\\ xs)
+type Union xs ys = xs :++ (ys :\\ xs)
 
 type family All (c :: k -> Constraint) (xs :: [k]) :: Constraint where
   All c '[]       = ()
