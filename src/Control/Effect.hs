@@ -337,7 +337,7 @@ class (forall m . Monad m => Monad (HComps ts2 m)) => Fuse eff1 eff2 oeff1 oeff2
 instance (forall m . Monad m => Monad (HComps ts2 m))
   => Fuse eff1 eff2 oeff1 oeff2 '[] ts2 fs1 fs2 where
   fuse
-    :: forall eff oeff m .
+    :: forall eff oeff .
     ( All Functor (fs2 :++ fs1)
     , All MonadTrans ('[] :++ ts2)
     , HExpose '[]
@@ -368,7 +368,7 @@ instance (forall m . Monad m => Monad (HComps ts2 m))
             (malg2 (weakenAlg oalg)))
         . hexpose
 
-      malg :: forall m sig . Monad m
+      malg :: forall m . Monad m
         => (forall x . Effs oeff m x -> m x)
         -> (forall x . Effs eff (HComps ('[] :++ ts2) m) x -> HComps ('[] :++ ts2) m x)
       malg oalg
@@ -392,7 +392,7 @@ instance (forall m . Monad m => Monad (HComps ts2 m))
 
 instance (forall m . Monad m => Monad (HComps ts2 m))
   => Fuse eff1 eff2 oeff1 oeff2 (t1 ': ts1) ts2 fs1 fs2 where
-  fuse :: forall eff oeff m .
+  fuse :: forall eff oeff .
     ( All Functor (fs2 :++ fs1)
     , All MonadTrans ((t1 ': ts1) :++ ts2)
     , HExpose (t1 ': ts1)
@@ -422,7 +422,7 @@ instance (forall m . Monad m => Monad (HComps ts2 m))
           (malg2 (weakenAlg oalg)))
       . hexpose
 
-    malg :: forall m sig . Monad m
+    malg :: forall m . Monad m
       => (forall x . Effs oeff m x -> m x)
       -> (forall x . Effs eff (HComps ((t1 ': ts1) :++ ts2) m) x -> HComps ((t1 ': ts1) :++ ts2) m x)
     malg oalg
@@ -514,7 +514,7 @@ instance (forall m . Monad m => Monad (HComps ts2 m))
             (malg2 (weakenAlg oalg)))
         . hexpose
 
-      malg :: forall m sig . Monad m
+      malg :: forall m . Monad m
         => (forall x . Effs ((oeff1 :\\ eff2) `Union` oeff2) m x -> m x)
         -> (forall x . Effs (eff1) (HComps ('[] :++ ts2) m) x -> HComps ('[] :++ ts2) m x)
       malg oalg
@@ -561,7 +561,7 @@ instance (forall m . Monad m => Monad (HComps ts2 m))
           (malg2 (weakenAlg oalg)))
       . hexpose
 
-    malg :: forall m sig . Monad m
+    malg :: forall m . Monad m
       => (forall x . Effs ((oeff1 :\\ eff2) `Union` oeff2) m x -> m x)
       -> (forall x . Effs eff1 (HComps ((t1 ': ts1) :++ ts2) m) x -> HComps ((t1 ': ts1) :++ ts2) m x)
     malg oalg
@@ -580,7 +580,7 @@ instance (forall m . Monad m => Monad (HComps ts2 m))
       . mfwd1 (mfwd2 alg)
       . hmap (hexpose @(t1 ': ts1))
 
-handle :: forall ieffs oeffs ts fs a .
+handle :: forall ieffs ts fs a .
   ( Monad (HComps ts Identity)
   , Recompose fs )
   => Handler ieffs ts fs '[]
@@ -592,7 +592,7 @@ handle (Handler run malg mfwd)
   . eval (malg (habsurd' . injs))
 
 handleM
-  :: forall ieffs oeffs m ts fs a
+  :: forall ieffs m ts fs a
   .  ( Monad m, Monad (HComps ts m)
      , Recompose fs)
   => Handler ieffs ts fs '[]
@@ -639,7 +639,7 @@ handleOneWith xalg (Handler run malg mfwd)
 
 -- The parameters sig and sig' should always be instantiated manually. Good luck.
 handleSome
-  :: forall sig eff oeffs ts fs a m
+  :: forall sig eff oeffs ts fs a
   .  (Injects oeffs (oeffs :++ sig), Injects sig (oeffs :++ sig), Append eff sig
   ,  Monad (HComps ts (Prog (oeffs :++ sig))), Recompose fs)
   => Handler eff ts fs oeffs -> Prog (eff :++ sig) a -> Prog (oeffs :++ sig) (Composes fs a)
