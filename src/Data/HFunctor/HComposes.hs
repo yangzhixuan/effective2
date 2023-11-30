@@ -5,7 +5,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 
-
 module Data.HFunctor.HComposes where
 
 import Data.Kind ( Type )
@@ -24,15 +23,16 @@ data HComps hs f a where
   HNil  :: f a -> HComps '[] f a
   HCons :: (Functor (h (HComps hs f))) => h (HComps hs f) a -> HComps (h ': hs) f a
 
-instance Functor f => Functor (HComps t2 f) where
+instance Functor f => Functor (HComps ts f) where
   fmap f (HNil x)  = HNil  (fmap f x)
   fmap f (HCons x) = HCons (fmap f x)
 
-instance Monad m => Applicative (HComps '[] m) where
+instance Applicative m => Applicative (HComps '[] m) where
   pure x = HNil (pure x)
   HNil mf <*> HNil mx = HNil (mf <*> mx)
 
-instance (MonadTrans t, Monad m, Monad (HComps ts m)) => Applicative (HComps (t ': ts) m) where
+instance (Applicative m, Applicative (t (HComps ts m)))
+  => Applicative (HComps (t ': ts) m) where
   pure x = HCons (pure x)
   HCons mf <*> HCons mx = HCons (mf <*> mx)
 
@@ -41,9 +41,8 @@ instance Monad m => Monad (HComps '[] m) where
     => HComps '[] m a -> (a -> HComps '[] m b) -> HComps '[] m b
   HNil mx >>= f = HNil (mx >>= ((\(HNil x) -> x) . f))
 
-instance (MonadTrans t, Monad m, Monad (HComps ts m)) => Monad (HComps (t ': ts) m) where
-  (>>=) :: (MonadTrans t, Monad m, Monad (HComps ts m))
-    => HComps (t : ts) m a -> (a -> HComps (t : ts) m b) -> HComps (t : ts) m b
+instance (Monad m, Monad (t (HComps ts m)) ) => Monad (HComps (t ': ts) m) where
+  (>>=) :: HComps (t : ts) m a -> (a -> HComps (t : ts) m b) -> HComps (t : ts) m b
   HCons mx >>= f = HCons (mx >>= ((\(HCons x) -> x) . f))
 
 instance MonadTrans (HComps '[]) where
