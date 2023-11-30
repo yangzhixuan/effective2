@@ -1,15 +1,13 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE ImpredicativeTypes #-}
-{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 
 module Data.HFunctor.HComposes where
 
 import Data.Kind ( Type )
 import Data.HFunctor ( HFunctor(..) )
-import Data.List.Kind ( type (:++), All )
+import Data.List.Kind ( type (:++) )
 import Control.Monad.Trans.Class ( MonadTrans, lift )
 
 type family HComposes
@@ -27,12 +25,12 @@ instance Functor f => Functor (HComps ts f) where
   fmap f (HNil x)  = HNil  (fmap f x)
   fmap f (HCons x) = HCons (fmap f x)
 
-instance Applicative m => Applicative (HComps '[] m) where
+instance Applicative f => Applicative (HComps '[] f) where
   pure x = HNil (pure x)
   HNil mf <*> HNil mx = HNil (mf <*> mx)
 
-instance (Applicative m, Applicative (t (HComps ts m)))
-  => Applicative (HComps (t ': ts) m) where
+instance (Applicative f, Applicative (h (HComps hs f)))
+  => Applicative (HComps (h ': hs) f) where
   pure x = HCons (pure x)
   HCons mf <*> HCons mx = HCons (mf <*> mx)
 
@@ -69,29 +67,32 @@ instance HRecompose '[] f where
   hdecompose :: HComposes '[] f a -> HComps '[] f a
   hdecompose = HNil
 
-instance (All MonadTrans ts, Functor m, Functor (HComposes ts m), HRecompose ts m, HFunctor t)
-  => HRecompose (t ': ts) m where
-  hrecompose :: (All MonadTrans ts, Functor m, Functor (HComposes ts m), HRecompose ts m, HFunctor t)
-    => HComps (t : ts) m a -> HComposes (t : ts) m a
+instance (Functor f, Functor (HComposes hs f), HRecompose hs f, HFunctor h)
+  => HRecompose (h ': hs) f where
+  hrecompose :: (Functor f, Functor (HComposes hs f), HRecompose hs f, HFunctor h)
+    => HComps (h ': hs) f a -> HComposes (h ': hs) f a
   hrecompose (HCons x) = hmap hrecompose x
 
-  hdecompose :: (All MonadTrans ts, Functor m, Functor (HComposes ts m), HRecompose ts m, HFunctor t)
-    => HComposes (t : ts) m a -> HComps (t : ts) m a
+  hdecompose :: (Functor f, Functor (HComposes hs f), HRecompose hs f)
+    => HComposes (h ': hs) f a -> HComps (h ': hs) f a
   hdecompose x = HCons (hmap hdecompose x)
 
-class HExpose hs where
-  hexpose :: Monad m => HComps (hs :++ ks) m a -> HComps hs (HComps ks m) a
-  hunexpose :: Monad m => HComps hs (HComps ks m) a -> HComps (hs :++ ks) m a
+class (forall f . Functor f => Functor (HComps hs f)) => HExpose hs where
+  hexpose   :: Functor f => HComps (hs :++ ks) f a -> HComps hs (HComps ks f) a
+  hunexpose :: Functor f => HComps hs (HComps ks f) a -> HComps (hs :++ ks) f a
 
 instance HExpose '[] where
-  hexpose :: Monad m => HComps ks m a -> HComps '[] (HComps ks m) a
+  hexpose :: Functor f => HComps ks f a -> HComps '[] (HComps ks f) a
   hexpose (HNil x)  = HNil (HNil x)
   hexpose (HCons x) = HNil (HCons x)
 
-  hunexpose :: Monad m => HComps '[] (HComps ks m) a -> HComps ('[] :++ ks) m a
+  hunexpose :: HComps '[] (HComps ks f) a -> HComps ('[] :++ ks) f a
   hunexpose (HNil x)  = x
 
 instance (HExpose hs , HFunctor h) => HExpose (h ': hs) where
-  hexpose (HCons x) = HCons (hmap hexpose x)
+  hexpose :: Functor f => HComps ((h ': hs) :++ ks) f a -> HComps (h ': hs) (HComps ks f) a
+  hexpose   (HCons x) = HCons (hmap hexpose x)
+
+  hunexpose :: Functor f => HComps (h ': hs) (HComps ks f) a -> HComps ((h ': hs) :++ ks) f a
   hunexpose (HCons x) = HCons (hmap hunexpose x)
 
