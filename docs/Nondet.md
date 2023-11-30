@@ -16,11 +16,11 @@ knapsack
   :: Members [Stop, Or] sig
   => Int -> [Int] -> Prog sig [Int]
 knapsack w vs
-  | w <  0 = stop
-  | w == 0 = return []
-  | w >  0 = do v <- select vs
-                vs' <- knapsack (w - v) vs
-                return (v : vs')
+  | w <  0    = stop
+  | w == 0    = return []
+  | otherwise = do v <- select vs
+                   vs' <- knapsack (w - v) vs
+                   return (v : vs')
 
 
 -- `list` is not a modular handler and uses `eval` directly
