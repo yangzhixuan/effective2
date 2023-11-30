@@ -259,7 +259,6 @@ type Handler
   -> [Signature]                         -- oeffs : output effects
   -> Type
 data Handler effs ts fs oeffs =
-  (All Functor fs, All MonadTrans ts) =>
   Handler
   { run  :: forall m . Monad m
          => (forall x . Effs oeffs m x -> m x)
