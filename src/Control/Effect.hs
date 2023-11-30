@@ -4,18 +4,12 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-
-{-# HLINT ignore "Eta reduce" #-}
-{-# HLINT ignore "Redundant return" #-}
-{-# HLINT ignore "Redundant bracket" #-}
-{-# HLINT ignore "Fuse foldr/fmap" #-}
 
 module Control.Effect where
 
 import Data.Kind ( Type, Constraint )
 
-import Data.List.Kind ( type (:++), type (:\\), All, Union  )
+import Data.List.Kind
 import Data.Functor.Identity
 import Data.Functor.Composes
 import Data.HFunctor
@@ -596,6 +590,7 @@ handle (Handler run malg mfwd)
   . fmap @Identity (recompose @fs @a)
   . run @Identity (habsurd' . injs)
   . eval (malg (habsurd' . injs))
+
 
 handleM
   :: forall ieffs m ts fs a
