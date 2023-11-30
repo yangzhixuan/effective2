@@ -50,10 +50,10 @@ instance (MonadTrans t, MonadTrans (HComps ts))
   => MonadTrans (HComps (t ': ts)) where
   lift x = HCons (lift (lift x))
 
-hdecomps :: (HFunctor h, Functor f) => HComps '[h] f x -> h f x
+hdecomps :: (HFunctor h, Functor f) => HComps '[h] f a -> h f a
 hdecomps (HCons x) = hmap (\(HNil y) -> y) x
 
-hcomps :: (HFunctor h, Functor f) => h f x -> HComps '[h] f x
+hcomps :: (HFunctor h, Functor f) => h f a -> HComps '[h] f a
 hcomps = HCons . hmap HNil
 
 class HRecompose hs f where
