@@ -59,11 +59,6 @@ nondetFwd alg (Effs effs)   = nondetFwd (alg . Effs) effs
 nondet :: Handler [Stop, Or] '[ListT] '[[]] '[]
 nondet = handler runListT' nondetAlg nondetFwd
 
-
-
-newtype AListT m e a = AListT { runAListT :: m (Either e (a, ListT m a)) }
-  deriving Functor
-
 newtype ListT m a = ListT { runListT :: m (Maybe (a, ListT m a)) }
   deriving Functor
 

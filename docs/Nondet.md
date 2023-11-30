@@ -1,7 +1,6 @@
 ```haskell
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE QualifiedDo #-}
 
 module Nondet where
 
@@ -12,9 +11,6 @@ import Control.Effect.Cut
 import Control.Effect.Nondet
 
 import Hedgehog
-import Hedgehog.Internal.TH
-
-import qualified Control.Monad.Graded as Graded
 
 knapsack
   :: Members [Stop, Or] sig

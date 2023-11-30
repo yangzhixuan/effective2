@@ -1,12 +1,10 @@
 ```haskell
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE QualifiedDo #-}
 
 module Parser where
 
 import Hedgehog
-import Hedgehog.Internal.TH
 
 import Prelude hiding (or)
 
@@ -16,8 +14,6 @@ import Control.Effect
 import Control.Effect.Cut
 import Control.Effect.Nondet
 import Control.Effect.State
-
-import qualified Control.Monad.Graded as Graded
 
 -- char :: Members [Get [Char], Put [Char], Stop, Or] sig => Prog sig Char
 -- char = do xxs <- get

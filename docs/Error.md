@@ -7,7 +7,6 @@ module Error where
 import Hedgehog
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
-import Hedgehog.Internal.TH
 
 import Control.Effect
 import Control.Effect.Catch

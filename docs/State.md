@@ -8,14 +8,13 @@ module State where
 import Hedgehog
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
-import Hedgehog.Internal.TH
 
 import Control.Effect
 import Control.Effect.State
 import Control.Effect.Catch
 import Control.Effect.Throw
 import Control.Effect.Except
-import Control.Monad (replicateM, replicateM_)
+import Control.Monad (replicateM_)
 import Control.Monad.Trans.Maybe
 import qualified Control.Monad.Trans.State.Lazy as S
 

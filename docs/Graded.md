@@ -13,11 +13,8 @@ import Control.Effect.State hiding (get, put)
 import Control.Effect.Catch hiding (catch)
 import qualified Control.Effect.Throw as Throw
 import Control.Effect.Throw hiding (throw)
-import Control.Effect.Except
 import Data.List.Kind (Union, Insert)
-import Control.Monad (replicateM, replicateM_)
-import Control.Monad.Trans.Maybe
-import qualified Control.Monad.Trans.State.Lazy as S
+import Control.Monad (replicateM_)
 ```
 
 A different way of using this library is to use _graded monads_.

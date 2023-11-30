@@ -6,14 +6,13 @@ Internal transformer handlers
 
 module Transformers where
 
-import Data.Kind ( Type, Constraint )
+import Data.Kind ( Type )
 
 import Control.Effect
 import Control.Monad.Trans.Class
 import Data.List.Kind
 import Data.Functor.Identity
 import Data.Functor.Composes
-import Data.HFunctor
 import Data.HFunctor.HComposes
 ```
 

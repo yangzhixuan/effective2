@@ -44,7 +44,6 @@ except = handler runMaybeT exceptAlg exceptFwd
 -- If it fails, then `q` is executed as a recovering clause.
 -- If the recovery fails then the computation is failed overall.
 -- If the recovery succeeds, then `catch p q` is attempted again.
--- TODO: joinAlg
 retryAlg :: Monad m
   => (forall x. Effs oeff m x -> m x)
   -> (forall x. Effs [Throw, Catch] (MaybeT m) x -> MaybeT m x)
