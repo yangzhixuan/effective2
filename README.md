@@ -39,7 +39,7 @@ The most obvious interpretation of `getLine` and `putLine` is to invoke their
 corresponding values from the prelude. Indeed, when all of the operations of a
 program are standard Prelude IO operations, it is enough to simply evaluate the
 program using `evalIO`:
-```haskell
+```haskell ignore
 exampleIO :: IO ()
 exampleIO = evalIO echo
 ```
@@ -397,6 +397,15 @@ list of inputs to be fed to `getLine`:
 ghci> handle (teletypeTick ["Hello", "world!"]) echo
 (["Hello","world!"],(3,()))
 ```
+<--
+```haskell
+prop_teletypeTick :: Property
+prop_teletypeTick = property $ do
+  xxs <- forAll $ list (linear 0 1000) (string (linear 0 100) ascii)
+  let xxs' = takeWhile (/= "") xxs
+  handle (teletypeTick xxs) echo === (xxs', (length xxs' + 1, ()))
+```
+-->
 
 Members
 --------
@@ -439,9 +448,6 @@ considered more advanced and is detailed more carefully in the
 [documentation](docs/Graded.md).
 
 
-
-
-
 Language Extensions
 --------------------
 
@@ -451,7 +457,12 @@ this is used to keep track of effect signatures.
 ```haskell top
 {-# LANGUAGE DataKinds #-}    -- Used for the list of effects
 ```
-
+<!--
+The following pragma is only needed for the testing framework.
+```haskell top 
+{-# LANGUAGE TemplateHaskell #-}
+```
+-->
 
 Imports
 -------
@@ -467,9 +478,22 @@ import Control.Monad.Trans.State.Lazy (StateT)
 import Control.Monad.Trans.Writer.Lazy (WriterT)
 
 import Prelude hiding (putStrLn, getLine)
-
-main = return ()
 ```
+
+<!--
+We will hide the following from the README, because it is
+only for testing the documentaton itself.
+```haskell top
+import Hedgehog
+import Hedgehog.Main
+import Hedgehog.Gen
+import Hedgehog.Range
+
+
+main :: IO ()
+main = defaultMain $ fmap checkParallel [props]
+```
+-->
 
 References
 -----------
@@ -478,3 +502,8 @@ References
 * [Modular Models of Monoids with Operations. Z. Yang, N. Wu. ICFP. 2023](https://dl.acm.org/doi/10.1145/3607850)
 
 [^Gordon1992]: A. Gordon. Functional Programming and Input/Output. PhD Thesis, King's College London. 1992
+
+```haskell top
+props :: Group
+props = $$(discover)
+```
