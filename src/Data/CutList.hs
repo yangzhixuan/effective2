@@ -16,7 +16,7 @@ fromCutList (x :< xs) = x : fromCutList xs
 fromCutList _         = []
 
 instance Semigroup (CutList a) where
-  Zero      <> ys = Zero
+  Zero      <> _  = Zero
   Nil       <> ys = ys
   (x :< xs) <> ys = x :< (xs <> ys)
 
@@ -28,9 +28,9 @@ instance Applicative CutList where
   (<*>)  = ap
 
 instance Monad CutList where
-  m >>= f = join (fmap f m) where
+  mx >>= f = join (fmap f mx) where
     join :: CutList (CutList a) -> CutList a
-    join ((a :< xs) :< xss) = a :< join (xs :< xss)
+    join ((x :< xs) :< xss) = x :< join (xs :< xss)
     join (Nil  :< xss) = join xss
     join (Zero :< _)   = Zero
     join Nil           = Nil
@@ -38,14 +38,14 @@ instance Monad CutList where
 
 instance Alternative CutList where
   empty            = Nil
-  Zero      <|> ys = Nil
+  Zero      <|> _  = Nil
   Nil       <|> ys = ys
   (x :< xs) <|> ys = x :< (xs <|> ys)
 
-data CutListT' m a = a :<< (m (CutListT' m a)) | NilT | ZeroT
+newtype CutListT m a = CutListT { runCutListT :: m (CutListT' m a) }
   deriving Functor
 
-newtype CutListT m a = CutListT { runCutListT :: m (CutListT' m a) }
+data CutListT' m a = a :<< (m (CutListT' m a)) | NilT | ZeroT
   deriving Functor
 
 fromCutListT' :: Monad m => CutListT m a -> m [a]
@@ -62,18 +62,18 @@ instance Monad m => Applicative (CutListT m) where
 
 instance Monad m => Alternative (CutListT m) where
   empty = CutListT $ return NilT
-  CutListT m <|> CutListT n = CutListT $ m >>= aux
+  CutListT mxs <|> CutListT mys = CutListT $ mxs >>= k
    where
-    aux (a :<< k) = return $ a :<< (k >>= aux)
-    aux NilT        = n
-    aux ZeroT       = return ZeroT -- aux ZeroT       = return NilT
+    k (x :<< mxs') = return $ x :<< (mxs' >>= k)
+    k NilT         = mys
+    k ZeroT        = return ZeroT -- k ZeroT = return NilT
 
 instance Monad m => Monad (CutListT m) where
-  CutListT m >>= f = CutListT $ m >>= \x -> case x of
-    a :<< m -> runCutListT $ f a <|> (CutListT m >>= f)
-    NilT    -> return NilT
-    ZeroT   -> return ZeroT
+  CutListT mxs >>= k = CutListT $ mxs >>= \xxs -> case xxs of
+    x :<< mxs' -> runCutListT $ k x <|> (CutListT mxs' >>= k)
+    NilT       -> return NilT
+    ZeroT      -> return ZeroT
 
 instance MonadTrans CutListT where
   lift :: Monad m => m a -> CutListT m a
-  lift m = CutListT $ liftM (\a -> a :<< return NilT) m
+  lift mx = CutListT $ liftM (\x -> x :<< return NilT) mx
