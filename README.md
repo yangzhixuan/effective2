@@ -377,7 +377,7 @@ Now the `echo` program can be executed in an entirely pure context:
 ghci> handle (teletypePure ["Hello", "world!"]) echo
 (["Hello","world!"],())
 ```
-<--
+<!--
 ```haskell
 prop_teletypePure :: Property
 prop_teletypePure = property $ do
@@ -406,7 +406,7 @@ list of inputs to be fed to `getLine`:
 ghci> handle (teletypeTick ["Hello", "world!"]) echo
 (["Hello","world!"],(3,()))
 ```
-<--
+<!--
 ```haskell
 prop_teletypeTick :: Property
 prop_teletypeTick = property $ do
