@@ -45,8 +45,8 @@ instance HFunctor (Effs sigs) where
   hmap h (Eff x)  = Eff (hmap h x)
   hmap h (Effs x) = Effs (hmap h x)
 
-habsurd' :: Effs '[] f x -> a
-habsurd' = error "habsurd!"
+absurdEffs :: Effs '[] f x -> a
+absurdEffs x = case x of {}
 
 data Nat = Z | S Nat
 
@@ -102,7 +102,7 @@ class Injects xs xys where
 
 instance Injects '[] xys where
   injs :: Effs '[] f a -> Effs xys f a
-  injs = habsurd'
+  injs = absurdEffs
 
 instance (Member x xys, Injects xs xys)
   => Injects (x ': xs) xys where
@@ -130,7 +130,7 @@ instance Append '[] ys where
   heither xalg yalg = yalg
 
   hinl :: Effs '[] f a -> Effs ys f a
-  hinl = habsurd'
+  hinl = absurdEffs
 
   hinr :: Effs ys f a -> Effs ys f a
   hinr = id
@@ -588,8 +588,8 @@ handle :: forall ieffs ts fs a .
 handle (Handler run malg mfwd)
   = runIdentity
   . fmap @Identity (recompose @fs @a)
-  . run @Identity (habsurd' . injs)
-  . eval (malg (habsurd' . injs))
+  . run @Identity (absurdEffs . injs)
+  . eval (malg (absurdEffs . injs))
 
 
 handleM
@@ -600,8 +600,8 @@ handleM
   -> Prog ieffs a -> m (Composes fs a)
 handleM (Handler run malg mfwd)
   = fmap @m (recompose @fs @a)
-  . run @m (habsurd' . injs)
-  . eval (malg (habsurd' . injs))
+  . run @m (absurdEffs . injs)
+  . eval (malg (absurdEffs . injs))
 
 handleWith :: forall ieffs oeffs xeffs m ts fs a .
   ( Monad m, Monad (HComps ts m)
