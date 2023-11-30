@@ -9,6 +9,7 @@ import qualified Nondet
 import qualified State
 import qualified Parser
 import qualified Graded
+import qualified Transformers
 
 main :: IO ()
 main = defaultMain $ fmap checkParallel
