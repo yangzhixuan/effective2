@@ -377,6 +377,15 @@ Now the `echo` program can be executed in an entirely pure context:
 ghci> handle (teletypePure ["Hello", "world!"]) echo
 (["Hello","world!"],())
 ```
+<--
+```haskell
+prop_teletypePure :: Property
+prop_teletypePure = property $ do
+  xxs <- forAll $ list (linear 0 1000) (string (linear 0 100) ascii)
+  let xxs' = takeWhile (/= "") xxs
+  handle (teletypePure xxs) echo === (xxs', ())
+```
+-->
 The return value of `()` comes from the result of `echo` itself.
 
 One challenge is to count the number of times `getLine` is executed
