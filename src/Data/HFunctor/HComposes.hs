@@ -11,7 +11,7 @@ module Data.HFunctor.HComposes where
 import Data.Kind ( Type )
 import Data.HFunctor ( HFunctor(..) )
 import Data.List.Kind ( type (:++), All )
-import Control.Monad.Trans.Class ( MonadTrans )
+import Control.Monad.Trans.Class ( MonadTrans, lift )
 
 type family HComposes
     (hs :: [(Type -> Type) -> (Type -> Type)])
@@ -45,6 +45,13 @@ instance (MonadTrans t, Monad m, Monad (HComps ts m)) => Monad (HComps (t ': ts)
   (>>=) :: (MonadTrans t, Monad m, Monad (HComps ts m))
     => HComps (t : ts) m a -> (a -> HComps (t : ts) m b) -> HComps (t : ts) m b
   HCons mx >>= f = HCons (mx >>= ((\(HCons x) -> x) . f))
+
+instance MonadTrans (HComps '[]) where
+  lift = HNil
+
+instance (MonadTrans t, MonadTrans (HComps ts))
+  => MonadTrans (HComps (t ': ts)) where
+  lift x = HCons (lift (lift x))
 
 hdecomps :: (HFunctor h, Functor f) => HComps '[h] f x -> h f x
 hdecomps (HCons x) = hmap (\(HNil y) -> y) x
