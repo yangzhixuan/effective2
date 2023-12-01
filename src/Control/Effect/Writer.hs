@@ -7,9 +7,7 @@ import Data.Tuple (swap)
 import Control.Monad.Trans.Class (lift)
 import qualified Control.Monad.Trans.Writer as W
 import Data.HFunctor ( HFunctor(..) )
-
-instance HFunctor (W.WriterT w) where
-  hmap h (W.WriterT mx) = W.WriterT (h mx)
+import Data.Functor.Composes (Comps(CNil))
 
 data Tell w k where
   Tell :: w -> k -> Tell w k
@@ -22,7 +20,7 @@ writerAlg
   :: (Monad m, Monoid w)
   => (forall x. oeff m x -> m x)
   -> (forall x.  Effs '[Tell w] (W.WriterT w m) x -> W.WriterT w m x)
-writerAlg oalg eff
+writerAlg _ eff
   | Just (Alg (Tell w k)) <- prj eff =
       do W.tell w
          return k
@@ -35,9 +33,9 @@ writerFwd alg (Eff (Alg x)) = lift (alg (Eff (Alg x)))
 writerFwd alg (Eff (Scp x)) = W.WriterT (alg (Eff (Scp (fmap W.runWriterT x))))
 writerFwd alg (Effs effs)   = writerFwd (alg . Effs) effs
 
-writer :: Monoid w => Handler '[Tell w] '[W.WriterT w] '[(,) w] '[]
+writer :: Monoid w => Handler '[Tell w] '[] '[(,) w]
 writer = handler (fmap swap . W.runWriterT) writerAlg writerFwd
 
--- TODO: The following causes GHC to panic!
--- writer_ :: Monoid w => Handler '[Tell w] '[W.WriterT w] '[] '[]
--- writer_ = writer { run = \oalg -> fmap (CNil . fst) . W.runWriterT . hdecomps }
+-- A silent writer. Bonus marks for making this useful.
+writer_ :: Monoid w => Handler '[Tell w] '[] '[]
+writer_ = Handler $ Handler' (\oalg -> fmap (CNil . fst) . W.runWriterT) writerAlg writerFwd

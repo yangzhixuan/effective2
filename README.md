@@ -69,9 +69,8 @@ This program can be executed by using a handler. For state, the usual
 handler is given by:
 ```haskell ignore
 state :: s -> Handler '[Put s, Get s, Local s]  -- input effects
-                      '[StateT s]               -- semantic transformer
-                      '[((,) s)]                -- output carrier
                       '[]                       -- output effects
+                      '[((,) s)]                -- output carrier
 ```
 The signature of the handler tells us how it behaves:
 * The input effects are `Put s`, `Get s`, and `Local s`.
@@ -196,7 +195,7 @@ Here is how to write a handler that intercepts a `getLine` operation, only to
 emit it again while also incrementing a counter in the state:
 ```haskell
 getLineIncr
-  :: Handler '[GetLine] '[] '[] [GetLine, Get Int, Put Int]
+  :: Handler '[GetLine] '[GetLine, Get Int, Put Int] '[]
 getLineIncr = reinterp malg where
   malg :: forall x m . Effs '[GetLine] m x -> Prog [GetLine, Get Int, Put Int] x
   malg eff | Just (Alg (GetLine k)) <- prj eff =
@@ -210,7 +209,7 @@ but and will output the effects `[GetLine, Get Int, Put Int]`.
 Now the task is to connect this handler with `state`. This can
 be achieved with a `pipe`:
 ```haskell
-getLineIncrState :: Handler '[GetLine] '[StateT Int] '[(,) Int] '[GetLine]
+getLineIncrState :: Handler '[GetLine] '[GetLine] '[(,) Int]
 getLineIncrState
   = pipe getLineIncr (state (0 :: Int))
 ```
@@ -251,7 +250,7 @@ list of strings. Here is how `getLine` can be interpreted in terms of the
 operations `get` and `put` from a state containing a list of strings:
 ```haskell
 getLineState
-  :: Handler '[GetLine] '[] '[] [Get [String], Put [String]]
+  :: Handler '[GetLine] '[Get [String], Put [String]] '[]
 getLineState = reinterp malg where
   malg :: forall x m . Effs '[GetLine] m x -> Prog [Get [String], Put [String]] x
   malg eff | Just (Alg (GetLine k)) <- prj eff =
@@ -273,10 +272,10 @@ effects. These can be handled by a state handler. The output of the
 `getLineState` handler can be piped into the `state` handler to produce
 a new handler. Here are two variations:
 ```haskell
-getLinePure :: [String] -> Handler '[GetLine] '[StateT [String]] '[(,) [String]] '[]
+getLinePure :: [String] -> Handler '[GetLine] '[] '[(,) [String]]
 getLinePure str = pipe getLineState (state str)
 
-getLinePure_ :: [String] -> Handler '[GetLine] '[StateT [String]] '[] '[]
+getLinePure_ :: [String] -> Handler '[GetLine] '[] '[]
 getLinePure_ str = pipe getLineState (state_ str)
 ```
 Now we have a means of executing a program that contains only a |GetLine| effect,
@@ -343,7 +342,7 @@ Now the task is to reinterpret all `putStrLn` operations in terms of the
 `tell` operation:
 ```haskell
 putStrLnTell
-  :: Handler '[PutStrLn] '[] '[] '[Tell [String]]
+  :: Handler '[PutStrLn] '[Tell [String]] '[]
 putStrLnTell = reinterp malg where
   malg :: forall x m . Effs '[PutStrLn] m x -> Prog '[Tell [String]] x
   malg eff | Just (Alg (PutStrLn str k)) <- prj eff =
@@ -353,7 +352,7 @@ putStrLnTell = reinterp malg where
 This can in turn be piped into the `writer` handler to make
 a pure version of `putStrLn`:
 ```haskell
-putStrLnPure :: Handler '[PutStrLn] '[WriterT [String]] '[(,) [String]] '[]
+putStrLnPure :: Handler '[PutStrLn] '[] '[(,) [String]]
 putStrLnPure = pipe putStrLnTell writer
 ```
 Now, a pure handler for both `putStrLn` and `getLine` can
@@ -362,9 +361,8 @@ be defined as the fusion of `putStrLnPure` and `getLinePure`.
 teletypePure 
   :: [String]
   -> Handler '[GetLine, PutStrLn] 
-             '[StateT [String], WriterT [String]]
-             '[(,) [String]]
              '[]
+             '[(,) [String]]
 teletypePure str = fuse (getLinePure_ str) putStrLnPure
 ```
 The `fuse` combinator takes two handlers and creates one that accepts the union
@@ -395,9 +393,8 @@ to reinterpret `getLine` before passing the resulting `getLine` to `teletypePure
 teletypeTick
   :: [String]
   -> Handler '[GetLine, PutStrLn] 
-             '[StateT Int, StateT [String], WriterT [String]]
-             '[(,) [String], (,) Int]
              '[]
+             '[(,) [String], (,) Int]
 teletypeTick str = fuse getLineIncrState (teletypePure str)
 ```
 This can be executed using `handle`, passing in the 
@@ -483,8 +480,6 @@ import Control.Effect
 import Control.Effect.State
 import Control.Effect.Writer
 import Control.Effect.IO
-import Control.Monad.Trans.State.Lazy (StateT)
-import Control.Monad.Trans.Writer.Lazy (WriterT)
 
 import Prelude hiding (putStrLn, getLine)
 ```

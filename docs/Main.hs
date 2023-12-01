@@ -8,7 +8,6 @@ import Nondet
 import State
 import Parser
 import Graded ()
-import Transformers ()
 
 main :: IO ()
 main = defaultMain $ fmap checkParallel

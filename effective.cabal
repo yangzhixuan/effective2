@@ -16,7 +16,7 @@ extra-source-files:
 custom-setup
   setup-depends:
     base,
-    Cabal >= 3.8.1.0
+    Cabal
 
 source-repository head
   type: git
@@ -38,6 +38,7 @@ library
     Control.Monad.Graded
     Data.Functor.Composes
     Data.HFunctor
+    Data.HFunctor.HCompose
     Data.HFunctor.HComposes
     Data.CutList
     Data.List.Kind
@@ -61,7 +62,6 @@ test-suite docs
     Nondet,
     Parser,
     State,
-    Transformers
 
 test-suite readme
   type:          exitcode-stdio-1.0

@@ -47,8 +47,8 @@ catchDecr' = catchDecr @[Get Int, Put Int, Throw, Catch]
 
 globalState
   :: s -> Handler '[Throw, Catch, Put s, Get s, Local s]
-          [MaybeT,  S.StateT s]
-          [(,) s, Maybe] '[]
+                  '[]
+                  '[(,) s, Maybe]
 globalState s = except <&> state s
 
 -- This is global state because the `Int` is decremented
@@ -59,11 +59,9 @@ example_GlobalState = property $
     (0,Just ())
 
 localState
-  :: s -> Handler
-          '[Put s, Get s, Local s, Throw, Catch]
-          '[S.StateT s, MaybeT]
-          '[Maybe, ((,) s)]
-          '[]
+  :: s -> Handler '[Put s, Get s, Local s, Throw, Catch]
+                  '[]
+                  '[Maybe, ((,) s)]
 localState s = state s <&> except
 
 -- With local state, the state is reset to its value

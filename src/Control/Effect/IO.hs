@@ -38,17 +38,13 @@ evalIO :: Prog [GetLine, PutStrLn] a -> IO a
 evalIO = eval algIO
 
 handleIO
-  :: forall ieffs oeffs ts fs a xeffs
-  .  ( Injects ieffs (ieffs :++ xeffs)
-     , Injects oeffs xeffs
-     , Injects (ieffs :++ xeffs) (ieffs :++ xeffs)
-     , Monad (HComps ts IO)
-     , Append ieffs xeffs
-     , Recompose fs
-     , xeffs ~ '[GetLine, PutStrLn]
-     )
-  => Handler ieffs ts fs oeffs
-  -> Prog (ieffs :++ xeffs) a -> IO (Composes fs a)
+  :: forall ieffs oeffs fs a xeffs
+  . ( Append ieffs (xeffs :\\ ieffs)
+    , Injects oeffs xeffs
+    , Injects (xeffs :\\ ieffs) xeffs
+    , Recompose fs
+    , xeffs ~ '[GetLine, PutStrLn] )
+  => Handler ieffs oeffs fs
+  -> Prog (ieffs `Union` xeffs) a -> IO (Composes fs a)
 handleIO = handleWith algIO
-
 

@@ -15,7 +15,7 @@ import Control.Monad.Trans.Class (lift)
 exceptAlg :: Monad m
   => (forall x. oeff m x -> m x)
   -> (forall x. Effs [Throw, Catch] (MaybeT m) x -> MaybeT m x)
-exceptAlg oalg eff
+exceptAlg _ eff
   | Just (Alg Throw) <- prj eff
       = MaybeT (return Nothing)
   | Just (Scp (Catch p q)) <- prj eff
@@ -32,7 +32,7 @@ exceptFwd alg (Eff (Alg x)) = lift (alg (Eff (Alg x)))
 exceptFwd alg (Eff (Scp x)) = MaybeT (alg (Eff (Scp (fmap runMaybeT x))))
 exceptFwd alg (Effs effs)   = exceptFwd (alg . Effs) effs
 
-except :: Handler [Throw, Catch] '[MaybeT] '[Maybe] '[]
+except :: Handler [Throw, Catch] '[] '[Maybe]
 except = handler runMaybeT exceptAlg exceptFwd
 
 
@@ -47,7 +47,7 @@ except = handler runMaybeT exceptAlg exceptFwd
 retryAlg :: Monad m
   => (forall x. Effs oeff m x -> m x)
   -> (forall x. Effs [Throw, Catch] (MaybeT m) x -> MaybeT m x)
-retryAlg oalg eff
+retryAlg _ eff
   | Just (Alg Throw) <- prj eff
       = MaybeT (return Nothing)
   | Just (Scp (Catch p q)) <- prj eff = MaybeT $ loop p q
@@ -61,6 +61,6 @@ retryAlg oalg eff
                                Just y  -> loop p q
                Just x  -> return (Just x)
 
-retry :: Handler [Throw, Catch] '[MaybeT] '[Maybe] '[]
+retry :: Handler [Throw, Catch] '[] '[Maybe]
 retry = handler runMaybeT retryAlg exceptFwd
 

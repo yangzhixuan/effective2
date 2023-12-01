@@ -5,10 +5,8 @@ module Control.Effect.State where
 import Control.Monad.Trans.Class (lift)
 import Data.Tuple (swap)
 
-
 import Control.Effect
 import Data.HFunctor ( HFunctor(..) )
-import Data.HFunctor.HComposes
 import Data.Functor.Composes
 import qualified Control.Monad.Trans.State.Lazy as S
 
@@ -35,14 +33,11 @@ get = injCall (Alg (Get return))
 local :: Member (Local s) sig => s -> Prog sig a -> Prog sig a
 local s p = injCall (Scp (Local s (fmap return p)))
 
-instance HFunctor (S.StateT s) where
-  hmap h (S.StateT p) = S.StateT (\s -> h (p s))
-
 stateAlg
   :: Monad m
   => (forall x. oeff m x -> m x)
   -> (forall x.  Effs [Put s, Get s, Local s] (S.StateT s m) x -> S.StateT s m x)
-stateAlg oalg eff
+stateAlg _ eff
   | Just (Alg (Put s p)) <- prj eff =
       do S.put s
          return p
@@ -60,12 +55,11 @@ stateFwd alg (Eff (Alg x)) = lift (alg (Eff (Alg x)))
 stateFwd alg (Eff (Scp x)) = S.StateT (\s -> (alg (Eff (Scp (fmap (flip S.runStateT s) x)))))
 stateFwd alg (Effs effs)   = stateFwd (alg . Effs) effs
 
-state :: s -> Handler [Put s, Get s, Local s] '[S.StateT s] '[((,) s)] '[]
+state :: s -> Handler [Put s, Get s, Local s] '[] '[((,) s)]
 state s = handler (fmap swap . flip S.runStateT s) stateAlg stateFwd
 
 -- | The `state_` handler deals with stateful operations and silenty
 -- discards the final state.
-state_ :: s -> Handler [Put s, Get s, Local s] '[S.StateT s] '[] '[]
-state_ s = (state s)
-  { run = (\oalg -> fmap (CNil . fst) . flip S.runStateT s . hdecomps) }
+state_ :: s -> Handler [Put s, Get s, Local s] '[] '[]
+state_ s = Handler $ Handler' (\oalg -> fmap (CNil . fst) . flip S.runStateT s) stateAlg stateFwd
 

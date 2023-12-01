@@ -56,7 +56,7 @@ nondetFwd alg (Eff (Alg x)) = lift  (alg (Eff (Alg x)))
 nondetFwd alg (Eff (Scp x)) = ListT (alg (Eff (Scp (fmap runListT x))))
 nondetFwd alg (Effs effs)   = nondetFwd (alg . Effs) effs
 
-nondet :: Handler [Stop, Or] '[ListT] '[[]] '[]
+nondet :: Handler [Stop, Or] '[] '[[]]
 nondet = handler runListT' nondetAlg nondetFwd
 
 newtype ListT m a = ListT { runListT :: m (Maybe (a, ListT m a)) }
@@ -156,5 +156,5 @@ backtrackFwd alg (Eff (Alg x)) = lift (alg (Eff (Alg x)))
 backtrackFwd alg (Eff (Scp x)) = ListT (alg (Eff (Scp (fmap runListT x))))
 backtrackFwd alg (Effs effs)   = backtrackFwd (alg . Effs) effs
 
-backtrack :: Handler [Stop, Or, Once] '[ListT] '[[]] '[]
+backtrack :: Handler [Stop, Or, Once] '[] '[[]]
 backtrack = handler runListT' backtrackAlg' backtrackFwd
