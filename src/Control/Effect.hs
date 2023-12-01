@@ -531,17 +531,15 @@ handleWith xalg (Handler (Handler' run malg mfwd))
 
 
 
--- weaken
---   :: forall ieffs ieffs' oeffs oeffs' ts fs
---   . ( Injects ieffs ieffs'
---     , Injects oeffs oeffs'
---     )
---   => Handler ieffs' ts fs oeffs
---   -> Handler ieffs ts fs oeffs'
--- weaken (Handler run malg mfwd)
---   = Handler (\oalg -> run (oalg . injs))
---             (\oalg -> malg (oalg . injs) . injs)
---             mfwd
+weaken
+  :: forall ieffs ieffs' oeffs oeffs' ts fs
+  . ( Injects ieffs ieffs'
+    , Injects oeffs oeffs'
+    )
+  => Handler ieffs' oeffs fs
+  -> Handler ieffs oeffs' fs
+weaken (Handler (Handler' run malg mfwd))
+  = Handler (Handler' (\oalg -> run (oalg . injs)) (\oalg -> malg (oalg . injs) . injs) mfwd)
 
 -- (\/)
 --   :: forall effs1 effs2 ts fs oeffs
