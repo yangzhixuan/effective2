@@ -35,8 +35,7 @@ instance (Applicative f, Applicative (h (HComps hs f)))
   HCons mf <*> HCons mx = HCons (mf <*> mx)
 
 instance Monad m => Monad (HComps '[] m) where
-  (>>=) :: Monad m
-    => HComps '[] m a -> (a -> HComps '[] m b) -> HComps '[] m b
+  (>>=) :: Monad m => HComps '[] m a -> (a -> HComps '[] m b) -> HComps '[] m b
   HNil mx >>= f = HNil (mx >>= ((\(HNil x) -> x) . f))
 
 instance (Monad m, Monad (t (HComps ts m)) ) => Monad (HComps (t ': ts) m) where
