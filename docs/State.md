@@ -15,8 +15,6 @@ import Control.Effect.Catch
 import Control.Effect.Throw
 import Control.Effect.Except
 import Control.Monad (replicateM_)
-import Control.Monad.Trans.Maybe
-import qualified Control.Monad.Trans.State.Lazy as S
 
 incr :: Members [Get Int, Put Int] sig => Prog sig ()
 incr = do
