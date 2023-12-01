@@ -19,6 +19,7 @@ monus x y = do if x < y then throw else return (x - y)
 safeMonus :: Members '[Throw, Catch] sig => Int -> Int -> Prog sig Int
 safeMonus x y = catch (monus x y) (return 0)
 
+example_monus :: Property
 example_monus = property $ do
   x <- forAll $ Gen.int $ Range.linear 1 1000
   y <- forAll $ Gen.int $ Range.linear 1 1000
@@ -27,6 +28,7 @@ example_monus = property $ do
     then handle except (monus x y) === Nothing
     else handle except (monus x y) === Just (x - y)
 
+example_safeMonus :: Property
 example_safeMonus = property $ do
   x <- forAll $ Gen.int $ Range.linear 1 1000
   y <- forAll $ Gen.int $ Range.linear 1 1000
@@ -35,5 +37,6 @@ example_safeMonus = property $ do
     then handle except (safeMonus x y) === Just 0
     else handle except (safeMonus x y) === Just (x - y)
 
+examples :: Group
 examples = $$(discoverPrefix "example_")
 ```

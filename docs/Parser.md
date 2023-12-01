@@ -68,6 +68,7 @@ parse
   -> [(text, a)]
 parse cs p = handle (state cs <&> nondet) p
 
+example_Parse1 :: Property
 example_Parse1 = property $
     (parse "2+3*5" expr :: [(String, Int)])
   ===
@@ -79,6 +80,7 @@ notParse
   -> (String, [a])
 notParse cs p = handle (nondet <&> state cs) p
 
+example_NotParse :: Property
 example_NotParse = property $
     (notParse "2+3*5" expr :: (String, [Int]))
   ===
@@ -101,10 +103,12 @@ fact' = or int
 parse' :: text -> Prog [Put text, Get text, Local text, Once, Stop, Or, CutFail, CutCall] a -> [(text, a)]
 parse' cs p  = handle (state cs <&> onceNondet) p
 
+example_Parse2 :: Property
 example_Parse2 = property $
     (parse' "2+3*5" expr' :: [(String, Int)])
   === 
     [("",17)]
 
+examples :: Group
 examples = $$(discoverPrefix "example_")
 ```haskell
