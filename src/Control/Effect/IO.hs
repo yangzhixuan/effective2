@@ -5,7 +5,6 @@ module Control.Effect.IO where
 import Control.Effect
 import Data.List.Kind
 import Data.Functor.Composes
-import Data.HFunctor.HComposes
 
 data GetLine k  = GetLine (String -> k) deriving Functor
 

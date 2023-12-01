@@ -13,9 +13,7 @@ import Data.List.Kind
 import Data.Functor.Identity
 import Data.Functor.Composes
 import Data.HFunctor
-import Data.HFunctor
 import Data.HFunctor.HCompose
-import Data.HFunctor.HComposes
 import Control.Monad.Trans.Identity
 
 

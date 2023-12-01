@@ -6,7 +6,6 @@ import Control.Effect
 import Data.Tuple (swap)
 import Control.Monad.Trans.Class (lift)
 import qualified Control.Monad.Trans.Writer as W
-import Data.HFunctor ( HFunctor(..) )
 import Data.Functor.Composes (Comps(CNil))
 
 data Tell w k where

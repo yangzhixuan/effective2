@@ -6,7 +6,6 @@ import Control.Monad.Trans.Class (lift)
 import Data.Tuple (swap)
 
 import Control.Effect
-import Data.HFunctor ( HFunctor(..) )
 import Data.Functor.Composes
 import qualified Control.Monad.Trans.State.Lazy as S
 
