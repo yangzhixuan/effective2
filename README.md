@@ -74,9 +74,8 @@ state :: s -> Handler '[Put s, Get s, Local s]  -- input effects
 ```
 The signature of the handler tells us how it behaves:
 * The input effects are `Put s`, `Get s`, and `Local s`.
-* The internal semantics are provided by the state transformer `StateT s`.
-* The output of this handler wraps the result with the functor `((,) s)`
 * The output effects are empty
+* The output of this handler wraps the result with the functor `((,) s)`
 When `state s` is used to handle a program of type `Prog effs a`,
 the output will be the functor `((,) s)` applied to the value of the program
 `a`, which is simply `(s, a)`.
@@ -107,7 +106,7 @@ Notice that the `state` handler returns the final state as well as the final
 return value of the program. A variation of the `state` handler is `state_`,
 which does not return the final state:
 ```haskell ignore
-state_ :: s -> Handler [Put s, Get s, Local s] '[StateT s] '[] '[]
+state_ :: s -> Handler [Put s, Get s, Local s] '[] '[]
 ```
 Here the final output carrier is `'[]`, and so applying this to a program
 of type `Prog sig a` will simply return a value of type `a`.
@@ -195,7 +194,9 @@ Here is how to write a handler that intercepts a `getLine` operation, only to
 emit it again while also incrementing a counter in the state:
 ```haskell
 getLineIncr
-  :: Handler '[GetLine] '[GetLine, Get Int, Put Int] '[]
+  :: Handler '[GetLine]                       -- input effects
+             '[GetLine, Get Int, Put Int]     -- output effects
+             '[]                              -- output carrier
 getLineIncr = reinterp malg where
   malg :: forall x m . Effs '[GetLine] m x -> Prog [GetLine, Get Int, Put Int] x
   malg eff | Just (Alg (GetLine k)) <- prj eff =
@@ -209,7 +210,9 @@ but and will output the effects `[GetLine, Get Int, Put Int]`.
 Now the task is to connect this handler with `state`. This can
 be achieved with a `pipe`:
 ```haskell
-getLineIncrState :: Handler '[GetLine] '[GetLine] '[(,) Int]
+getLineIncrState :: Handler '[GetLine]   -- input effects
+                            '[GetLine]   -- output effects
+                            '[(,) Int]   -- output carrier
 getLineIncrState
   = pipe getLineIncr (state (0 :: Int))
 ```
