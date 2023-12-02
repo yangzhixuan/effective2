@@ -13,10 +13,10 @@ import Control.Effect.Catch
 import Control.Effect.Throw
 import Control.Effect.Except
 
-monus :: Members '[Throw] sig => Int -> Int -> Prog sig Int
+monus :: Int -> Int -> Prog' '[Throw] Int
 monus x y = do if x < y then throw else return (x - y)
 
-safeMonus :: Members '[Throw, Catch] sig => Int -> Int -> Prog sig Int
+safeMonus :: Int -> Int -> Prog '[Throw, Catch] Int
 safeMonus x y = catch (monus x y) (return 0)
 
 example_monus :: Property

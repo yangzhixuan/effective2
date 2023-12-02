@@ -13,8 +13,7 @@ import Control.Effect.Nondet
 import Hedgehog
 
 knapsack
-  :: Members [Stop, Or] sig
-  => Int -> [Int] -> Prog sig [Int]
+  :: Int -> [Int] -> Prog' '[Stop, Or] [Int]
 knapsack w vs
   | w <  0    = stop
   | w == 0    = return []

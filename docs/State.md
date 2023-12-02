@@ -16,7 +16,7 @@ import Control.Effect.Throw
 import Control.Effect.Except
 import Control.Monad (replicateM_)
 
-incr :: Members [Get Int, Put Int] sig => Prog sig ()
+incr :: Prog' '[Get Int, Put Int] ()
 incr = do
   x <- get
   put @Int (x + 1)
@@ -26,15 +26,14 @@ example_incr = property $ do
   n <- forAll $ Gen.int $ Range.linear 1 1000
   handle (state n) incr === (n+1,())
 
--- decr :: Prog' '[Get Int, Put Int] ()
-decr :: Members [Get Int, Put Int, Throw] sig => Prog sig ()
+decr :: Prog' '[Get Int, Put Int, Throw] ()
 decr = do
   x <- get
   if x > 0
     then put @Int (x - 1)
     else throw
 
-catchDecr :: Members [Get Int, Put Int, Throw, Catch] sig => Prog sig ()
+catchDecr :: Prog' [Get Int, Put Int, Throw, Catch] ()
 catchDecr = do
   decr
   catch
@@ -107,7 +106,7 @@ example_incrDecr' = property $ do
     then handle (globalState n) (do incr; decr) === (n, Just ())
     else handle (globalState n) (do incr; decr) === (n+1, Nothing)
 
-catchDecr44 :: Members [Get Int, Put Int, Throw, Catch] sig => Prog sig ()
+catchDecr44 :: Prog' '[Get Int, Put Int, Throw, Catch] ()
 catchDecr44 = do
   decr
   catch

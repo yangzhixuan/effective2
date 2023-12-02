@@ -143,7 +143,7 @@ when the `echo` program is executed. One approach is to change the `echo`
 program, and write something like `echoTick`, where an `incr` has been added
 after each `getLine`:
 ```haskell
-echoTick :: Members [GetLine, Get Int, Put Int, PutStrLn] sig => Prog sig ()
+echoTick :: Prog' '[GetLine, Get Int, Put Int, PutStrLn] ()
 echoTick =
   do str <- getLine
      incr
