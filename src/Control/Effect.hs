@@ -290,25 +290,42 @@ handler
   -> Handler effs oeffs '[f]
 handler run malg mfwd = Handler (Handler' (const (fmap comps . run)) malg mfwd)
 
-interp
+
+-- TODO: A better error message for unsafePrj
+interpret
+  :: forall eff effs oeffs
+  .  Member eff effs
+  => (forall m x . Eff eff m x -> Prog oeffs x)
+  -> Handler effs oeffs '[]
+interpret f = Handler $ Handler' run alg fwd where
+  run :: forall m . Monad m
+      => (forall x. Effs oeffs m x -> m x)
+      -> (forall x. IdentityT m x -> m (Comps '[] x))
+  run = (const (\(IdentityT mx) -> fmap CNil mx))
+
+  alg :: forall m . Monad m
+      => (forall x. Effs oeffs m x -> m x)
+      -> (forall x. Effs effs (IdentityT m) x -> IdentityT m x)
+  alg oalg = IdentityT . eval oalg . f . unsafePrj . hmap runIdentityT
+    where
+      unsafePrj :: Effs effs m x -> Eff eff m x
+      unsafePrj x = case prj x of Just y -> y
+
+  fwd :: forall sig m . Monad m
+      => (forall x. Effs sig m x -> m x)
+      -> (forall x. Effs sig (IdentityT m) x -> IdentityT m x)
+  fwd xalg = IdentityT . xalg . hmap runIdentityT
+
+interpret'
   :: (forall m . Monad m
      => (forall x . Effs oeffs m x -> m x)
      -> (forall x . Effs effs m x -> m x))
   -> Handler effs oeffs '[]
-interp alg
+interpret' alg
   = Handler $ Handler'
       (const (\(IdentityT mx) -> fmap CNil mx))
       (\oalg -> IdentityT . alg oalg . hmap runIdentityT)
       (\alg  -> IdentityT . alg . hmap runIdentityT)
-
-reinterp :: forall effs oeffs
-  . (forall x m . Effs effs m x -> Prog oeffs x)
-  -> Handler effs oeffs '[]
-reinterp malg = interp alg where
-  alg :: forall m . (Monad m)
-    => (forall x . Effs oeffs m x -> m x)
-    -> (forall x . Effs effs m x -> m x)
-  alg oalg eff = eval oalg (malg eff)
 
 fuse :: forall effs1 effs2 oeffs1 oeffs2 fs1 fs2 effs oeffs .
   ( All Functor fs1, All Functor fs2, All Functor (fs2 :++ fs1)
@@ -470,8 +487,12 @@ pass :: forall sig effs oeffs fs .
   -> Handler (effs `Union` sig) ((oeffs :\\ sig) `Union` sig) fs
 pass h = fuse h (forward @sig)
 
+
 forward :: Handler effs effs '[]
-forward = interp id
+forward = Handler $ Handler'
+  (const (\(IdentityT mx) -> fmap CNil mx))
+  (\oalg -> IdentityT . oalg . hmap runIdentityT)
+  (\alg  -> IdentityT . alg . hmap runIdentityT)
 
 handle :: forall ieffs fs a .
   ( Recompose fs )

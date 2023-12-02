@@ -176,7 +176,7 @@ Intercepting Operations
 -----------------------
 
 Forwarding effects to I/O works in many situations, but sometimes it is rather
-crude: the power of effects is in their ability to intercept and reinterpret
+crude: the power of effects is in their ability to intercept and interpret
 operations. 
 
 Suppose the task is now to count all instances of `getLine` in the
@@ -197,12 +197,10 @@ getLineIncr
   :: Handler '[GetLine]                       -- input effects
              '[GetLine, Get Int, Put Int]     -- output effects
              '[]                              -- output carrier
-getLineIncr = reinterp malg where
-  malg :: forall x m . Effs '[GetLine] m x -> Prog [GetLine, Get Int, Put Int] x
-  malg eff | Just (Alg (GetLine k)) <- prj eff =
-    do xs <- getLine
-       incr
-       return (k xs)
+getLineIncr = interpret $ 
+  \(Alg (GetLine k)) -> do xs <- getLine
+                           incr
+                           return (k xs)
 ```
 The handler says that it will deal with `[GetLine]` as an input effect,
 but and will output the effects `[GetLine, Get Int, Put Int]`.
@@ -254,18 +252,16 @@ operations `get` and `put` from a state containing a list of strings:
 ```haskell
 getLineState
   :: Handler '[GetLine] '[Get [String], Put [String]] '[]
-getLineState = reinterp malg where
-  malg :: forall x m . Effs '[GetLine] m x -> Prog [Get [String], Put [String]] x
-  malg eff | Just (Alg (GetLine k)) <- prj eff =
-    do xss <- get
-       case xss of
-         []        -> return (k "")
-         (xs:xss') -> do put xss'
-                         return (k xs)
+getLineState = interpret $
+  \(Alg (GetLine k)) -> do xss <- get
+                           case xss of
+                             []        -> return (k "")
+                             (xs:xss') -> do put xss'
+                                             return (k xs)
 ```
 The signature of `getLineState` says that it is a handler that recognises
 `GetLine` operations and interprets them in terms of some output effects in
-`oeff`, which consist of `Get [String]` and `Put [String]`. Reinterpeting
+`oeff`, which consist of `Get [String]` and `Put [String]`. Interpeting
 effects in terms of other, more primitive, effects allows other handlers to
 deal with those more primitive effects.
 
@@ -330,8 +326,8 @@ redirected to do something pure.
 Outputting pure values is managed by the `writer` handler, in combination
 with the `tell` operation.
 ```haskell ignore
-writer :: Monoid w => Handler '[Tell w] '[WriterT w] '[(,) w] '[] 
-tell   :: (Member (Tell w) effs, Monoid w) => w -> Prog effs ()
+writer :: Monoid w => Handler '[Tell w] '[] '[(,) w]
+tell   :: Monoid w => w -> Prog' '[Tell w] ()
 ```
 The following simple example returns a list of strings, since a list of
 elements is a monoid:
@@ -341,16 +337,14 @@ ghci> handle writer (tell ["Hello", "World!"]) :: ([String], ())
 ```
 Using this, values can be written as the ouput of a program.
 
-Now the task is to reinterpret all `putStrLn` operations in terms of the
+Now the task is to interpret all `putStrLn` operations in terms of the
 `tell` operation:
 ```haskell
 putStrLnTell
   :: Handler '[PutStrLn] '[Tell [String]] '[]
-putStrLnTell = reinterp malg where
-  malg :: forall x m . Effs '[PutStrLn] m x -> Prog '[Tell [String]] x
-  malg eff | Just (Alg (PutStrLn str k)) <- prj eff =
-    do tell [str]
-       return k
+putStrLnTell = interpret $
+  \(Alg (PutStrLn str k)) -> do tell [str]
+                                return k
 ```
 This can in turn be piped into the `writer` handler to make
 a pure version of `putStrLn`:
@@ -363,9 +357,7 @@ be defined as the fusion of `putStrLnPure` and `getLinePure`.
 ```haskell
 teletypePure 
   :: [String]
-  -> Handler '[GetLine, PutStrLn] 
-             '[]
-             '[(,) [String]]
+  -> Handler '[GetLine, PutStrLn] '[] '[(,) [String]]
 teletypePure str = fuse (getLinePure_ str) putStrLnPure
 ```
 The `fuse` combinator takes two handlers and creates one that accepts the union
@@ -391,13 +383,11 @@ The return value of `()` comes from the result of `echo` itself.
 
 One challenge is to count the number of times `getLine` is executed
 while also processing it purely. No problem, the `getLineIncrState` can be used
-to reinterpret `getLine` before passing the resulting `getLine` to `teletypePure`:
+to interpret `getLine` before passing the resulting `getLine` to `teletypePure`:
 ```haskell
 teletypeTick
   :: [String]
-  -> Handler '[GetLine, PutStrLn] 
-             '[]
-             '[(,) [String], (,) Int]
+  -> Handler '[GetLine, PutStrLn] '[] '[(,) [String], (,) Int]
 teletypeTick str = fuse getLineIncrState (teletypePure str)
 ```
 This can be executed using `handle`, passing in the 
