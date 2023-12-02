@@ -340,8 +340,7 @@ Using this, values can be written as the ouput of a program.
 Now the task is to interpret all `putStrLn` operations in terms of the
 `tell` operation:
 ```haskell
-putStrLnTell
-  :: Handler '[PutStrLn] '[Tell [String]] '[]
+putStrLnTell :: Handler '[PutStrLn] '[Tell [String]] '[]
 putStrLnTell = interpret $
   \(Alg (PutStrLn str k)) -> do tell [str]
                                 return k

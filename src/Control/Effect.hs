@@ -297,24 +297,10 @@ interpret
   .  Member eff effs
   => (forall m x . Eff eff m x -> Prog oeffs x)
   -> Handler effs oeffs '[]
-interpret f = Handler $ Handler' run alg fwd where
-  run :: forall m . Monad m
-      => (forall x. Effs oeffs m x -> m x)
-      -> (forall x. IdentityT m x -> m (Comps '[] x))
-  run = (const (\(IdentityT mx) -> fmap CNil mx))
-
-  alg :: forall m . Monad m
-      => (forall x. Effs oeffs m x -> m x)
-      -> (forall x. Effs effs (IdentityT m) x -> IdentityT m x)
-  alg oalg = IdentityT . eval oalg . f . unsafePrj . hmap runIdentityT
-    where
-      unsafePrj :: Effs effs m x -> Eff eff m x
-      unsafePrj x = case prj x of Just y -> y
-
-  fwd :: forall sig m . Monad m
-      => (forall x. Effs sig m x -> m x)
-      -> (forall x. Effs sig (IdentityT m) x -> IdentityT m x)
-  fwd xalg = IdentityT . xalg . hmap runIdentityT
+interpret f = interpret' (\oalg -> eval oalg . f . unsafePrj)
+  where
+    unsafePrj :: Effs effs m x -> Eff eff m x
+    unsafePrj x = case prj x of Just y -> y
 
 interpret'
   :: (forall m . Monad m
