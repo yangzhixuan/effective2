@@ -17,8 +17,8 @@ data Get s k where
   Get :: (s -> k) -> Get s k
   deriving Functor
 
-data Local s x where
-  Local :: s -> x -> Local s x
+data Local s k where
+  Local :: s -> k -> Local s k
   deriving Functor
 
 type State s = '[Put s, Get s, Local s]
