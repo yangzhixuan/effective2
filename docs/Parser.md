@@ -57,7 +57,7 @@ fact = or (int)
 
 -- A parser!
 parse
-  :: text -> Prog [Put text, Get text, Local text, Stop, Or] a
+  :: text -> Prog [Put text, Get text, Stop, Or] a
   -> [(text, a)]
 parse cs p = handle (state cs <&> nondet) p
 
@@ -69,7 +69,7 @@ example_Parse1 = property $
 
 -- Not a parser!
 notParse
-  :: String -> Prog [Stop, Or, Put String, Get String, Local String] a
+  :: String -> Prog [Stop, Or, Put String, Get String] a
   -> (String, [a])
 notParse cs p = handle (nondet <&> state cs) p
 
@@ -93,7 +93,7 @@ fact' = or int
            (do symbol '(' ; i <- expr' ; symbol ')' ; return i)
 --
 -- A different parser!
-parse' :: text -> Prog [Put text, Get text, Local text, Once, Stop, Or, CutFail, CutCall] a -> [(text, a)]
+parse' :: text -> Prog [Put text, Get text, Once, Stop, Or, CutFail, CutCall] a -> [(text, a)]
 parse' cs p  = handle (state cs <&> onceNondet) p
 
 example_Parse2 :: Property

@@ -45,7 +45,7 @@ catchDecr' :: Prog [Get Int, Put Int, Throw, Catch] ()
 catchDecr' = catchDecr @[Get Int, Put Int, Throw, Catch]
 
 globalState
-  :: s -> Handler '[Throw, Catch, Put s, Get s, Local s]
+  :: s -> Handler '[Throw, Catch, Put s, Get s]
                   '[]
                   '[(,) s, Maybe]
 globalState s = except <&> state s
@@ -59,7 +59,7 @@ example_globalState = property $
     (0,Just ())
 
 localState
-  :: s -> Handler '[Put s, Get s, Local s, Throw, Catch]
+  :: s -> Handler '[Put s, Get s, Throw, Catch]
                   '[]
                   '[Maybe, ((,) s)]
 localState s = state s <&> except
