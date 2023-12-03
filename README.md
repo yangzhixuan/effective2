@@ -69,8 +69,8 @@ This program can be executed by using a handler. For state, the usual
 handler is given by:
 ```haskell ignore
 state :: s -> Handler '[Put s, Get s]  -- input effects
-                      '[]                       -- output effects
-                      '[((,) s)]                -- output carrier
+                      '[]              -- output effects
+                      '[((,) s)]       -- output carrier
 ```
 The signature of the handler tells us how it behaves:
 * The input effects are `Put s` and `Get s`.
