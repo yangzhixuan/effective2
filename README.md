@@ -68,12 +68,12 @@ members.
 This program can be executed by using a handler. For state, the usual
 handler is given by:
 ```haskell ignore
-state :: s -> Handler '[Put s, Get s, Local s]  -- input effects
+state :: s -> Handler '[Put s, Get s]  -- input effects
                       '[]                       -- output effects
                       '[((,) s)]                -- output carrier
 ```
 The signature of the handler tells us how it behaves:
-* The input effects are `Put s`, `Get s`, and `Local s`.
+* The input effects are `Put s` and `Get s`.
 * The output effects are empty
 * The output of this handler wraps the result with the functor `((,) s)`
 When `state s` is used to handle a program of type `Prog effs a`,
@@ -106,7 +106,7 @@ Notice that the `state` handler returns the final state as well as the final
 return value of the program. A variation of the `state` handler is `state_`,
 which does not return the final state:
 ```haskell ignore
-state_ :: s -> Handler [Put s, Get s, Local s] '[] '[]
+state_ :: s -> Handler [Put s, Get s] '[] '[]
 ```
 Here the final output carrier is `'[]`, and so applying this to a program
 of type `Prog sig a` will simply return a value of type `a`.
@@ -378,7 +378,8 @@ prop_teletypePure = property $ do
   handle (teletypePure xxs) echo === (xxs', ())
 ```
 -->
-The return value of `()` comes from the result of `echo` itself.
+The return value of `()` comes from the result of `echo` itself, and the list
+of strings is the accumulated result of the `tell` commands.
 
 One challenge is to count the number of times `getLine` is executed
 while also processing it purely. No problem, the `getLineIncrState` can be used
