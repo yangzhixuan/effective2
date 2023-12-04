@@ -10,9 +10,8 @@ module Graded where
 import Control.Effect
 import qualified Control.Effect.State as State
 import Control.Effect.State hiding (get, put)
-import Control.Effect.Catch hiding (catch)
-import qualified Control.Effect.Throw as Throw
-import Control.Effect.Throw hiding (throw)
+import Control.Effect.Maybe hiding (catch, throw)
+import qualified Control.Effect.Maybe as Maybe
 import Data.List.Kind (Union, Insert)
 import Control.Monad (replicateM_)
 ```
@@ -46,7 +45,7 @@ put :: s -> Prog '[Put s] ()
 put = State.put
 
 throw :: Prog '[Throw] ()
-throw = Throw.throw
+throw = Maybe.throw
 ```
 
 To use these operations together requires a graded `do` block:

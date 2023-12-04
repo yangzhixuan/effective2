@@ -9,9 +9,7 @@ import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
 
 import Control.Effect
-import Control.Effect.Catch
-import Control.Effect.Throw
-import Control.Effect.Except
+import Control.Effect.Maybe
 
 monus :: Int -> Int -> Prog' '[Throw] Int
 monus x y = do if x < y then throw else return (x - y)

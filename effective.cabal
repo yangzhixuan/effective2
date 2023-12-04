@@ -27,14 +27,13 @@ library
   ghc-options:   -Wunused-foralls -Wunused-imports
   exposed-modules:
     Control.Effect
-    Control.Effect.Catch
     Control.Effect.Cut
     Control.Effect.Except
     Control.Effect.IO
+    Control.Effect.Maybe
     Control.Effect.Nondet
     Control.Effect.Reader
     Control.Effect.State
-    Control.Effect.Throw
     Control.Effect.Writer
     Control.Monad.Graded
     Data.Functor.Composes

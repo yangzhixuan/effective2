@@ -11,9 +11,7 @@ import qualified Hedgehog.Range as Range
 
 import Control.Effect
 import Control.Effect.State
-import Control.Effect.Catch
-import Control.Effect.Throw
-import Control.Effect.Except
+import Control.Effect.Maybe
 import Control.Monad (replicateM_)
 
 incr :: Prog' '[Get Int, Put Int] ()
