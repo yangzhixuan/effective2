@@ -70,7 +70,7 @@ handler is given by:
 ```haskell ignore
 state :: s -> Handler '[Put s, Get s]  -- input effects
                       '[]              -- output effects
-                      '[((,) s)]       -- output carrier
+                      '[((,) s)]       -- output wrapper
 ```
 The signature of the handler tells us how it behaves:
 * The input effects are `Put s` and `Get s`.
@@ -108,7 +108,7 @@ which does not return the final state:
 ```haskell ignore
 state_ :: s -> Handler [Put s, Get s] '[] '[]
 ```
-Here the final output carrier is `'[]`, and so applying this to a program
+Here the final output wrapper is `'[]`, and so applying this to a program
 of type `Prog sig a` will simply return a value of type `a`.
 ```haskell ignore
 ghci> handle (state_ "Hello!") (do xs <- get @String; return (length xs))
@@ -196,7 +196,7 @@ emit it again while also incrementing a counter in the state:
 getLineIncr
   :: Handler '[GetLine]                       -- input effects
              '[GetLine, Get Int, Put Int]     -- output effects
-             '[]                              -- output carrier
+             '[]                              -- output wrapper
 getLineIncr = interpret $ 
   \(Alg (GetLine k)) -> do xs <- getLine
                            incr
@@ -210,7 +210,7 @@ be achieved with a `pipe`:
 ```haskell
 getLineIncrState :: Handler '[GetLine]   -- input effects
                             '[GetLine]   -- output effects
-                            '[(,) Int]   -- output carrier
+                            '[(,) Int]   -- output wrapper
 getLineIncrState
   = pipe getLineIncr (state (0 :: Int))
 ```
