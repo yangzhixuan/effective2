@@ -23,11 +23,11 @@ top-down one.
 * *Top-down* With a top-down strategy, the handlers dictate the
   effects that the program accepts. This is the "members" way of working
   with the `effective` library, where the type of programs remains flexible,
-  and the the input list of handlers is rigid, and is the default.
+  and the input list of handlers is rigid, and is the default.
 
 * *Bottom-up* (graded): With a bottom-up strategy, the programs dictate the
   effects that must be handled. This is the "graded" way of working with the
-  `effective` library, where the tpe of programs is rigid, and
+  `effective` library, where the type of programs is rigid, and
   the input list of handlers is flexible. This is described in more detail
   in this file.
 
@@ -72,7 +72,7 @@ the type of the program must follow the control flow of its effects.
 
 A flow-graded program is not always compatible with conditionals,
 since both branches of an `if_then_else_` must have the same type.
-In the `decr` programm, one branch only exposes a `Put Int`
+In the `decr` program, one branch only exposes a `Put Int`
 effect, whereas the other is `Throw`.
 In order to make both branches have the same effects, one approach
 is to use `return` with a suitable signature that allows the
@@ -89,7 +89,7 @@ decr = Graded.do
 ```
 This can be fixed by using `RebindableSyntax` and offering a more
 flexible version of conditionals that unifies the type of its
-branches in the output. However at present GHC does not allow
+branches in the output. However, at present GHC does not allow
 rebinding of `case`.
 
 

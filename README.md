@@ -324,11 +324,14 @@ However, there is another solution: the `putStrLn` operation can also be
 redirected to do something pure.
 
 Outputting pure values is managed by the `writer` handler, in combination
-with the `tell` operation.
+with the `tell` operation:
 ```haskell ignore
-writer :: Monoid w => Handler '[Tell w] '[] '[(,) w]
+writer :: Monoid w => Handler '[Tell w, Censor w] '[] '[(,) w]
 tell   :: Monoid w => w -> Prog' '[Tell w] ()
 ```
+The `Censor w` effect will be discussed later on, and can be safely ignored for
+now.
+
 The following simple example returns a list of strings, since a list of
 elements is a monoid:
 ```haskell ignore
@@ -406,6 +409,41 @@ prop_teletypeTick = property $ do
 ```
 -->
 
+
+
+Scoped Operations
+------------------
+
+Intercepting operations and changing their behaviour is typical when working
+with handlers. An example of this is to apply a transformation to all the
+`tell` operations, so that everything is in uppercase. To this, another
+interpreting handler called `retell` is defined, which takes in a function used
+to modify output:
+```haskell
+retell :: forall w w' . (Monoid w, Monoid w') => (w -> w') -> Handler '[Tell w] '[Tell w'] '[]
+retell f = interpret $
+  \(Alg (Tell w k )) -> do tell (f w)
+                           return k
+```
+Simply but, every `tell w` is intercepted, and retold as `tell (f w)`. Thus,
+a simple message can be made louder at the flick of a switch:
+```haskell ignore
+ghci> handle (retell (map toUpper) <&> writer @String) (tell "Stop shouting!")
+("STOP SHOUTING!",())
+```
+Some programs, however, required a more nuanced approach to modifying operations,
+so that only operations in a local scope are affected.
+
+A scoped operation takes a program as one of its parameters, and interacts with
+operations in that program. For example, earlier the standard `writer` handler
+was shown to work with a `Censor` effect:
+```haskell ignore
+writer :: Monoid w => Handler '[Tell w, Censor w] '[] '[(,) w]
+```
+The accompanying operation is `censor`:
+```
+censor :: Member (Censor w) sig => (w -> w) -> Prog sig a -> Prog sig 
+```
 Members
 --------
 
