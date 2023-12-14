@@ -325,11 +325,11 @@ redirected to do something pure.
 Outputting pure values is managed by the `writer` handler, in combination
 with the `tell` operation:
 ```haskell ignore
-writer :: Monoid w => Handler '[Tell w, Censor w] '[] '[(,) w]
+writer :: Monoid w => Handler '[Tell w] '[] '[(,) w]
 tell   :: Monoid w => w -> Prog' '[Tell w] ()
 ```
-The `Censor w` effect will be discussed later on, and can be safely ignored for
-now.
+The signatures tell us that `tell` introduces the `Tell` effect, and
+`writer` handles this effect.
 
 The following simple example returns a list of strings, since a list of
 elements is a monoid:
@@ -392,7 +392,7 @@ teletypeTick
   -> Handler '[GetLine, PutStrLn] '[] '[(,) [String], (,) Int]
 teletypeTick str = fuse getLineIncrState (teletypePure str)
 ```
-This can be executed using `handle`, passing in the 
+This can be executed using `handle`, passing in the
 list of inputs to be fed to `getLine`:
 ```haskell ignore
 ghci> handle (teletypeTick ["Hello", "world!"]) echo
@@ -415,7 +415,7 @@ Scoped Operations
 Intercepting operations and changing their behaviour is typical when working
 with handlers. An example of this is to apply a transformation to all the
 `tell` operations, so that everything is in uppercase. To this, another
-interpreting handler called `retell` is defined, which takes in a function used
+interpreting handler called `retell` can be defined, which takes in a function used
 to modify output:
 ```haskell
 retell :: forall w w' . (Monoid w, Monoid w') => (w -> w') -> Handler '[Tell w] '[Tell w'] '[]
@@ -438,19 +438,21 @@ A program designed around this task may need a more nuanced approach to
 retelling its input, with censoring only acceptable in certain regions of code.
 
 A scoped operation takes a program as one of its parameters, and interacts with
-operations in that program. For example, earlier the standard `writer` handler
-was shown to work with a `Censor` effect:
-```haskell ignore
-writer :: Monoid w => Handler '[Tell w, Censor w] '[] '[(,) w]
+operations in that program. For example, the `Censor` effect is
+introduced by the accompanying `censor` operation, and is handled
+using the `censors` handler:
 ```
-The accompanying operation is `censor`:
+censor  :: Member (Censor w) sig => (w -> w) -> Prog sig a -> Prog sig
+censors :: forall w . Monoid w => (w -> w) -> Handler '[Tell w, Censor w] '[Tell w] '[]
 ```
-censor :: Member (Censor w) sig => (w -> w) -> Prog sig a -> Prog sig 
-```
-This takes a function `cipher :: w -> w` and a program `p :: Prog sig a`, and
-any `tell x` in `p` will be interpeted as `tell (cipher x)`. For instance
-here is a program that uses `censor` at particular points of the program,
-to help [Mr Hoppy](https://en.wikipedia.org/wiki/Esio_Trot) to tell a tortoise
+The result of the `censors cipher` handler is to first apply the `cipher`
+to any `tell`, just like `retell` above. However, when a `censor cipher' p` operation
+is encountered, the result is to additionally apply `cipher'` to any `tell`
+in `p`. In this way, nested `censors` will have their ciphers accumulated.
+
+For instance, here is a program that uses `censor` at
+particular points of the program, to help
+[Mr Hoppy](https://en.wikipedia.org/wiki/Esio_Trot) to tell a tortoise
 called Alfie to get bigger:
 ```haskell
 hoppy :: Prog' '[Tell [String], Censor [String]] ()
@@ -461,11 +463,67 @@ hoppy = do tell ["Hello Alfie!"]
                   do tell ["get bigger!"]
            tell ["Goodbye!"]
 ```
-This applies the censor only to the `tell` operations under the `censor` operation.
+To evalaute this program, the `censors` handler is created with an initial
+cipher which is `id` so that the messages not under a `censor` are not affected:
 ```haskell ignore
-ghci> handle writer hoppy :: ([String], ())
+ghci> handle (censors @[String] id <&> writer) hoppy :: ([String], ())
 (["Hello Alfie!","esiotrot","!REGGIB TEG","Goodbye!"],())
 ```
+Notice how `"get bigger!"` is both reversed and made uppercase because
+the ciphers have been accumulated.
+<!--
+```haskell
+prop_esiotrot :: Property
+prop_esiotrot = property $ do
+  handle (censors @[String] id <&> writer) hoppy === (["Hello Alfie!","esiotrot","!REGGIB TEG","Goodbye!"],())
+```
+-->
+
+Hiding Operations
+------------------
+
+Since `censor` is an operation, it can be given different semantics by a
+different handler. For instance, here is type of the `uncensor` handler:
+```haskell ignore
+uncensors :: forall w . Monoid w => Handler '[Censor w] '[] '[]
+```
+This handler removes all censorship from the program. The type promises that no other
+effects are generated, and that the result is pure.
+```haskell ignore
+ghci> handle (uncensors @[String] <&> writer @[String]) hello
+(["Hello world!","tortoise","get bigger!","Goodbye!"],())
+```
+One way to define `uncensors` is to process all `censor` operations with
+`censors id`, followed by the `writer_` handler (which discards its output) to
+remove any generated `tell` operations. To prevent this handler from touching
+any `tell` operations that were in the program before censor, the `hide`
+combinator removes them from being seen:
+```haskell
+uncensors :: forall w . Monoid w => Handler '[Censor w] '[] '[]
+uncensors = hide @'[Tell w] (censors @w id <&> writer_ @w)
+```
+The key combinator here is `hide`:
+```haskell ignore
+hide :: forall sigs effs oeffs f . (Injects (effs :\\ sigs) effs, Injects oeffs oeffs)
+     => Handler effs            oeffs f
+     -> Handler (effs :\\ sigs) oeffs f
+```
+This takes in a handler, returns it where any effects provided by the type parameter `sigs`
+are hidden. While this works, the version in `Control.Effect.Writer` processes
+any `censor` by ignoring its argument, and does not accumulate any output, and
+is therefore more efficient.
+<!--
+```haskell
+prop_uncensors :: Property
+prop_uncensors = property $ do
+  handle (uncensors @[String] <&> writer) hoppy === (["Hello Alfie!","tortoise","get bigger!","Goodbye!"],())
+
+prop_uncensors' :: Property
+prop_uncensors' = property $ do
+  handle (W.uncensors @[String] <&> writer) hoppy === (["Hello Alfie!","tortoise","get bigger!","Goodbye!"],())
+```
+-->
+
 
 Members
 --------
@@ -532,7 +590,8 @@ This file has a number of imports:
 ```haskell top
 import Control.Effect
 import Control.Effect.State
-import Control.Effect.Writer
+import Control.Effect.Writer hiding (uncensors)
+import qualified Control.Effect.Writer as W
 import Control.Effect.IO
 
 import Data.Char (toUpper)

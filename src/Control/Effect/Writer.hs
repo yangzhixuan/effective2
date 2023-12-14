@@ -18,6 +18,30 @@ data Tell w k where
 tell :: (Monoid w) => w -> Prog' '[Tell w] ()
 tell w = (Call . inj) (Alg (Tell w (return ())))
 
+writerAlg
+  :: (Monad m, Monoid w)
+  => (forall x. oeff m x -> m x)
+  -> (forall x.  Effs '[Tell w] (W.WriterT w m) x -> W.WriterT w m x)
+writerAlg _ eff
+  | Just (Alg (Tell w k)) <- prj eff =
+      do W.tell w
+         return k
+
+writerFwd
+  :: (Monad m, Monoid w)
+  => (forall x. Effs sig m x -> m x)
+  -> (forall x. Effs sig (W.WriterT w m) x -> W.WriterT w m x)
+writerFwd alg (Eff (Alg x)) = lift (alg (Eff (Alg x)))
+writerFwd alg (Eff (Scp x)) = W.WriterT (alg (Eff (Scp (fmap W.runWriterT x))))
+writerFwd alg (Effs effs)   = writerFwd (alg . Effs) effs
+
+writer :: Monoid w => Handler '[Tell w] '[] '[(,) w]
+writer = handler (fmap swap . W.runWriterT) writerAlg writerFwd
+
+writer_ :: Monoid w => Handler '[Tell w] '[] '[]
+writer_ = Handler $ Handler' (\oalg -> fmap (CNil . fst) . W.runWriterT) writerAlg writerFwd
+
+
 data Censor w k where
   Censor :: (w -> w) -> k -> Censor w k
   deriving Functor
@@ -25,15 +49,15 @@ data Censor w k where
 censor :: Member (Censor w) sig => (w -> w) -> Prog sig a -> Prog sig a
 censor cipher p = (Call . inj) (Scp (Censor cipher (fmap return p)))
 
-censors :: forall w . Monoid w => (w -> w) -> Handler '[Tell w, Censor w] '[Tell w, Censor w] '[]
+censors :: forall w . Monoid w => (w -> w) -> Handler '[Tell w, Censor w] '[Tell w] '[]
 censors cipher = Handler $ Handler' run alg fwd where
   run :: Monad m
-      => (forall x. Effs '[Tell w, Censor w] m x -> m x)
+      => (forall x. Effs '[Tell w] m x -> m x)
       -> (forall x. ReaderT (w -> w) m x -> m (Comps '[] x))
   run oalg (ReaderT mx) = fmap CNil (mx cipher)
 
   alg :: Monad m
-      => (forall x. Effs '[Tell w, Censor w] m x -> m x)
+      => (forall x. Effs '[Tell w] m x -> m x)
       -> (forall x. Effs '[Tell w, Censor w] (ReaderT (w -> w) m) x -> ReaderT (w -> w) m x)
   alg oalg eff
     | Just (Alg (Tell w k)) <- prj eff =
@@ -41,7 +65,8 @@ censors cipher = Handler $ Handler' run alg fwd where
            lift (oalg (Eff (Alg (Tell (cipher w) k))))
     | Just (Scp (Censor (cipher' :: w -> w) k)) <- prj eff =
         do cipher <- ask
-           lift (oalg (Effs (Eff (Scp (Censor cipher' (runReaderT k (cipher . cipher')))))))
+           lift (runReaderT k (cipher . cipher'))
+           -- lift (oalg (Effs (Eff (Scp (Censor cipher' (runReaderT k (cipher . cipher')))))))
 
   fwd :: Monad m
       => (forall x. Effs sig m x -> m x)
@@ -65,27 +90,33 @@ uncensors = Handler $ Handler' run alg fwd where
       -> (forall x. Effs sig (IdentityT m) x -> IdentityT m x)
   fwd oalg c = IdentityT (oalg $ hmap runIdentityT c)
 
-writerAlg
-  :: (Monad m, Monoid w)
-  => (forall x. oeff m x -> m x)
-  -> (forall x.  Effs '[Tell w, Censor w] (W.WriterT w m) x -> W.WriterT w m x)
-writerAlg _ eff
-  | Just (Alg (Tell w k)) <- prj eff =
-      do W.tell w
-         return k
-  | Just (Scp (Censor f p)) <- prj eff =
-      do W.censor f p
+-- NOTE: this cannot be done as the fusion of `censorsTell` and `censorsCensor`,
+-- since `tell` must be sensitive to any encapsulating `censor`.
+recensors :: forall w . Monoid w => (w -> w) -> Handler '[Tell w, Censor w] '[Tell w, Censor w] '[]
+recensors cipher = Handler $ Handler' run alg fwd where
+  run :: Monad m
+      => (forall x. Effs '[Tell w, Censor w] m x -> m x)
+      -> (forall x. ReaderT (w -> w) m x -> m (Comps '[] x))
+  run oalg (ReaderT mx) = fmap CNil (mx cipher)
 
-writerFwd
-  :: (Monad m, Monoid w)
-  => (forall x. Effs sig m x -> m x)
-  -> (forall x. Effs sig (W.WriterT w m) x -> W.WriterT w m x)
-writerFwd alg (Eff (Alg x)) = lift (alg (Eff (Alg x)))
-writerFwd alg (Eff (Scp x)) = W.WriterT (alg (Eff (Scp (fmap W.runWriterT x))))
-writerFwd alg (Effs effs)   = writerFwd (alg . Effs) effs
+  alg :: Monad m
+      => (forall x. Effs '[Tell w, Censor w] m x -> m x)
+      -> (forall x. Effs '[Tell w, Censor w] (ReaderT (w -> w) m) x -> ReaderT (w -> w) m x)
+  alg oalg eff
+    | Just (Alg (Tell w k)) <- prj eff =
+        do cipher <- ask
+           lift (oalg (Eff (Alg (Tell (cipher w) k))))
+    | Just (Scp (Censor (cipher' :: w -> w) k)) <- prj eff =
+        do cipher <- ask
+           lift (oalg (Effs (Eff (Scp (Censor cipher' (runReaderT k (cipher . cipher')))))))
+  -- | Just (Alg (Tell w k)) <- prj eff =
+  --     do W.tell w
+  --        return k
+  -- | Just (Scp (Censor f p)) <- prj eff =
+  --     do W.censor f p
 
-writer :: Monoid w => Handler '[Tell w, Censor w] '[] '[(,) w]
-writer = handler (fmap swap . W.runWriterT) writerAlg writerFwd
+  fwd :: Monad m
+      => (forall x. Effs sig m x -> m x)
+      -> (forall x. Effs sig (ReaderT (w -> w) m) x -> ReaderT (w -> w) m x)
+  fwd oalg c = ReaderT (\f -> oalg $ hmap (flip runReaderT f) c)
 
-writer_ :: Monoid w => Handler '[Tell w, Censor w] '[] '[]
-writer_ = Handler $ Handler' (\oalg -> fmap (CNil . fst) . W.runWriterT) writerAlg writerFwd
