@@ -426,11 +426,16 @@ retell f = interpret $
 Simply put, every `tell w` is intercepted, and retold as `tell (f w)`. Thus,
 a simple message can be made louder at the flick of a switch:
 ```haskell ignore
-ghci> handle (retell (map toUpper) <&> writer @String) (tell "Stop shouting!")
-("STOP SHOUTING!",())
+ghci> handle (retell (map toUpper) <&> writer @String) (tell "get bigger!")
+("GET BIGGER!",())
 ```
-Some programs, however, required a more nuanced approach to modifying operations,
-so that only operations in a local scope are affected.
+The `retell` handler modifies the `tell` operations, and they are then
+turned into the final result with `writer`.
+
+Suppose the task is to censor language that can only be described as [nasty and
+frightful](https://en.wikipedia.org/wiki/Roald_Dahl_revision_controversy).
+A program designed around this task may need a more nuanced approach to
+retelling its input, with censoring only acceptable in certain regions of code.
 
 A scoped operation takes a program as one of its parameters, and interacts with
 operations in that program. For example, earlier the standard `writer` handler
@@ -442,6 +447,26 @@ The accompanying operation is `censor`:
 ```
 censor :: Member (Censor w) sig => (w -> w) -> Prog sig a -> Prog sig 
 ```
+This takes a function `cipher :: w -> w` and a program `p :: Prog sig a`, and
+any `tell x` in `p` will be interpeted as `tell (cipher x)`. For instance
+here is a program that uses `censor` at particular points of the program,
+to help [Mr Hoppy](https://en.wikipedia.org/wiki/Esio_Trot) to tell a tortoise
+called Alfie to get bigger:
+```haskell
+hoppy :: Prog' '[Tell [String], Censor [String]] ()
+hoppy = do tell ["Hello Alfie!"]
+           censor @[String] (map reverse) $
+             do tell ["tortoise"]
+                censor @[String] (map (map toUpper)) $
+                  do tell ["get bigger!"]
+           tell ["Goodbye!"]
+```
+This applies the censor only to the `tell` operations under the `censor` operation.
+```haskell ignore
+ghci> handle writer hoppy :: ([String], ())
+(["Hello Alfie!","esiotrot","!REGGIB TEG","Goodbye!"],())
+```
+
 Members
 --------
 
@@ -510,6 +535,8 @@ import Control.Effect.State
 import Control.Effect.Writer
 import Control.Effect.IO
 
+import Data.Char (toUpper)
+
 import Prelude hiding (putStrLn, getLine)
 ```
 
@@ -517,11 +544,13 @@ import Prelude hiding (putStrLn, getLine)
 We will hide the following from the README, because it is
 only for testing the documentaton itself.
 ```haskell top
-import Hedgehog
+import Hedgehog hiding (test, evalIO)
 import Hedgehog.Main
-import Hedgehog.Gen
+import Hedgehog.Gen hiding (map)
 import Hedgehog.Range
 
+props :: Group
+props = $$(discover)
 
 main :: IO ()
 main = defaultMain $ fmap checkParallel [props]
@@ -536,7 +565,3 @@ References
 
 [^Gordon1992]: A. Gordon. Functional Programming and Input/Output. PhD Thesis, King's College London. 1992
 
-```haskell top
-props :: Group
-props = $$(discover)
-```
