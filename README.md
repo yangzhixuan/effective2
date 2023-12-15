@@ -356,7 +356,7 @@ putStrLnPure = pipe putStrLnTell writer
 Now, a pure handler for both `putStrLn` and `getLine` can
 be defined as the fusion of `putStrLnPure` and `getLinePure`.
 ```haskell
-teletypePure 
+teletypePure
   :: [String]
   -> Handler '[GetLine, PutStrLn] '[] '[(,) [String]]
 teletypePure str = fuse (getLinePure_ str) putStrLnPure
@@ -375,9 +375,9 @@ ghci> handle (teletypePure ["Hello", "world!"]) echo
 ```haskell
 prop_teletypePure :: Property
 prop_teletypePure = property $ do
-  xxs <- forAll $ list (linear 0 1000) (string (linear 0 100) ascii)
-  let xxs' = takeWhile (/= "") xxs
-  handle (teletypePure xxs) echo === (xxs', ())
+  xss <- forAll $ list (linear 0 1000) (string (linear 0 100) ascii)
+  let xss' = takeWhile (/= "") xss
+  handle (teletypePure xss) echo === (xss', ())
 ```
 -->
 The return value of `()` comes from the result of `echo` itself, and the list
@@ -402,15 +402,15 @@ ghci> handle (teletypeTick ["Hello", "world!"]) echo
 ```haskell
 prop_teletypeTick :: Property
 prop_teletypeTick = property $ do
-  xxs <- forAll $ list (linear 0 1000) (string (linear 0 100) ascii)
-  let xxs' = takeWhile (/= "") xxs
-  handle (teletypeTick xxs) echo === (xxs', (length xxs' + 1, ()))
+  xss <- forAll $ list (linear 0 1000) (string (linear 0 100) ascii)
+  let xss' = takeWhile (/= "") xss
+  handle (teletypeTick xss) echo === (xss', (length xss' + 1, ()))
 ```
 -->
 
 
 Scoped Operations
-------------------
+-----------------
 
 Intercepting operations and changing their behaviour is typical when working
 with handlers. An example of this is to apply a transformation to all the
@@ -443,7 +443,7 @@ introduced by the accompanying `censor` operation, and is handled
 using the `censors` handler:
 ```
 censor  :: Member (Censor w) sig => (w -> w) -> Prog sig a -> Prog sig
-censors :: forall w . Monoid w => (w -> w) -> Handler '[Tell w, Censor w] '[Tell w] '[]
+censors :: Monoid w => (w -> w) -> Handler '[Tell w, Censor w] '[Tell w] '[]
 ```
 The result of the `censors cipher` handler is to first apply the `cipher`
 to any `tell`, just like `retell` above. However, when a `censor cipher' p` operation
@@ -457,11 +457,15 @@ called Alfie to get bigger:
 ```haskell
 hoppy :: Prog' '[Tell [String], Censor [String]] ()
 hoppy = do tell ["Hello Alfie!"]
-           censor @[String] (map reverse) $
+           censor @[String] backwards $
              do tell ["tortoise"]
-                censor @[String] (map (map toUpper)) $
+                censor @[String] shout $
                   do tell ["get bigger!"]
            tell ["Goodbye!"]
+
+backwards, shout :: [String] -> [String]
+backwards = map reverse
+shout     = map (map toUpper)
 ```
 To evaluate this program, the `censors` handler is created with an initial
 cipher which is `id` so that the messages not under a `censor` are not affected:
@@ -480,7 +484,7 @@ prop_esiotrot = property $ do
 -->
 
 Hiding Operations
-------------------
+-----------------
 
 Since `censor` is an operation, it can be given different semantics by a
 different handler. For instance, here is type of the `uncensor` handler:
@@ -524,9 +528,149 @@ prop_uncensors' = property $ do
 ```
 -->
 
+Censoring `PutStrLn`
+--------------------
+
+The `censors` handler is designed to work with the interaction between `censor`
+and `tell`. Suppose the task is now to censor the `echo` program.
+It is easy enough to see how a variation of `retell` could be written,
+by interpreting `PutStrLn` operations:
+```haskell
+rePutStrLn :: (String -> String) -> Handler '[PutStrLn] '[PutStrLn] '[]
+rePutStrLn f = interpret $
+  \(Alg (PutStrLn str k)) -> do putStrLn (f str)
+                                return k
+```
+
+```haskell ignore
+ghci> handle (rePutStrLn (map toUpper) <&> teletypePure ["tortoise"]) echo
+(["TORTOISE"],())
+```
+<!--
+```haskell
+prop_rePutStrLn :: Property
+prop_rePutStrLn = property $ do
+  xss <- forAll $ list (linear 0 1000) (string (linear 0 100) ascii)
+  let xss' = takeWhile (/= "") xss
+  handle (rePutStrLn (map toUpper) <&> teletypePure xss) echo
+    === (map (map toUpper) xss',())
+```
+-->
+
+A more localized approach is to use the `censor` operation so
+that a censored echo can be used:
+```haskell
+shoutEcho :: Prog' [Censor [String], GetLine, PutStrLn] ()
+shoutEcho = censor shout echo
+```
+The censoring in this program cannot be handled with the `censors` handler by
+itself, since it simply has the wrong type: it works with `Tell` rather than
+`PutStrLn` operations.
+
+Rather than writing a custom handler from scratch, one attempt is to
+first transform any `putStrLn` operation into a `tell` using
+`putStrLnTell`, then apply the `censors` handler, and finally
+turn any `tell` back into `putStrLn` with using `tellPutStrLn`:
+```haskell
+tellPutStrLn :: Handler '[Tell [String]] '[PutStrLn] '[]
+tellPutStrLn = interpret $
+  \(Alg (Tell strs k)) -> do putStrLn (unwords strs)
+                             return k
+```
+This chain of handlers might be called `censorsPutStrLn`:
+```haskell
+censorsPutStrLn :: ([String] -> [String])
+                -> Handler [PutStrLn, Tell [String], Censor [String]] '[PutStrLn] '[]
+censorsPutStrLn cipher = putStrLnTell <&> censors cipher <&> tellPutStrLn
+```
+The ensuing chain of handlers seems to do the job:
+```haskell ignore
+ghci> handle (censorsPutStrLn id <&> teletypePure ["Hello world!"])
+             shoutEcho
+(["HELLO WORLD!"],())
+```
+However, things can get muddled if the program contains a mixture
+of `tell` and `putStrLn` operations.
+
+For example, here is a program that uses `tell` to log the fact
+that the shouty echo program is being entered before doing so:
+```haskell
+logShoutEcho :: Prog' '[PutStrLn, GetLine, Censor [String], Tell [String]] ()
+logShoutEcho = do tell ["Entering shouty echo"]
+                  shoutEcho
+```
+It is tempting to execute the program with the following:
+```haskell ignore
+ghci> handle (censorsPutStrLn id <&> teletypePure ["Hello world!"]) logShoutEcho
+(["Entering shouty echo","HELLO WORLD!"],())
+```
+It seems to work, but the problem is that the logged messages are treated
+in exactly the same way as the pure `putStrLn` values: everything is
+accumulated into the same list of strings. The problem is exasperated
+when `handleIO` is used: the logged messages are immediately output to the
+terminal:
+```haskell ignore
+ghci> handleIO (censorsPutStrLn id) logShoutEcho
+Entering shouty echo:
+Hang on, that's a log message!
+HANG ON, THAT'S A LOG MESSAGE!
+```
+The reason is that the `censorsPutStrLn` handler is interpreting all the `tell`
+operations into `putStrLn`: it cannot discriminate between those that came from
+a `putStrLn` originally, and those that are part of the program.
+
+The solution is simple: the `tell` operations to do with logging
+should be handled _before_ the teletype effects are handled:
+```haskell ignore
+ghci> handle (writer @[String] <&> censorsPutStrLn id <&> teletypePure ["Hello wor
+ld!"]) logShoutEcho
+(["HELLO WORLD!"],(["Entering shouty echo"],()))
+```
+This pure version separates the two kinds of logged messages; those
+that come from `tell` are processed first (and so in the inner tuple),
+and then the messages from `putStrLn` are on the outside.
+
+This even works with `handleIO`:
+```haskell ignore
+ghci> handleIO (writer @[String] <&> censorsPutStrLn id) logShoutEcho
+Ah, that's better
+AH, THAT'S BETTER
+
+(["Entering shouty echo"],())
+```
+The `putStrLn` messages are correctly censored, and the log messages
+are purely produced.
+
+
+Timestamps
+----------
+
+Timestamps are often used in conjuction with logging so that the time a message
+is logged can be recorded. The traditional way of doing this might be to make
+a bespoke `logger` that ensures that there is a timestamp integrated into each
+occurence of the log:
+```haskell
+logger :: String -> Prog' [Tell [(Integer, String)], GetCPUTime] ()
+logger str = do time <- getCPUTime
+                tell [(time, str)]
+```
+However, this is a case where a reinterpretation might be better where all
+instances of `tell` are augmented with the appropriate timestamp.
+```haskell
+timestamp :: forall w . Monoid w => Handler '[Tell w] '[Tell [(Integer, w)], GetCPUTime] '[]
+timestamp = interpret $
+  \(Alg (Tell (w :: w) k)) -> do time <- getCPUTime
+                                 tell [(time, w)]
+                                 return k
+```
+Now a timestamp is added to the start of messages emitted by `tell`:
+```haskell ignore
+ghci> handleIO (timestamp @[String] <&> censors backwards <&> writer @[(Integer, [String])] <&> censorsPutStrLn id <&> teletypePure ["Hello"]) logShoutEcho
+(["Hello"],([(8073080000000,["Entering shouty echo"])],()))
+```
 
 Members
---------
+-------
 
 There are three scenarios to consider when trying to engineer a fit between a
 program (shaft) of type `Prog effs a` and a handler (hole) of type `Handler
