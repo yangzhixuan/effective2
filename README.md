@@ -35,7 +35,7 @@ The type signature says that this is a program that requires
 both `GetLine` and `PutStrLn` operations.
 
 The most obvious interpretation of `getLine` and `putLine` is to invoke their
-corresponding values from the prelude. Indeed, when all of the operations of a
+corresponding values from the prelude. Indeed, when all the operations of a
 program are standard Prelude IO operations, it is enough to simply evaluate the
 program using `evalIO`:
 ```haskell ignore
@@ -114,7 +114,7 @@ ghci> handle (state_ "Hello!") (do xs <- get @String; return (length xs))
 6
 ```
 
-The effect of `handle h p` is to use the handler `h` to remove _all_ of the
+The effect of `handle h p` is to use the handler `h` to remove _all_ the
 effects in interpreting the program `p`. This relates to both the effects
 of the program and effects output by a handler.
 Trying to apply a handler that does not fully evaluate the effects in `p` will
@@ -152,7 +152,7 @@ echoTick =
                 echoTick
 ```
 To execute such a program that uses both state and IO
-requires a handler that is specialised to deal with IO:
+requires a handler that is specialized to deal with IO:
 ```haskell
 exampleEchoTick :: IO (Int, ())
 exampleEchoTick = handleIO (state (0 :: Int)) echoTick
@@ -167,7 +167,7 @@ world!
 
 (3,())
 ```
-This demonstrates how unhandled effects that are recognised by I/O can be
+This demonstrates how unhandled effects that are recognized by I/O can be
 forwarded and dealt with after the execution of the handler.
 
 
@@ -176,7 +176,7 @@ Intercepting Operations
 
 Forwarding effects to I/O works in many situations, but sometimes it is rather
 crude: the power of effects is in their ability to intercept and interpret
-operations. 
+operations.
 
 Suppose the task is now to count all instances of `getLine` in the
 entire program. Adding `incr` after every `getLine` may require a large
@@ -186,7 +186,7 @@ incorporates `incr`, but that is not necessarily better.
 
 Better would be to allow a different interpretation of `getLine` that
 automatically increments a variable: then the `echo` program could
-remain exactly the same. To do this, the `getLine` operation must 
+remain exactly the same. To do this, the `getLine` operation must
 be intercepted.
 
 Here is how to write a handler that intercepts a `getLine` operation, only to
@@ -196,13 +196,13 @@ getLineIncr
   :: Handler '[GetLine]                       -- input effects
              '[GetLine, Get Int, Put Int]     -- output effects
              '[]                              -- output wrapper
-getLineIncr = interpret $ 
+getLineIncr = interpret $
   \(Alg (GetLine k)) -> do xs <- getLine
                            incr
                            return (k xs)
 ```
 The handler says that it will deal with `[GetLine]` as an input effect,
-but and will output the effects `[GetLine, Get Int, Put Int]`.
+and will output the effects `[GetLine, Get Int, Put Int]`.
 
 Now the task is to connect this handler with `state`. This can
 be achieved with a `pipe`:
@@ -213,7 +213,7 @@ getLineIncrState :: Handler '[GetLine]   -- input effects
 getLineIncrState
   = pipe getLineIncr (state (0 :: Int))
 ```
-This can then be executed using `handleIO`, which will deal with 
+This can then be executed using `handleIO`, which will deal with
 the residual `GetLine` effect:
 ```haskell ignore
 ghci> handleIO getLineIncrState echo
@@ -258,9 +258,9 @@ getLineState = interpret $
                              (xs:xss') -> do put xss'
                                              return (k xs)
 ```
-The signature of `getLineState` says that it is a handler that recognises
+The signature of `getLineState` says that it is a handler that recognizes
 `GetLine` operations and interprets them in terms of some output effects in
-`oeff`, which consist of `Get [String]` and `Put [String]`. Interpeting
+`oeff`, which consist of `Get [String]` and `Put [String]`. Interpreting
 effects in terms of other, more primitive, effects allows other handlers to
 deal with those more primitive effects.
 
@@ -276,7 +276,7 @@ getLinePure str = pipe getLineState (state str)
 getLinePure_ :: [String] -> Handler '[GetLine] '[] '[]
 getLinePure_ str = pipe getLineState (state_ str)
 ```
-Now we have a means of executing a program that contains only a |GetLine| effect,
+Now we have a means of executing a program that contains only a `GetLine` effect,
 and extracting the resulting string:
 ```haskell ignore
 handle (getLinePure ["hello", "world!"]) :: Prog '[GetLine] a -> ([String], a)
@@ -363,8 +363,8 @@ teletypePure str = fuse (getLinePure_ str) putStrLnPure
 ```
 The `fuse` combinator takes two handlers and creates one that accepts the union
 of their signatures. The handlers are run in sequence so that the output of the
-first handler is fed into the input of the second. Any any remaining output
-operations are combined and become te output of the fusion.
+first handler is fed into the input of the second. Any remaining output
+operations are combined and become the output of the fusion.
 
 Now the `echo` program can be executed in an entirely pure context:
 ```haskell ignore
@@ -463,7 +463,7 @@ hoppy = do tell ["Hello Alfie!"]
                   do tell ["get bigger!"]
            tell ["Goodbye!"]
 ```
-To evalaute this program, the `censors` handler is created with an initial
+To evaluate this program, the `censors` handler is created with an initial
 cipher which is `id` so that the messages not under a `censor` are not affected:
 ```haskell ignore
 ghci> handle (censors @[String] id <&> writer) hoppy :: ([String], ())
@@ -569,7 +569,7 @@ considered more advanced and is detailed more carefully in the
 Language Extensions
 --------------------
 
-The `effective` library requires the `DataKinds` extenion since
+The `effective` library requires the `DataKinds` extension since
 this is used to keep track of effect signatures.
 
 ```haskell top
@@ -577,7 +577,7 @@ this is used to keep track of effect signatures.
 ```
 <!--
 The following pragma is only needed for the testing framework.
-```haskell top 
+```haskell top
 {-# LANGUAGE TemplateHaskell #-}
 ```
 -->
