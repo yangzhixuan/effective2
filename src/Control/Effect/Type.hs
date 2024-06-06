@@ -7,7 +7,6 @@ module Control.Effect.Type where
 
 import Data.Kind ( Type, Constraint )
 import Data.HFunctor
-import Control.Monad.Trans.TCompose
 import Data.Functor.Composes
 import Control.Monad.Trans.Class
 import Data.List.Kind
@@ -47,10 +46,6 @@ data Handler' effs oeffs t fs =
 
   , malg :: forall m . Monad m
          => Algebra oeffs m -> Algebra effs (t m)
-
-  , mfwd :: forall m sig . Monad m
-         => (forall x . Effs sig m x -> m x)
-         -> (forall x . Effs sig (t m) x -> t m x)
   }
 
 {-
@@ -85,8 +80,6 @@ data SNat n = SNat
 
 absurdEffs :: Effs '[] f x -> a
 absurdEffs x = case x of {}
-
-
 
 type  Append :: [Effect] -> [Effect] -> Constraint
 class Append xs ys where

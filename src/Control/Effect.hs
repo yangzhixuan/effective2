@@ -118,7 +118,7 @@ handler
     => (forall x . Effs oeffs m x -> m x)
     -> (forall x . Effs effs (t m) x -> t m x))
   -> Handler effs oeffs '[f]
-handler run malg = Handler (Handler' (const (fmap rcomps . run)) malg undefined)
+handler run malg = Handler (Handler' (const (fmap rcomps . run)) malg)
 
 type AlgebraT effs oeffs t = forall m.  Monad m
   => (forall x. Effs oeffs m x -> m x)
@@ -140,7 +140,7 @@ handlerT
   -> (forall m a . t' m a -> m (f' a))
   -> Handler' effs oeffs t fs
   -> Handler' (effs' :++ effs) (oeffs) (TCompose t' t) (f' ': fs)
-handlerT alg runT (Handler' run malg _) = Handler' run' malg' undefined where
+handlerT alg runT (Handler' run malg) = Handler' run' malg' where
   run' :: Monad m => Algebra (oeffs) m
        -> forall x. TCompose t' t m x -> m (RComps (f' : fs) x)
   run' oalg x = fmap RCCons (run oalg ((runT . getTCompose) x))
@@ -170,7 +170,6 @@ interpret' alg
   = Handler $ Handler'
       (const (\(IdentityT mx) -> fmap RCNil mx))
       (\oalg -> IdentityT . alg oalg . hmap runIdentityT)
-      undefined
 
 --  fuse :: forall effs1 effs2 oeffs1 oeffs2 fs1 fs2 effs oeffs .
 --   ( All Functor fs1, All Functor fs2, All Functor (fs2 :++ fs1)
@@ -341,7 +340,6 @@ forward :: Handler effs effs '[]
 forward = Handler $ Handler'
   (const (\(IdentityT mx) -> fmap RCNil mx))
   (\oalg -> IdentityT . oalg . hmap runIdentityT)
-  (\alg  -> IdentityT . alg . hmap runIdentityT)
 
 handleT :: forall effs t fs a .
   ( MonadTrans t
@@ -351,7 +349,7 @@ handleT :: forall effs t fs a .
 handleT h = handle (Handler (h idHandler))
 
 idHandler :: Handler' '[] '[] IdentityT '[]
-idHandler = Handler' run malg undefined where
+idHandler = Handler' run malg where
 
   run :: Functor m => Algebra '[] m -> (forall x. IdentityT m x -> m (RComps '[] x))
   run _ (IdentityT x) = fmap RCNil x
@@ -371,26 +369,26 @@ handle' :: forall ieffs t fs a .
   , Rercompose fs )
   => Handler' ieffs '[] t fs
   -> Prog ieffs a -> RComposes fs a
-handle' (Handler' run malg mfwd)
+handle' (Handler' run malg)
   = runIdentity
   . fmap @Identity (rercompose @fs @a)
   . run @Identity (absurdEffs . injs)
   . eval (malg (absurdEffs . injs))
 
-handleWith :: forall ieffs oeffs xeffs m fs a .
-  ( Monad m
-  , Rercompose fs
-  , Append ieffs (xeffs :\\ ieffs)
-  , Injects oeffs xeffs
-  , Injects (xeffs :\\ ieffs) xeffs
-  )
-  => (forall x. Effs xeffs m x -> m x)
-  -> Handler ieffs oeffs fs
-  -> Prog (ieffs `Union` xeffs) a -> m (RComposes fs a)
-handleWith xalg (Handler (Handler' run malg mfwd))
-  = fmap @m (rercompose @fs @a)
-  . run @m (xalg . injs)
-  . eval (hunion @ieffs @xeffs (malg (xalg . injs)) (mfwd xalg))
+-- handleWith :: forall ieffs oeffs xeffs m fs a .
+--   ( Monad m
+--   , Rercompose fs
+--   , Append ieffs (xeffs :\\ ieffs)
+--   , Injects oeffs xeffs
+--   , Injects (xeffs :\\ ieffs) xeffs
+--   )
+--   => (forall x. Effs xeffs m x -> m x)
+--   -> Handler ieffs oeffs fs
+--   -> Prog (ieffs `Union` xeffs) a -> m (RComposes fs a)
+-- handleWith xalg (Handler (Handler' run malg))
+--   = fmap @m (rercompose @fs @a)
+--   . run @m (xalg . injs)
+--   . eval (hunion @ieffs @xeffs (malg (xalg . injs)) (mfwd xalg))
 
 weaken
   :: forall ieffs ieffs' oeffs oeffs' fs
@@ -399,8 +397,8 @@ weaken
     )
   => Handler ieffs' oeffs fs
   -> Handler ieffs oeffs' fs
-weaken (Handler (Handler' run malg mfwd))
-  = Handler (Handler' (\oalg -> run (oalg . injs)) (\oalg -> malg (oalg . injs) . injs) mfwd)
+weaken (Handler (Handler' run malg))
+  = Handler (Handler' (\oalg -> run (oalg . injs)) (\oalg -> malg (oalg . injs) . injs))
 
 hide
   :: forall sigs effs oeffs fs
