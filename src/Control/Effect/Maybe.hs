@@ -5,25 +5,29 @@
 module Control.Effect.Maybe where
 
 import Control.Effect
+import Control.Family.Algebraic
+import Control.Family.Scoped
 
+import Control.Family
+import Control.Monad.Trans.Class
 import Control.Monad.Trans.Maybe
-import Control.Monad.Trans.Class (lift)
+import Control.Monad.Trans.TCompose
 
--- TODO: Consider renaming catch/Throw/Catch to lobby/Exit/Enter
-
-data Catch k where
-  Catch :: k -> k -> Catch k
+type Catch = Scp Catch'
+data Catch' k where
+  Catch :: k -> k -> Catch' k
   deriving Functor
 
 catch :: Member Catch sig => Prog sig a -> Prog sig a -> Prog sig a
-catch p q = injCall (Scp (Catch (fmap return p) (fmap return q)))
+catch p q = (Call . inj) (Scp (Catch (fmap return p) (fmap return q)))
 
-data Throw k where
-  Throw :: Throw k
+type Throw = Alg Throw'
+data Throw' k where
+  Throw :: Throw' k
   deriving Functor
 
 throw :: Member Throw sig => Prog sig a
-throw = injCall (Alg Throw)
+throw = (Call . inj) (Alg Throw)
 
 exceptAlg :: Monad m
   => (forall x. oeff m x -> m x)
@@ -37,16 +41,14 @@ exceptAlg _ eff
                       Nothing -> runMaybeT q
                       Just x  -> return (Just x)
 
-exceptFwd
-  :: Monad m
-  => (forall x. Effs sigs m x -> m x)
-  -> (forall x. Effs sigs (MaybeT m) x -> MaybeT m x)
-exceptFwd alg (Eff (Alg x)) = lift (alg (Eff (Alg x)))
-exceptFwd alg (Eff (Scp x)) = MaybeT (alg (Eff (Scp (fmap runMaybeT x))))
-exceptFwd alg (Effs effs)   = exceptFwd (alg . Effs) effs
-
 except :: Handler [Throw, Catch] '[] '[Maybe]
-except = handler runMaybeT exceptAlg exceptFwd
+except = handler runMaybeT exceptAlg
+
+exceptT
+  :: forall effs oeffs fs t . (MonadTrans t, Forward effs MaybeT)
+  => Handler' effs oeffs t fs
+  -> Handler' (Throw : Catch : effs) oeffs (TCompose MaybeT t) (Maybe ': fs)
+exceptT = handlerT @'[Throw, Catch] exceptAlg runMaybeT
 
 -- multiple semantics such as retry after handling is difficult in MTL
 -- without resorting to entirely different newtype wrapping through
@@ -74,5 +76,13 @@ retryAlg _ eff
                Just x  -> return (Just x)
 
 retry :: Handler [Throw, Catch] '[] '[Maybe]
-retry = handler runMaybeT retryAlg exceptFwd
+retry = handler runMaybeT retryAlg
+
+retryT :: forall effs oeffs t fs
+  .  (Forward effs MaybeT , MonadTrans t)
+  => Handler' effs oeffs t fs
+  -> Handler' (Throw : Catch : effs)
+              oeffs (TCompose MaybeT t)
+              (Maybe : fs)
+retryT = handlerT @'[Throw, Catch] retryAlg runMaybeT
 
