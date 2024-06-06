@@ -14,23 +14,28 @@ import Control.Monad ( ap, liftM )
 import Control.Monad.Trans.Class ( MonadTrans(..) )
 import Control.Arrow ( Arrow(second) )
 
+import Control.Family.Algebraic
+import Control.Family.Scoped
 
-data Stop a where
-  Stop :: Stop a
+
+data Stop' a where
+  Stop :: Stop' a
   deriving Functor
+type Stop = Alg Stop'
 
 stop :: Members '[Stop] sig => Prog sig a
 stop  = injCall (Alg Stop)
 
-data Or a where
-  Or :: a -> a -> Or a
+type Or = Alg Or'
+data Or' a where
+  Or :: a -> a -> Or' a
   deriving Functor
 
 or :: Members '[Or] sig => Prog sig a -> Prog sig a -> Prog sig a
 or x y = injCall (Alg (Or x y))
 
 
-instance (Members [Or, Stop] sig) => Alternative (Prog sig) where
+instance (Members '[Or, Stop] sig) => Alternative (Prog sig) where
   empty :: Members [Or, Stop] sig => Prog sig a
   empty = stop
 
@@ -97,8 +102,9 @@ instance MonadTrans ListT where
 
 -------------------------------
 -- Example: Backtracking (and Culling?)
-data Once a where
-  Once :: a -> Once a
+type Once = Scp Once'
+data Once' a where
+  Once :: a -> Once' a
   deriving Functor
 
 once
