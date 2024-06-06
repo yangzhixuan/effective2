@@ -6,6 +6,7 @@
 
 module Data.List.Kind where
 import Data.Kind (Constraint)
+import Data.Nat
 
 type family (xs :: [k]) :++ (ys :: [k]) :: [k] where
   '[]       :++ ys = ys
@@ -21,6 +22,13 @@ type family Delete (x :: k) (ys :: [k]) :: [k] where
   Delete x (x ': ys) = ys
   Delete x (y ': ys) = y ': Delete x ys
 
+type family Reverse (xs :: [k]) :: [k] where
+  Reverse xs = Reverse' xs '[]
+
+type family Reverse' (xs :: [k]) (sx :: [k]) :: [k] where
+  Reverse' '[]       sx = sx
+  Reverse' (x ': xs) sx = Reverse' xs (x ': sx)
+
 type family ((xs :: [k]) :\\ (ys :: [k]))  :: [k] where
   xs :\\ '[]       = xs
   xs :\\ (y ': ys) = (Delete y xs) :\\ ys
@@ -32,4 +40,10 @@ type family All (c :: k -> Constraint) (xs :: [k]) :: Constraint where
   All c '[]       = ()
   All c (x ': xs) = (c x, All c xs)
 
-
+-- Find an index of an element in a `list'
+-- The element must exist
+-- This closed type family disambiguates otherwise overlapping
+-- instances
+type family ElemIndex (x :: a) (xs :: [a]) :: Nat where
+  ElemIndex x (x ': xs) = Z
+  ElemIndex x (_ ': xs) = S (ElemIndex x xs)
