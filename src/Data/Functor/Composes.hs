@@ -23,6 +23,12 @@ data Comps fs a where
   CNil  :: a -> Comps '[] a
   CCons :: f (Comps fs a) -> Comps (f ': fs) a
 
+instance Functor (Comps '[]) where
+  fmap f (CNil x) = CNil (f x)
+
+instance (Functor f, Functor (Comps fs)) => Functor (Comps (f ': fs)) where
+  fmap f (CCons x) = CCons (fmap (fmap f) x)
+
 decomps :: Functor f => Comps '[f] a -> f a
 decomps (CCons x) = fmap (\(CNil y) -> y) x
 
@@ -44,6 +50,35 @@ instance (Recompose fs, Functor f) => Recompose (f ': fs) where
   decompose :: (Recompose fs, Functor f) => Composes (f : fs) a -> Comps (f : fs) a
   decompose x = CCons (fmap decompose x)
 
+-- reverse composition
+type family RComposes (fs :: [Type -> Type]) (a :: Type) :: Type where
+  RComposes '[]       a = a
+  RComposes (f ': fs) a = (RComposes fs (f a))
+
+type RComps :: [Type -> Type] -> Type -> Type
+data RComps fs a where
+  RCNil  :: a -> RComps '[] a
+  RCCons :: RComps fs (f a) -> RComps (f ': fs) a
+
+class Rercompose fs where
+  rercompose :: RComps fs a -> RComposes fs a
+  dercompose :: RComposes fs a -> RComps fs a
+
+instance Rercompose '[] where
+  rercompose (RCNil x) = x
+  dercompose = RCNil
+
+instance (Rercompose fs, Functor f) => Rercompose (f ': fs) where
+  rercompose :: (Rercompose fs, Functor f) => RComps (f : fs) a -> RComposes (f : fs) a
+  rercompose (RCCons x) = rercompose x
+
+  dercompose :: (Rercompose fs, Functor f) => RComposes (f : fs) a -> RComps (f : fs) a
+  -- dercompose x = RCCons (fmap dercompose x)
+  dercompose x = RCCons (dercompose x)
+
+rcomps :: Functor f => f a -> RComps '[f] a
+rcomps = RCCons . RCNil
+
 class Expose fs where
   expose :: Comps (fs :++ gs) a -> Comps fs (Comps gs a)
   unexpose :: Comps fs (Comps gs a) -> Comps (fs :++ gs) a
@@ -61,4 +96,22 @@ instance (Expose fs, Functor f) => Expose (f : fs) where
 
   unexpose :: Comps (f ': fs) (Comps gs a) -> Comps ((f ': fs) :++ gs) a
   unexpose (CCons x) = CCons (fmap unexpose x)
+
+class Exposes fs gs where
+  exposes :: Comps (fs :++ gs) a -> Comps fs (Comps gs a)
+  unexposes :: Comps fs (Comps gs a) -> Comps (fs :++ gs) a
+
+instance Exposes '[] gs where
+  exposes :: Comps ('[] :++ gs) a -> Comps '[] (Comps gs a)
+  exposes (CNil x)  = CNil (CNil x)
+  exposes (CCons x) = CNil (CCons x)
+
+  unexposes :: Comps '[] (Comps gs a) -> Comps gs a
+  unexposes (CNil x)  = x
+
+instance (Exposes fs gs, Functor f) => Exposes (f : fs) gs where
+  exposes (CCons x) = CCons (fmap exposes x)
+
+  unexposes :: Comps (f ': fs) (Comps gs a) -> Comps ((f ': fs) :++ gs) a
+  unexposes (CCons x) = CCons (fmap unexposes x)
 
