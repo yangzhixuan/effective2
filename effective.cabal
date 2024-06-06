@@ -27,21 +27,27 @@ library
   ghc-options:   -Wunused-foralls -Wunused-imports
   exposed-modules:
     Control.Effect
-    Control.Effect.Cut
+    Control.Effect.Type
+    -- Control.Effect.Cut
     Control.Effect.Except
-    Control.Effect.IO
+    -- Control.Effect.IO
     Control.Effect.Maybe
-    Control.Effect.Nondet
-    Control.Effect.Reader
-    Control.Effect.State
-    Control.Effect.Writer
+--    Control.Effect.Nondet
+    -- Control.Effect.Reader
+    -- Control.Effect.State
+    -- Control.Effect.Writer
+    Control.Family
+    Control.Family.Algebraic
+    Control.Family.Scoped
     Control.Monad.Graded
+    Control.Monad.Trans.TCompose
     Data.Functor.Composes
     Data.HFunctor
     Data.HFunctor.HCompose
     Data.HFunctor.HComposes
     Data.CutList
     Data.List.Kind
+    Data.Nat
   hs-source-dirs:
     src
   build-depends:
@@ -58,16 +64,17 @@ test-suite docs
   default-language: GHC2021
   other-modules:
     Error,
-    Graded,
-    Nondet,
-    Parser,
-    State,
-
-test-suite readme
-  type:          exitcode-stdio-1.0
-  ghc-options:   -threaded -pgmL markdown-unlit
-  main-is:       README.lhs
-  default-language: GHC2021
-  hs-source-dirs:  .
-  build-depends: base, transformers, effective, hedgehog
-  build-tool-depends: markdown-unlit:markdown-unlit>=0.6
+--     Graded,
+--    Nondet,
+--     Parser,
+--     State,
+-- 
+-- test-suite readme
+--   type:          exitcode-stdio-1.0
+--   ghc-options:   -threaded -pgmL markdown-unlit
+--   main-is:       README.lhs
+--   default-language: GHC2021
+--   hs-source-dirs:  .
+--   build-depends: base, transformers, effective, hedgehog
+--   build-tool-depends: markdown-unlit:markdown-unlit>=0.6
+-- 
