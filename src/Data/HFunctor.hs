@@ -31,4 +31,3 @@ instance HFunctor (WriterT w) where
 
 instance HFunctor (StateT s) where
   hmap h (StateT p) = StateT (\s -> h (p s))
-

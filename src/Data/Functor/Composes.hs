@@ -109,6 +109,7 @@ instance Functor (RComps '[]) where
   fmap f (RCNil x) = RCNil (f x)
 
 instance (Functor f, Functor (RComps fs)) => Functor (RComps (f ': fs)) where
+  fmap :: (Functor f, Functor (RComps fs)) => (a -> b) -> RComps (f : fs) a -> RComps (f : fs) b
   fmap f (RCCons x) = RCCons (fmap (fmap f) x)
 
 class Rercompose fs where
