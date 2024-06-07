@@ -1,8 +1,14 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE MonoLocalBinds #-}
+
 module Data.CutList where
 
 import Control.Applicative ( Alternative((<|>), empty) )
 import Control.Monad ( ap, liftM )
 import Control.Monad.Trans.Class ( MonadTrans(..) )
+import Control.Effect
+import Control.Family
+import Control.Family.Scoped
 
 data CutList a = a :< CutList a | Nil | Zero
   deriving Functor
@@ -77,3 +83,9 @@ instance Monad m => Monad (CutListT m) where
 instance MonadTrans CutListT where
   lift :: Monad m => m a -> CutListT m a
   lift mx = CutListT $ liftM (\x -> x :<< return NilT) mx
+
+instance (Functor f, Forward effs CutListT) => Forward (Scp f ': effs) CutListT where
+  fwd :: forall m . Monad m
+      => Algebra (Scp f : effs) m -> Algebra (Scp f : effs) (CutListT m)
+  fwd alg (Eff (Scp op)) = (CutListT . alg . Eff . Scp . fmap runCutListT) op
+  fwd alg (Effs ops)     = fwd (alg . Effs) ops
