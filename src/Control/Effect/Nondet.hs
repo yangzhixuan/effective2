@@ -42,6 +42,11 @@ instance (Members '[Or, Stop] sig) => Alternative (Prog sig) where
 select :: Members [Or, Stop] sig => [a] -> Prog sig a
 select = foldr (or . return) stop
 
+selects :: [a] -> Prog' [Or, Stop] (a, [a])
+selects []      =  empty
+selects (x:xs)  =  return (x, xs)  <|>  do  (y, ys) <- selects xs
+                                            return (y, x:ys)
+
 nondetAlg
   :: (MonadTrans t, Alternative (t m) , Monad m)
   => (forall x. Effs oeff m x -> m x)
