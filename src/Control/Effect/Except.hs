@@ -43,35 +43,14 @@ exceptAlg _ eff
                        Left e  -> runExceptT (h e)
                        Right x -> return (Right x)
 
+except :: Handler '[Throw e, Catch e] '[] '[Either e]
+except = handler runExceptT exceptAlg
+
 exceptT
   :: forall effs oeffs fs t e . (MonadTrans t, ForwardT effs (ExceptT e))
   => Handler' effs oeffs t fs
   -> Handler' (Throw e : Catch e : effs) oeffs (TCompose (ExceptT e) t) (Either e ': fs)
 exceptT = handlerT @'[Throw e, Catch e] exceptAlg runExceptT
-
---except
---  :: forall effs oeffs fs t e . (MonadTrans t, Forward effs (ExceptT e))
---  => Handler' effs oeffs t fs
---  -> Handler' (Throw e : Catch e : effs) oeffs (TCompose (ExceptT e) t) (Either e ': fs)
---except (Handler' run malg _mfwd) = Handler' run' malg' undefined where
---  run'  :: forall m . Monad m
---       => (forall x . Effs oeffs m x -> m x)
---       -> (forall x . TCompose (ExceptT e) t m x -> m (RComps (Either e ': fs) x))
---  run' oalg x = fmap RCCons (run oalg ((runExceptT . getTCompose) x))
---
---  malg' :: forall m . Monad m
---       => (forall x . Effs oeffs m x -> m x)
---       -> (forall x . Effs (Throw e : Catch e : effs) (TCompose (ExceptT e) t m) x
---             -> TCompose (ExceptT e) t m x)
---  malg' oalg (Eff (Alg (Throw e)))        = TCompose (ExceptT (return (Left e)))
---  malg' oalg (Effs (Eff (Scp (Catch p h))))
---      = TCompose $ ExceptT $
---                  do mx <- runExceptT . getTCompose $ p
---                     case mx of
---                       Left e  -> runExceptT (getTCompose (h e))
---                       Right x -> return (Right x)
---  malg' oalg (Effs (Effs op))             = fwd (malg oalg) op
-
 
 -- multiple semantics such as retry after handling is difficult in MTL
 -- without resorting to entirely different newtype wrapping through
@@ -98,6 +77,8 @@ retryAlg _ eff
                               Right y  -> loop p h
                Right x  -> return (Right x)
 
+retry :: Handler '[Throw e, Catch e] '[] '[Either e]
+retry = handler runExceptT retryAlg
 
 retryT :: forall effs oeffs t fs e
   .  (ForwardT effs (ExceptT e), MonadTrans t)
