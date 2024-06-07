@@ -6,14 +6,10 @@ module Control.Effect.Nondet where
 
 import Prelude hiding (or)
 
-import Data.HFunctor ( HFunctor(..) )
-
 import Control.Effect
 import Control.Applicative ( Alternative(empty, (<|>)) )
-import Control.Monad ( ap, liftM )
 import Control.Monad.Trans.Class ( MonadTrans(..) )
 import Control.Monad.Trans.List
-import Control.Arrow ( Arrow(second) )
 
 import Control.Family.Algebraic
 import Control.Family.Scoped
@@ -53,14 +49,6 @@ nondetAlg
 nondetAlg oalg eff
   | Just (Alg Stop)     <- prj eff = empty
   | Just (Alg (Or x y)) <- prj eff = return x <|> return y
-
--- nondetFwd
---   :: (Monad m)
---   => (forall x. Effs sig m x -> m x)
---   -> forall x. Effs sig (ListT m) x -> ListT m x
--- nondetFwd alg (Eff (Alg x)) = lift  (alg (Eff (Alg x)))
--- nondetFwd alg (Eff (Scp x)) = ListT (alg (Eff (Scp (fmap runListT x))))
--- nondetFwd alg (Effs effs)   = nondetFwd (alg . Effs) effs
 
 nondet :: Handler [Stop, Or] '[] '[[]]
 nondet = handler runListT' nondetAlg

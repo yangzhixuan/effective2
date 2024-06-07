@@ -40,7 +40,6 @@ import Data.HFunctor
 import Control.Monad.Trans.Identity
 import Control.Monad.Trans.TCompose
 import Control.Family
-import Data.HFunctor.HCompose
 
 import Control.Monad ( join, ap, liftM )
 import Control.Monad.Trans.Class

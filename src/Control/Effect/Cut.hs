@@ -10,8 +10,6 @@ import Prelude hiding (or)
 import Control.Family.Algebraic
 import Control.Family.Scoped
 
-import Control.Monad.Trans.Identity
-import Control.Monad.Trans.TCompose
 
 import Data.CutList ( CutListT(..), CutListT'(..), fromCutListT' )
 import Data.HFunctor ( HFunctor(..) )
