@@ -12,11 +12,19 @@ module Control.Effect
   , Member(..)
   , Members(..)
   , handle
+  , handle'
   , handler
   , handleT
   , handlerT
-  , Handler
-  , Handler'
+  , Handler (..)
+  , Handler' (..)
+  , injCall
+  , progAlg
+  , interpret'
+  , eval
+  -- , fuse
+  , fuse'
+  , joinAlg
   ) where
 import Control.Effect.Type
 
@@ -107,6 +115,32 @@ prjCall _         = Nothing
 progAlg :: Effs sig (Prog sig) a -> Prog sig a
 progAlg = Call . fmap return
 
+{-
+The original version of Handler included a forwarder:
+```
+   mfwd :: forall m sig . Monad m
+         => (forall x . Effs sig m x -> m x)
+         -> (forall x . Effs sig (t m) x -> t m x)
+```
+This was replaced by the `Forward` class, which works with families,
+since it is too onerous forward every form of signature.
+
+An alternative design would be for the forwarding function to be
+provided when the handler is constructed, by the `Forward` class.
+However, this means that the family of values that can be
+forwarded is then exposed at the type level of the handler type:
+```
+  data Handler' effs oeffs t fs feffs
+```
+where `feffs` are the effects that can be forwarded, and then we would need
+constraints such as `Forward feffs t` to be in place. The advantage
+is that custom effects can forward more flexibly, but at the cost
+of added complexity in the signature.
+
+That complexity could be hidden by another datatype, much
+in the same way as `Handler` obscures the underlying `t` type.
+-}
+-- use a proxy for t as a datatype here?
 type Handler
   :: [Effect]                          -- effs  : input effects
   -> [Effect]                          -- oeffs : output effects
@@ -115,6 +149,10 @@ type Handler
 data Handler effs oeffs fs
   =  forall t . (MonadTrans t, Forward effs t)
   => Handler (Handler' effs oeffs t fs)
+
+--   => Handler (Proxy t, Handler' effs oeffs t fs)
+-- data Proxy t = Proxy
+
 
 type Handler'
   :: [Effect]                             -- effs  : input effects
@@ -151,7 +189,8 @@ type AlgebraT effs oeffs t = forall m.  Monad m
 -- end user.
 
 -- TODO : oeffs' could be generated in Algebra effs' oeffs' t'
--- TODO: there is a nasty undefined here!! It could be resolved if
+-- TODO: there is a nasty undefined here, see error!!
+-- It could be resolved if
 -- oalg :: forall m . Monad m => Algebra oeff m, since then the hole
 -- can be filled, since it has type `Alegbra oeff (t m)`.
 handlerT
@@ -207,14 +246,14 @@ interpret' alg
 --     )
 --   => Handler effs1 oeffs1 fs1
 --   -> Handler effs2 oeffs2 fs2
---   -> Handler effs oeffs fs
+--   -> Handler effs  oeffs  fs
 -- fuse (Handler h1) (Handler h2) = Handler (fuse' h1 h2)
 
 fuse'
   :: forall effs1 effs2 oeffs1 oeffs2 t1 t2 fs1 fs2 effs oeffs t fs
   . ( effs  ~ effs1 `Union` effs2
     , oeffs ~ (oeffs1 :\\ effs2) `Union` oeffs2
-    , t     ~ HCompose t1 t2
+    , t     ~ TCompose t1 t2
     , fs    ~ fs1 :++ fs2
     , Functor (RComps fs2)
     , RSplit fs1
@@ -228,12 +267,10 @@ fuse'
     , Injects oeffs1 ((oeffs1 :\\ effs2) :++ effs2)
     , MonadTrans t1
     , MonadTrans t2
-    , HFunctor t1
-    , HFunctor t2
     )
   => Handler' effs1 oeffs1 t1 fs1
   -> Handler' effs2 oeffs2 t2 fs2
-  -> Handler' effs oeffs t fs
+  -> Handler' effs  oeffs  t  fs
 fuse' (Handler' run1 malg1)  (Handler' run2 malg2) = Handler' run malg where
   run :: forall m . Monad m => Algebra oeffs m -> forall x. t m x -> m (RComps fs x)
   run oalg
@@ -243,18 +280,18 @@ fuse' (Handler' run1 malg1)  (Handler' run2 malg2) = Handler' run malg where
         heither @(oeffs1 :\\ effs2) @effs2
           (fwd @(oeffs1 :\\ effs2) @t2 (weakenAlg oalg))  -- TODO: is fwd' really the right thing? Could we use fwd?
           (malg2 (weakenAlg oalg)))
-    . getHCompose
+    . getTCompose
 
   malg :: forall m . Monad m => Algebra oeffs m -> Algebra effs (t m)
   malg oalg
-    = HCompose
+    = TCompose
     . hunion @effs1 @effs2
         (malg1 (weakenAlg $
           heither @(oeffs1 :\\ effs2) @effs2
             (fwd @(oeffs1 :\\ effs2) @t2 (weakenAlg oalg))
             (malg2 (weakenAlg oalg))))
         (fwd @effs2 @t1 (malg2 (oalg . injs)))
-    . hmap getHCompose
+    . hmap getTCompose
 
 -- (<&>) :: forall effs1 effs2 oeffs1 oeffs2 fs1 fs2 effs oeffs fam .
 --   ( All Functor fs1, All Functor fs2, All Functor (fs2 :++ fs1)
@@ -274,7 +311,7 @@ fuse' (Handler' run1 malg1)  (Handler' run2 malg2) = Handler' run malg where
 --   -> Handler effs2 oeffs2 fs2 fam
 --   -> Handler (effs1 `Union` effs2) ((oeffs1 :\\ effs2) `Union` oeffs2 ) (fs2 :++ fs1) fam
 -- (<&>) = fuse
--- 
+--
 -- pipe :: forall effs1 effs2 oeffs1 oeffs2 fs1 fs2 oeffs fam .
 --   ( All Functor (fs2 :++ fs1)
 --   , Expose fs2
@@ -288,7 +325,7 @@ fuse' (Handler' run1 malg1)  (Handler' run2 malg2) = Handler' run malg where
 --   -> Handler effs2 oeffs2 fs2 fam
 --   -> Handler effs1 ((oeffs1 :\\ effs2) `Union` oeffs2) (fs2 :++ fs1) fam
 -- pipe (Handler h1) (Handler h2) = Handler (pipe' h1 h2)
--- 
+--
 -- pipe' :: forall effs1 effs2 oeffs1 oeffs2 t1 t2 fs1 fs2 oeffs fam .
 --   ( All Functor (fs2 :++ fs1)
 --   , MonadTrans t1
@@ -376,7 +413,7 @@ idHandler = Handler' run malg where
 handle :: forall ieffs fs a .
   ( Rercompose fs )
   => Handler ieffs '[] fs
-  -> Prog ieffs a -> (RComposes fs a)
+  -> Prog ieffs a -> RComposes fs a
 handle (Handler h) p = handle' h p
 
 

@@ -30,32 +30,6 @@ instance HFunctor (Effs sigs) where
   hmap h (Effs x) = Effs (hmap h x)
 
 
-{-
-The original version of Handler included a forwarder:
-```
-   mfwd :: forall m sig . Monad m
-         => (forall x . Effs sig m x -> m x)
-         -> (forall x . Effs sig (t m) x -> t m x)
-```
-This was replaced by the `Forward` class, which works with families,
-since it is too onerous forward every form of signature.
-
-An alternative design would be for the forwarding function to be
-provided when the handler is constructed, by the `Forward` class.
-However, this means that the family of values that can be
-forwarded is then exposed at the type level of the handler type:
-```
-  data Handler' effs oeffs t fs feffs
-```
-where `feffs` are the effects that can be forwarded, and then we would need
-constraints such as `Forward feffs t` to be in place. The advantage
-is that custom effects can forward more flexibly, but at the cost
-of added complexity in the signature.
-
-That complexity could be hidden by another datatype, much
-in the same way as `Handler` obscures the underlying `t` type.
--}
-
 type SNat :: Nat -> Type
 data SNat n = SNat
 -- injecting/projecting at a specified position SNat n
