@@ -7,10 +7,15 @@ import Control.Effect
 import Control.Effect.Nondet
 import Prelude hiding (or)
 
+import Control.Family.Algebraic
+import Control.Family.Scoped
+
+import Control.Monad.Trans.Identity
+import Control.Monad.Trans.TCompose
+
 import Data.CutList ( CutListT(..), CutListT'(..), fromCutListT' )
 import Data.HFunctor ( HFunctor(..) )
 import Control.Applicative ( Alternative((<|>), empty) )
-import Control.Monad.Trans.Class (lift)
 
 {-
 Idea:
@@ -27,15 +32,17 @@ An alternative is to interpet `once` into `cutFail` and `cutCall`,
 which can then be interpreted using a `CutList`.
 -}
 
-data CutFail a where
-  CutFail :: CutFail a
+type CutFail = Alg CutFail'
+data CutFail' a where
+  CutFail :: CutFail' a
   deriving Functor
 
 cutFail :: Member CutFail sig => Prog sig a
 cutFail = injCall (Alg CutFail)
 
-data CutCall a where
-  CutCall :: a -> CutCall a
+type CutCall = Scp CutCall'
+data CutCall' a where
+  CutCall :: a -> CutCall' a
   deriving Functor
 
 cut :: (Members [Or, CutFail] sig) => Prog sig ()
@@ -59,14 +66,6 @@ callAlg (CutListT mxs) = CutListT $
        NilT      -> return NilT
        ZeroT     -> return NilT   -- clear the cut flag at the boundary of call
 
-cutListFwd
-  :: Monad m
-  => (forall x . Effs sig m x -> m x)
-  -> (forall x . Effs sig (CutListT m) x -> CutListT m x)
-cutListFwd alg (Eff (Alg x)) = lift (alg (Eff (Alg x)))
-cutListFwd alg (Eff (Scp x)) = CutListT (alg (Eff (Scp (fmap runCutListT x))))
-cutListFwd alg (Effs effs)   = cutListFwd (alg . Effs) effs
-
 cutListAlg
   :: Monad m => (forall x. oeff m x -> m x)
   -> forall x. Effs [Stop, Or, CutFail, CutCall] (CutListT m) x -> CutListT m x
@@ -77,9 +76,11 @@ cutListAlg oalg op
   | Just (Scp (CutCall x)) <- prj op = callAlg x
 
 cutList :: Handler [Stop, Or, CutFail, CutCall] '[] '[[]]
-cutList = handler fromCutListT' cutListAlg cutListFwd
+cutList = handler fromCutListT' cutListAlg
 
 instance HFunctor CutListT where
+  hmap :: (Functor f, Functor g) =>
+    (forall x. f x -> g x) -> CutListT f a -> CutListT g a
   hmap h (CutListT x) = CutListT (fmap (hmap h) (h x))
 
 instance HFunctor CutListT' where
@@ -99,6 +100,24 @@ onceCutAlg oalg op
                       eval oalg (do cut
                                     return x))
 
-onceNondet :: Handler [Once, Stop, Or, CutFail, CutCall] '[] '[[]]
-onceNondet = fuse onceCut cutList
+-- -- TODO: I suspect this should be `pipe`, not `fuse`.
+-- onceNondet :: Handler [Once, Stop, Or, CutFail, CutCall] '[] '[[]]
+-- onceNondet = fuse onceCut cutList
+
+-- -- TODO: I suspect this should be `pipe`, not `fuse`.
+-- -- onceNondet' :: Handler' [Once, Stop, Or, CutFail, CutCall] '[] (TComposeCutListT '[[]]
+-- onceNondet' :: Handler' [Once, Stop, Or, CutFail, CutCall]
+--                         [CutCall, CutFail, Or]
+--                         (TCompose IdentityT CutListT)   '[[]]
+-- onceNondet' =
+--   fuse' @'[Once]   @'[Stop, Or, CutFail, CutCall]
+--         @'[]       @'[CutCall, CutFail, Or]
+--         @IdentityT @CutListT
+--         @'[]  @'[[]]
+--         @_ @_ @_
+--         undefined undefined
+-- --     onceCut' cutList'
+-- --   where
+-- --     Handler onceCut' = onceCut
+-- --     Handler cutList' = cutList
 
