@@ -1,4 +1,6 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE MonoLocalBinds #-}
+
 module Control.Family.Scoped where
 
 import Data.Kind ( Type )
@@ -22,17 +24,30 @@ instance (Functor lsig, Functor f) => Functor (Scp lsig f) where
 instance Functor lsig => HFunctor (Scp lsig) where
   hmap f (Scp x) = Scp (fmap f x)
 
-instance (Functor f, Forward effs (ExceptT e)) => Forward (Scp f : effs) (ExceptT e) where
-  fwd :: forall t m . (Monad m, MonadTrans t)
+instance (Functor f, ForwardT effs (ExceptT e)) => ForwardT (Scp f : effs) (ExceptT e) where
+  fwdT :: forall t m . (Monad m, MonadTrans t)
       => Algebra (Scp f : effs) (t m)
       -> Algebra (Scp f : effs) (TCompose (ExceptT e) t m)
-  fwd alg (Eff (Scp op)) = TCompose (ExceptT (alg (Eff (Scp (fmap (runExceptT . getTCompose) op)))))
+  fwdT alg (Eff (Scp op)) = TCompose (ExceptT (alg (Eff (Scp (fmap (runExceptT . getTCompose) op)))))
+  fwdT alg (Effs ops)     = fwdT (alg . Effs) ops
+
+instance (Functor f, ForwardT effs MaybeT) => ForwardT (Scp f : effs) MaybeT where
+  fwdT :: forall t m . (Monad m, MonadTrans t)
+      => Algebra (Scp f : effs) (t m)
+      -> Algebra (Scp f : effs) (TCompose MaybeT t m)
+  fwdT alg (Eff (Scp op)) = TCompose (MaybeT (alg (Eff (Scp (fmap (runMaybeT . getTCompose) op)))))
+  fwdT alg (Effs ops)     = fwdT (alg . Effs) ops
+
+instance (Functor f, Forward effs (ExceptT e)) => Forward (Scp f : effs) (ExceptT e) where
+  fwd :: forall m . (Monad m)
+      => Algebra (Scp f : effs) (m)
+      -> Algebra (Scp f : effs) (ExceptT e m)
+  fwd alg (Eff (Scp op)) = (ExceptT (alg (Eff (Scp (fmap (runExceptT) op)))))
   fwd alg (Effs ops)     = fwd (alg . Effs) ops
 
 instance (Functor f, Forward effs MaybeT) => Forward (Scp f : effs) MaybeT where
-  fwd :: forall t m . (Monad m, MonadTrans t)
-      => Algebra (Scp f : effs) (t m)
-      -> Algebra (Scp f : effs) (TCompose MaybeT t m)
-  fwd alg (Eff (Scp op)) = TCompose (MaybeT (alg (Eff (Scp (fmap (runMaybeT . getTCompose) op)))))
+  fwd :: forall m . (Monad m)
+      => Algebra (Scp f : effs) (m)
+      -> Algebra (Scp f : effs) (MaybeT m)
+  fwd alg (Eff (Scp op)) = (MaybeT (alg (Eff (Scp (fmap (runMaybeT) op)))))
   fwd alg (Effs ops)     = fwd (alg . Effs) ops
-

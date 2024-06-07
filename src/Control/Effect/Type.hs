@@ -7,8 +7,6 @@ module Control.Effect.Type where
 
 import Data.Kind ( Type, Constraint )
 import Data.HFunctor
-import Data.Functor.Composes
-import Control.Monad.Trans.Class
 import Data.List.Kind
 import Data.Nat
 
@@ -23,30 +21,14 @@ data Effs sigs f a where
   Eff  :: HFunctor sig => sig f a -> Effs (sig ': sigs) f a
   Effs :: Effs sigs f a -> Effs (sig ': sigs) f a
 
-type Handler
-  :: [Effect]                          -- effs  : input effects
-  -> [Effect]                          -- oeffs : output effects
-  -> [Type -> Type]                    -- f     : carrier type
-  -> Type
-data Handler effs oeffs fs
-  =  forall t . (MonadTrans t)
-  => Handler (Handler' effs oeffs t fs)
+instance Functor f => Functor (Effs sigs f) where
+  fmap f (Eff x)  = Eff (fmap f x)
+  fmap f (Effs x) = Effs (fmap f x)
 
-type Handler'
-  :: [Effect]                             -- effs  : input effects
-  -> [Effect]                             -- oeffs : output effects
-  -> ((Type -> Type) -> (Type -> Type))   -- t     : monad transformer
-  -> [Type -> Type]                       -- f     : carrier type
-  -> Type
-data Handler' effs oeffs t fs =
-  Handler'
-  { run  :: forall m . Monad m
-         => Algebra oeffs m
-         -> (forall x . t m x -> m (RComps fs x))
+instance HFunctor (Effs sigs) where
+  hmap h (Eff x)  = Eff (hmap h x)
+  hmap h (Effs x) = Effs (hmap h x)
 
-  , malg :: forall m . Monad m
-         => Algebra oeffs m -> Algebra effs (t m)
-  }
 
 {-
 The original version of Handler included a forwarder:

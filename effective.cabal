@@ -24,7 +24,7 @@ source-repository head
 
 library
   default-language: GHC2021
-  ghc-options:   -Wunused-foralls -Wunused-imports
+  ghc-options:   -Wunused-foralls -Wunused-imports -fprint-potential-instances
   exposed-modules:
     Control.Effect
     Control.Effect.Type
@@ -58,7 +58,7 @@ test-suite docs
   type:          exitcode-stdio-1.0
   build-depends: base, transformers, effective, hedgehog
   main-is:       Main.hs
-  ghc-options:   -threaded
+  ghc-options:   -threaded -Wunused-foralls -Wunused-imports -fprint-potential-instances
   hs-source-dirs: docs
   build-tool-depends: markdown-unlit:markdown-unlit>=0.6
   default-language: GHC2021

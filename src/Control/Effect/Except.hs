@@ -44,7 +44,7 @@ exceptAlg _ eff
                        Right x -> return (Right x)
 
 exceptT
-  :: forall effs oeffs fs t e . (MonadTrans t, Forward effs (ExceptT e))
+  :: forall effs oeffs fs t e . (MonadTrans t, ForwardT effs (ExceptT e))
   => Handler' effs oeffs t fs
   -> Handler' (Throw e : Catch e : effs) oeffs (TCompose (ExceptT e) t) (Either e ': fs)
 exceptT = handlerT @'[Throw e, Catch e] exceptAlg runExceptT
@@ -100,7 +100,7 @@ retryAlg _ eff
 
 
 retryT :: forall effs oeffs t fs e
-  .  (Forward effs (ExceptT e), MonadTrans t)
+  .  (ForwardT effs (ExceptT e), MonadTrans t)
   => Handler' effs oeffs t fs
   -> Handler' (Throw e : Catch e : effs)
               oeffs (TCompose (ExceptT e) t)

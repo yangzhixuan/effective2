@@ -15,31 +15,27 @@ module Control.Effect
   , handler
   , handleT
   , handlerT
+  , Handler
+  , Handler'
   ) where
 import Control.Effect.Type
 
 import Data.Kind ( Constraint )
 import Data.Nat
 
+import Data.Kind ( Type )
 import Data.List.Kind
 import Data.Functor.Identity
 import Data.Functor.Composes
-    ( RComps(..), Rercompose(rercompose), RComposes, rcomps )
+    ( RComps(..), Rercompose(rercompose), RComposes, rcomps, RSplit (..))
 import Data.HFunctor
 import Control.Monad.Trans.Identity
 import Control.Monad.Trans.TCompose
 import Control.Family
+import Data.HFunctor.HCompose
 
 import Control.Monad ( join, ap, liftM )
 import Control.Monad.Trans.Class
-
-instance Functor f => Functor (Effs sigs f) where
-  fmap f (Eff x)  = Eff (fmap f x)
-  fmap f (Effs x) = Effs (fmap f x)
-
-instance HFunctor (Effs sigs) where
-  hmap h (Eff x)  = Eff (hmap h x)
-  hmap h (Effs x) = Effs (hmap h x)
 
 joinAlg :: forall sig1 sig2 oeff t m .
   ( Monad m, Append sig1 sig2 )
@@ -111,8 +107,33 @@ prjCall _         = Nothing
 progAlg :: Effs sig (Prog sig) a -> Prog sig a
 progAlg = Call . fmap return
 
+type Handler
+  :: [Effect]                          -- effs  : input effects
+  -> [Effect]                          -- oeffs : output effects
+  -> [Type -> Type]                    -- f     : carrier type
+  -> Type
+data Handler effs oeffs fs
+  =  forall t . (MonadTrans t, Forward effs t)
+  => Handler (Handler' effs oeffs t fs)
+
+type Handler'
+  :: [Effect]                             -- effs  : input effects
+  -> [Effect]                             -- oeffs : output effects
+  -> ((Type -> Type) -> (Type -> Type))   -- t     : monad transformer
+  -> [Type -> Type]                       -- f     : carrier type
+  -> Type
+data Handler' effs oeffs t fs =
+  Handler'
+  { run  :: forall m . Monad m
+         => Algebra oeffs m
+         -> (forall x . t m x -> m (RComps fs x))
+
+  , malg :: forall m . Monad m
+         => Algebra oeffs m -> Algebra effs (t m)
+  }
+
 handler
-  :: (MonadTrans t, Functor f)
+  :: (MonadTrans t, Functor f, Forward effs t)
   => (forall m a . Monad m => t m a -> m (f a))
   -> (forall m . Monad m
     => (forall x . Effs oeffs m x -> m x)
@@ -135,7 +156,7 @@ type AlgebraT effs oeffs t = forall m.  Monad m
 -- can be filled, since it has type `Alegbra oeff (t m)`.
 handlerT
   :: forall effs' effs oeffs t fs t' f'
-  .  (Append effs' effs, Forward effs t', MonadTrans t, MonadTrans t')
+  .  (Append effs' effs, ForwardT effs t', MonadTrans t, MonadTrans t', Functor f')
   => AlgebraT effs' oeffs t'
   -> (forall m a . t' m a -> m (f' a))
   -> Handler' effs oeffs t fs
@@ -148,7 +169,7 @@ handlerT alg runT (Handler' run malg) = Handler' run' malg' where
   malg' :: Monad m => Algebra oeffs m -> Algebra (effs' :++ effs) (TCompose t' t m)
   malg' oalg = heither @effs' @effs
     (TCompose . alg (error "oalg is not polymorphic enough") . hmap getTCompose)
-    (fwd (malg oalg))
+    (fwdT (malg oalg))
 
 -- TODO: A better error message for unsafePrj
 interpret
@@ -162,84 +183,78 @@ interpret f = interpret' (\oalg -> eval oalg . f . unsafePrj)
     unsafePrj x = case prj x of Just y -> y
 
 interpret'
-  :: (forall m . Monad m
+  :: forall effs oeffs . (forall m . Monad m
      => (forall x . Effs oeffs m x -> m x)
      -> (forall x . Effs effs m x -> m x))
   -> Handler effs oeffs '[]
 interpret' alg
-  = Handler $ Handler'
+  = Handler $ Handler' @effs @oeffs @IdentityT
       (const (\(IdentityT mx) -> fmap RCNil mx))
       (\oalg -> IdentityT . alg oalg . hmap runIdentityT)
 
---  fuse :: forall effs1 effs2 oeffs1 oeffs2 fs1 fs2 effs oeffs .
---   ( All Functor fs1, All Functor fs2, All Functor (fs2 :++ fs1)
---   , Expose fs2
---   , Append effs1 (effs2 :\\ effs1)
---   , Append (oeffs1 :\\ effs2) (oeffs2 :\\ (oeffs1 :\\ effs2))
---   , Append (oeffs1 :\\ effs2) effs2
---   , Append (oeffs1 :\\ effs2) oeffs2
---   , Injects (oeffs1 :\\ effs2) oeffs, Injects oeffs2 oeffs
---   , Injects oeffs1 ((oeffs1 :\\ effs2) :++ effs2)
---   , Injects (effs2 :\\ effs1) effs2
---   , effs  ~ effs1 `Union` effs2
---   , oeffs ~ (oeffs1 :\\ effs2) `Union` oeffs2
---   )
+-- fuse :: forall effs1 effs2 oeffs1 oeffs2 fs1 fs2 effs oeffs fs
+--   . ( effs  ~ effs1 `Union` effs2
+--     , oeffs ~ (oeffs1 :\\ effs2) `Union` oeffs2
+--     , fs    ~ fs1 :++ fs2
+--     , Functor (RComps fs2)
+--     , RSplit fs1
+--     , Append (oeffs1 :\\ effs2) effs2
+--     , Append effs1 (effs2 :\\ effs1)
+--     , Injects (oeffs1 :\\ effs2) oeffs
+--     , Injects (effs2 :\\ effs1) effs2
+--     , Injects oeffs2 oeffs
+--     , Injects oeffs1 ((oeffs1 :\\ effs2) :++ effs2)
+--     )
 --   => Handler effs1 oeffs1 fs1
 --   -> Handler effs2 oeffs2 fs2
---   -> Handler (effs1 `Union` effs2) ((oeffs1 :\\ effs2) `Union` oeffs2 ) (fs2 :++ fs1)
+--   -> Handler effs oeffs fs
 -- fuse (Handler h1) (Handler h2) = Handler (fuse' h1 h2)
 
--- fuse' :: forall effs1 effs2 oeffs1 oeffs2 t1 t2 fs1 fs2 effs oeffs .
---   ( All Functor (fs2 :++ fs1)
---   , MonadTrans t1
---   , MonadTrans t2
---   , Expose fs2
---   , Append effs1 (effs2 :\\ effs1)
---   , Append (oeffs1 :\\ effs2) (oeffs2 :\\ (oeffs1 :\\ effs2))
---   , Append (oeffs1 :\\ effs2) effs2
---   , Append (oeffs1 :\\ effs2) oeffs2
---   , Injects (oeffs1 :\\ effs2) oeffs, Injects oeffs2 oeffs
---   , Injects oeffs1 ((oeffs1 :\\ effs2) :++ effs2)
---   , Injects (effs2 :\\ effs1) effs2
---   , effs  ~ effs1 `Union` effs2
---   , oeffs ~ (oeffs1 :\\ effs2) `Union` oeffs2
---   )
---   => Handler' effs1 oeffs1 t1 fs1
---   -> Handler' effs2 oeffs2 t2 fs2
---   -> Handler' effs oeffs (HCompose t1 t2) (fs2 :++ fs1)
--- fuse' (Handler' run1 malg1 mfwd1) (Handler' run2 malg2 mfwd2) =
---   Handler' run malg mfwd where
---     run :: forall m . Monad m
---         => (forall x. Effs oeffs m x -> m x)
---         -> (forall x. HCompose t1 t2 m x -> m (Comps (fs2 :++ fs1) x))
---     run oalg
---       = fmap (unexpose @fs2 @fs1)
---       . run2 (oalg . injs)
---       . run1 (weakenAlg $ heither @(oeffs1 :\\ effs2) @(effs2)
---           (mfwd2 (weakenAlg oalg))
---           (malg2 (weakenAlg oalg)))
---       . getHCompose
--- 
---     malg :: forall m . Monad m
---       => (forall x . Effs oeffs m x -> m x)
---       -> (forall x. Effs effs (HCompose t1 t2 m) x -> HCompose t1 t2 m x)
---     malg oalg
---       = HCompose
---       . hunion @effs1 @effs2
---           (malg1 (weakenAlg $ heither @(oeffs1 :\\ effs2) @effs2
---                                 (mfwd2 (weakenAlg oalg))
---                                 (malg2 (weakenAlg oalg))))
---           (mfwd1 (malg2 (oalg . injs)))
---       . hmap getHCompose
--- 
---     mfwd
---       :: forall m sig . ( Monad m , HFunctor sig )
---       => (forall x. sig m x -> m x)
---       -> forall x. sig (HCompose t1 t2 m) x -> HCompose t1 t2 m x
---     mfwd alg
---       = HCompose
---       . mfwd1 (mfwd2 alg)
---       . hmap getHCompose
+fuse'
+  :: forall effs1 effs2 oeffs1 oeffs2 t1 t2 fs1 fs2 effs oeffs t fs
+  . ( effs  ~ effs1 `Union` effs2
+    , oeffs ~ (oeffs1 :\\ effs2) `Union` oeffs2
+    , t     ~ HCompose t1 t2
+    , fs    ~ fs1 :++ fs2
+    , Functor (RComps fs2)
+    , RSplit fs1
+    , Forward (oeffs1 :\\ effs2) t2
+    , Forward effs2 t1
+    , Append (oeffs1 :\\ effs2) effs2
+    , Append effs1 (effs2 :\\ effs1)
+    , Injects (oeffs1 :\\ effs2) oeffs
+    , Injects (effs2 :\\ effs1) effs2
+    , Injects oeffs2 oeffs
+    , Injects oeffs1 ((oeffs1 :\\ effs2) :++ effs2)
+    , MonadTrans t1
+    , MonadTrans t2
+    , HFunctor t1
+    , HFunctor t2
+    )
+  => Handler' effs1 oeffs1 t1 fs1
+  -> Handler' effs2 oeffs2 t2 fs2
+  -> Handler' effs oeffs t fs
+fuse' (Handler' run1 malg1)  (Handler' run2 malg2) = Handler' run malg where
+  run :: forall m . Monad m => Algebra oeffs m -> forall x. t m x -> m (RComps fs x)
+  run oalg
+    = fmap unrsplit
+    . run2 (oalg . injs)
+    . run1 (weakenAlg $
+        heither @(oeffs1 :\\ effs2) @effs2
+          (fwd @(oeffs1 :\\ effs2) @t2 (weakenAlg oalg))  -- TODO: is fwd' really the right thing? Could we use fwd?
+          (malg2 (weakenAlg oalg)))
+    . getHCompose
+
+  malg :: forall m . Monad m => Algebra oeffs m -> Algebra effs (t m)
+  malg oalg
+    = HCompose
+    . hunion @effs1 @effs2
+        (malg1 (weakenAlg $
+          heither @(oeffs1 :\\ effs2) @effs2
+            (fwd @(oeffs1 :\\ effs2) @t2 (weakenAlg oalg))
+            (malg2 (weakenAlg oalg))))
+        (fwd @effs2 @t1 (malg2 (oalg . injs)))
+    . hmap getHCompose
 
 -- (<&>) :: forall effs1 effs2 oeffs1 oeffs2 fs1 fs2 effs oeffs fam .
 --   ( All Functor fs1, All Functor fs2, All Functor (fs2 :++ fs1)
@@ -343,7 +358,8 @@ forward = Handler $ Handler'
 
 handleT :: forall effs t fs a .
   ( MonadTrans t
-  , Rercompose fs )
+  , Rercompose fs
+  , Forward effs (TCompose t IdentityT) )
   => (Handler' '[] '[] IdentityT '[] -> Handler' effs '[] (TCompose t IdentityT) fs)
   -> Prog effs a -> (RComposes fs a)
 handleT h = handle (Handler (h idHandler))
@@ -390,21 +406,21 @@ handle' (Handler' run malg)
 --   . run @m (xalg . injs)
 --   . eval (hunion @ieffs @xeffs (malg (xalg . injs)) (mfwd xalg))
 
-weaken
-  :: forall ieffs ieffs' oeffs oeffs' fs
-  . ( Injects ieffs ieffs'
-    , Injects oeffs oeffs'
-    )
-  => Handler ieffs' oeffs fs
-  -> Handler ieffs oeffs' fs
-weaken (Handler (Handler' run malg))
-  = Handler (Handler' (\oalg -> run (oalg . injs)) (\oalg -> malg (oalg . injs) . injs))
+-- weaken
+--   :: forall ieffs ieffs' oeffs oeffs' fs
+--   . ( Injects ieffs ieffs'
+--     , Injects oeffs oeffs'
+--     )
+--   => Handler ieffs' oeffs fs
+--   -> Handler ieffs oeffs' fs
+-- weaken (Handler (Handler' run malg))
+--   = Handler (Handler' (\oalg -> run (oalg . injs)) (\oalg -> malg (oalg . injs) . injs))
 
-hide
-  :: forall sigs effs oeffs fs
-  .  (Injects (effs :\\ sigs) effs, Injects oeffs oeffs)
-  => Handler effs oeffs fs -> Handler (effs :\\ sigs) oeffs fs
-hide h = weaken h
+-- hide
+--   :: forall sigs effs oeffs fs
+--   .  (Injects (effs :\\ sigs) effs, Injects oeffs oeffs)
+--   => Handler effs oeffs fs -> Handler (effs :\\ sigs) oeffs fs
+-- hide h = weaken h
 
 weakenAlg
   :: forall eff eff' m x . (Injects eff eff')

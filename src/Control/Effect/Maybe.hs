@@ -9,6 +9,8 @@ import Control.Family.Algebraic
 import Control.Family.Scoped
 
 import Control.Family
+import Control.Family.Algebraic()
+import Control.Family.Scoped()
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.TCompose
@@ -45,7 +47,7 @@ except :: Handler [Throw, Catch] '[] '[Maybe]
 except = handler runMaybeT exceptAlg
 
 exceptT
-  :: forall effs oeffs fs t . (MonadTrans t, Forward effs MaybeT)
+  :: forall effs oeffs fs t . (MonadTrans t, ForwardT effs MaybeT)
   => Handler' effs oeffs t fs
   -> Handler' (Throw : Catch : effs) oeffs (TCompose MaybeT t) (Maybe ': fs)
 exceptT = handlerT @'[Throw, Catch] exceptAlg runMaybeT
@@ -79,7 +81,7 @@ retry :: Handler [Throw, Catch] '[] '[Maybe]
 retry = handler runMaybeT retryAlg
 
 retryT :: forall effs oeffs t fs
-  .  (Forward effs MaybeT , MonadTrans t)
+  .  (ForwardT effs MaybeT , MonadTrans t)
   => Handler' effs oeffs t fs
   -> Handler' (Throw : Catch : effs)
               oeffs (TCompose MaybeT t)
