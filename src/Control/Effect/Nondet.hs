@@ -12,6 +12,7 @@ import Control.Effect
 import Control.Applicative ( Alternative(empty, (<|>)) )
 import Control.Monad ( ap, liftM )
 import Control.Monad.Trans.Class ( MonadTrans(..) )
+import Control.Monad.Trans.List
 import Control.Arrow ( Arrow(second) )
 
 import Control.Family.Algebraic
@@ -53,51 +54,16 @@ nondetAlg oalg eff
   | Just (Alg Stop)     <- prj eff = empty
   | Just (Alg (Or x y)) <- prj eff = return x <|> return y
 
-nondetFwd
-  :: (Monad m)
-  => (forall x. Effs sig m x -> m x)
-  -> forall x. Effs sig (ListT m) x -> ListT m x
-nondetFwd alg (Eff (Alg x)) = lift  (alg (Eff (Alg x)))
-nondetFwd alg (Eff (Scp x)) = ListT (alg (Eff (Scp (fmap runListT x))))
-nondetFwd alg (Effs effs)   = nondetFwd (alg . Effs) effs
+-- nondetFwd
+--   :: (Monad m)
+--   => (forall x. Effs sig m x -> m x)
+--   -> forall x. Effs sig (ListT m) x -> ListT m x
+-- nondetFwd alg (Eff (Alg x)) = lift  (alg (Eff (Alg x)))
+-- nondetFwd alg (Eff (Scp x)) = ListT (alg (Eff (Scp (fmap runListT x))))
+-- nondetFwd alg (Effs effs)   = nondetFwd (alg . Effs) effs
 
 nondet :: Handler [Stop, Or] '[] '[[]]
-nondet = handler runListT' nondetAlg nondetFwd
-
-newtype ListT m a = ListT { runListT :: m (Maybe (a, ListT m a)) }
-  deriving Functor
-
-runListT' :: Monad m => ListT m a -> m [a]
-runListT' (ListT mmxs) =
-  do mxs <- mmxs
-     case mxs of
-       Nothing         -> return []
-       Just (x, mmxs') -> (x :) <$> runListT' mmxs'
-
-instance HFunctor ListT where
-  hmap :: (Functor f, Functor g) => (forall x1. f x1 -> g x1) -> ListT f x -> ListT g x
-  hmap h (ListT mx) = ListT (fmap (fmap (fmap (hmap h))) (h mx))
-
-foldListT :: Monad m => (a -> m b -> m b) -> m b -> ListT m a -> m b
-foldListT k ys (ListT mxs) = mxs >>= maybe ys (\(x,xs) -> k x (foldListT k ys xs))
-
-instance Monad m => Applicative (ListT m) where
-  pure x = ListT (pure (Just (x, empty)))
-  (<*>) = ap
-
-instance Monad m => Monad (ListT m) where
-  (>>=) :: Monad m => ListT m a -> (a -> ListT m b) -> ListT m b
-  m >>= f = ListT $ foldListT (\x l -> runListT $ f x <|> ListT l) (return Nothing) m
-
-instance Monad m => Alternative (ListT m) where
-  empty = ListT (return Nothing)
-  (<|>) :: Monad m => ListT m a -> ListT m a -> ListT m a
-  ListT mxs <|> ListT mys = ListT $
-    mxs >>= maybe mys (return . Just . second (<|> ListT mys))
-
-instance MonadTrans ListT where
-  lift :: Monad m => m a -> ListT m a
-  lift = ListT . liftM (\x -> Just (x, empty))
+nondet = handler runListT' nondetAlg
 
 
 -------------------------------
@@ -153,14 +119,5 @@ backtrackAlg' = joinAlg nondetAlg backtrackOnceAlg
 -- TODO: The alternative with monad transformers is painful.
 -- TODO: this becomes interesting when different search strategies are used
 
-
-backtrackFwd
-  :: (Monad m)
-  => (forall x. Effs sig m x -> m x)
-  -> forall x. Effs sig (ListT m) x -> ListT m x
-backtrackFwd alg (Eff (Alg x)) = lift (alg (Eff (Alg x)))
-backtrackFwd alg (Eff (Scp x)) = ListT (alg (Eff (Scp (fmap runListT x))))
-backtrackFwd alg (Effs effs)   = backtrackFwd (alg . Effs) effs
-
 backtrack :: Handler [Stop, Or, Once] '[] '[[]]
-backtrack = handler runListT' backtrackAlg' backtrackFwd
+backtrack = handler runListT' backtrackAlg'

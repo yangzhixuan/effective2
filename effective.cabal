@@ -28,11 +28,11 @@ library
   exposed-modules:
     Control.Effect
     Control.Effect.Type
-    -- Control.Effect.Cut
+    Control.Effect.Cut
     Control.Effect.Except
     -- Control.Effect.IO
     Control.Effect.Maybe
---    Control.Effect.Nondet
+    Control.Effect.Nondet
     -- Control.Effect.Reader
     -- Control.Effect.State
     -- Control.Effect.Writer
@@ -41,6 +41,7 @@ library
     Control.Family.Scoped
     Control.Monad.Graded
     Control.Monad.Trans.TCompose
+    Control.Monad.Trans.List
     Data.Functor.Composes
     Data.HFunctor
     Data.HFunctor.HCompose
@@ -65,7 +66,7 @@ test-suite docs
   other-modules:
     Error,
 --     Graded,
---    Nondet,
+    Nondet,
 --     Parser,
 --     State,
 -- 

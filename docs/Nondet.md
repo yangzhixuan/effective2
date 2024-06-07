@@ -41,34 +41,36 @@ example_Nondet3 :: Property
 example_Nondet3 = property $ (handle backtrack $ knapsack 3 [3, 2, 1] :: [[Int]])
   === [[3],[2,1],[1,2],[1,1,1]]
 
--- onceEx :: (Member Or sig, Member Once sig) => Prog sig I
-example_Once :: Property
-example_Once = property $ handle onceNondet p === [1, 2]
-  where
-    p :: Members '[Or, Once] sig => Prog sig Int
-    p = do
-      x <- once (or (return 0) (return 5))
-      or (return (x + 1)) (return (x + 2))
--- ghci> exampleOnce
--- [1,2]
-example_Once' :: Property
-example_Once' = property $ handle onceNondet p === [1, 2] where
-  p :: Members '[Or, Once] sig => Prog sig Int
-  p = do x <- once (or (return 0) (return 5))
-         or (return (x + 1)) (return (x + 2))
--- ghci> exampleOnce'
--- [1,2]
-example_Once'' :: Property
-example_Once'' = property $ handle onceNondet p === [1, 2] where
-  p :: Members '[Or, Once] sig => Prog sig Int
-  p = do x <- once (or (return 0) (return 5))
-         or (return (x + 1)) (return (x + 2))
+-- -- onceEx :: (Member Or sig, Member Once sig) => Prog sig I
+-- example_Once :: Property
+-- example_Once = property $ handle' onceNondet' p === [1, 2]
+--   where
+--     p :: Members '[Or, Once] sig => Prog sig Int
+--     p = do
+--       x <- once (or (return 0) (return 5))
+--       or (return (x + 1)) (return (x + 2))
+-- -- ghci> exampleOnce
+-- -- [1,2]
 
-example_Once''' :: Property
-example_Once''' = property $ handle onceNondet p === [1, 2] where
-  p :: Members '[Or, Once] sig => Prog sig Int
-  p = do x <- once (or (return 0) (return 5))
-         or (return (x + 1)) (return (x + 2))
+-- example_Once' :: Property
+-- example_Once' = property $ handle' onceNondet' p === [1, 2] where
+--   p :: Members '[Or, Once] sig => Prog sig Int
+--   p = do x <- once (or (return 0) (return 5))
+--          or (return (x + 1)) (return (x + 2))
+-- -- ghci> exampleOnce'
+-- -- [1,2]
+
+-- example_Once'' :: Property
+-- example_Once'' = property $ handle' onceNondet' p === [1, 2] where
+--   p :: Members '[Or, Once] sig => Prog sig Int
+--   p = do x <- once (or (return 0) (return 5))
+--          or (return (x + 1)) (return (x + 2))
+--
+-- example_Once''' :: Property
+-- example_Once''' = property $ handle' onceNondet' p === [1, 2] where
+--   p :: Members '[Or, Once] sig => Prog sig Int
+--   p = do x <- once (or (return 0) (return 5))
+--          or (return (x + 1)) (return (x + 2))
 
 examples :: Group
 examples = $$(discoverPrefix "example_")
