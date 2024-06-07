@@ -14,6 +14,7 @@ module Control.Effect
   , handle
   , handle'
   , handler
+  , handler'
   , handleT
   , handlerT
   , Handler (..)
@@ -176,7 +177,16 @@ handler
     => (forall x . Effs oeffs m x -> m x)
     -> (forall x . Effs effs (t m) x -> t m x))
   -> Handler effs oeffs '[f]
-handler run malg = Handler (Handler' (const (fmap rcomps . run)) malg)
+handler run malg = Handler (handler' run malg)
+
+handler'
+  :: (MonadTrans t, Functor f, Forward effs t)
+  => (forall m a . Monad m => t m a -> m (f a))
+  -> (forall m . Monad m
+    => (forall x . Effs oeffs m x -> m x)
+    -> (forall x . Effs effs (t m) x -> t m x))
+  -> Handler' effs oeffs t '[f]
+handler' run malg = Handler' (const (fmap rcomps . run)) malg
 
 type AlgebraT effs oeffs t = forall m.  Monad m
   => (forall x. Effs oeffs m x -> m x)
@@ -215,7 +225,7 @@ interpret
   .  Member eff effs
   => (forall m x . eff m x -> Prog oeffs x)
   -> Handler effs oeffs '[]
-interpret f = interpret' (\oalg -> eval oalg . f . unsafePrj)
+interpret f = Handler (interpret' (\oalg -> eval oalg . f . unsafePrj))
   where
     unsafePrj :: Effs effs m x -> eff m x
     unsafePrj x = case prj x of Just y -> y
@@ -224,9 +234,9 @@ interpret'
   :: forall effs oeffs . (forall m . Monad m
      => (forall x . Effs oeffs m x -> m x)
      -> (forall x . Effs effs m x -> m x))
-  -> Handler effs oeffs '[]
+  -> Handler' effs oeffs IdentityT '[]
 interpret' alg
-  = Handler $ Handler' @effs @oeffs @IdentityT
+  = Handler' @effs @oeffs @IdentityT
       (const (\(IdentityT mx) -> fmap RCNil mx))
       (\oalg -> IdentityT . alg oalg . hmap runIdentityT)
 
@@ -324,7 +334,19 @@ fuse' (Handler' run1 malg1)  (Handler' run2 malg2) = Handler' run malg where
 --   -> Handler effs2 oeffs2 fs2 fam
 --   -> Handler effs1 ((oeffs1 :\\ effs2) `Union` oeffs2) (fs2 :++ fs1) fam
 -- pipe (Handler h1) (Handler h2) = Handler (pipe' h1 h2)
---
+
+pipe'
+  :: forall effs1 effs2 oeffs1 oeffs2 t1 t2 fs1 fs2 effs oeffs t fs
+  .  ( effs  ~ effs1
+     , oeffs ~ ((oeffs1 :\\ effs2) `Union` oeffs2)
+     , t     ~ TCompose t1 t2
+     , fs    ~ fs1 :++ fs2
+     )
+  => Handler' effs1 oeffs1 t1 fs1
+  -> Handler' effs2 oeffs2 t2 fs2
+  -> Handler' effs  oeffs  t  fs
+pipe' = undefined
+
 -- pipe' :: forall effs1 effs2 oeffs1 oeffs2 t1 t2 fs1 fs2 oeffs fam .
 --   ( All Functor (fs2 :++ fs1)
 --   , MonadTrans t1
