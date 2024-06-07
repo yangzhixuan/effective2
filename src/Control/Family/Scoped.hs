@@ -8,10 +8,12 @@ import Data.HFunctor
 import Control.Family
 import Control.Effect.Type
 import Control.Monad.Trans.Class
+import Control.Monad.Trans.Identity
 
 import Control.Monad.Trans.TCompose
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Maybe
+import Control.Monad.Trans.List
 
 newtype Scp (lsig :: Type -> Type)
             (f :: Type -> Type)
@@ -24,30 +26,58 @@ instance (Functor lsig, Functor f) => Functor (Scp lsig f) where
 instance Functor lsig => HFunctor (Scp lsig) where
   hmap f (Scp x) = Scp (fmap f x)
 
-instance (Functor f, ForwardT effs (ExceptT e)) => ForwardT (Scp f : effs) (ExceptT e) where
+instance (Functor f, ForwardT effs IdentityT) =>
+  ForwardT (Scp f : effs) IdentityT where
   fwdT :: forall t m . (Monad m, MonadTrans t)
       => Algebra (Scp f : effs) (t m)
-      -> Algebra (Scp f : effs) (TCompose (ExceptT e) t m)
-  fwdT alg (Eff (Scp op)) = TCompose (ExceptT (alg (Eff (Scp (fmap (runExceptT . getTCompose) op)))))
+      -> Algebra (Scp f : effs) (TCompose IdentityT t m)
+  fwdT alg (Eff (Scp op)) = TCompose (IdentityT (alg (Eff (Scp (fmap (runIdentityT . getTCompose) op)))))
   fwdT alg (Effs ops)     = fwdT (alg . Effs) ops
 
-instance (Functor f, ForwardT effs MaybeT) => ForwardT (Scp f : effs) MaybeT where
-  fwdT :: forall t m . (Monad m, MonadTrans t)
-      => Algebra (Scp f : effs) (t m)
-      -> Algebra (Scp f : effs) (TCompose MaybeT t m)
-  fwdT alg (Eff (Scp op)) = TCompose (MaybeT (alg (Eff (Scp (fmap (runMaybeT . getTCompose) op)))))
-  fwdT alg (Effs ops)     = fwdT (alg . Effs) ops
+instance (Functor f, ForwardT effs (ExceptT e)) =>
+  ForwardT (Scp f : effs) (ExceptT e) where
+    fwdT :: forall t m . (Monad m, MonadTrans t)
+        => Algebra (Scp f : effs) (t m)
+        -> Algebra (Scp f : effs) (TCompose (ExceptT e) t m)
+    fwdT alg (Eff (Scp op)) = TCompose (ExceptT (alg (Eff (Scp (fmap (runExceptT . getTCompose) op)))))
+    fwdT alg (Effs ops)     = fwdT (alg . Effs) ops
 
-instance (Functor f, Forward effs (ExceptT e)) => Forward (Scp f : effs) (ExceptT e) where
-  fwd :: forall m . (Monad m)
-      => Algebra (Scp f : effs) (m)
-      -> Algebra (Scp f : effs) (ExceptT e m)
-  fwd alg (Eff (Scp op)) = (ExceptT (alg (Eff (Scp (fmap (runExceptT) op)))))
-  fwd alg (Effs ops)     = fwd (alg . Effs) ops
+instance (Functor f, ForwardT effs MaybeT) =>
+  ForwardT (Scp f : effs) MaybeT where
+    fwdT :: forall t m . (Monad m, MonadTrans t)
+        => Algebra (Scp f : effs) (t m)
+        -> Algebra (Scp f : effs) (TCompose MaybeT t m)
+    fwdT alg (Eff (Scp op)) = TCompose (MaybeT (alg (Eff (Scp (fmap (runMaybeT . getTCompose) op)))))
+    fwdT alg (Effs ops)     = fwdT (alg . Effs) ops
 
-instance (Functor f, Forward effs MaybeT) => Forward (Scp f : effs) MaybeT where
-  fwd :: forall m . (Monad m)
-      => Algebra (Scp f : effs) (m)
-      -> Algebra (Scp f : effs) (MaybeT m)
-  fwd alg (Eff (Scp op)) = (MaybeT (alg (Eff (Scp (fmap (runMaybeT) op)))))
-  fwd alg (Effs ops)     = fwd (alg . Effs) ops
+instance (Functor f, Forward effs IdentityT) =>
+  Forward (Scp f : effs) IdentityT where
+    fwd :: forall m . (Monad m)
+        => Algebra (Scp f : effs) (m)
+        -> Algebra (Scp f : effs) (IdentityT m)
+    fwd alg (Eff (Scp op)) = (IdentityT . alg . Eff . Scp . fmap runIdentityT) op
+    fwd alg (Effs ops)     = fwd (alg . Effs) ops
+
+instance (Functor f, Forward effs (ExceptT e)) =>
+  Forward (Scp f : effs) (ExceptT e) where
+    fwd :: forall m . (Monad m)
+        => Algebra (Scp f : effs) (m)
+        -> Algebra (Scp f : effs) (ExceptT e m)
+    fwd alg (Eff (Scp op)) = (ExceptT . alg . Eff . Scp . fmap runExceptT) op
+    fwd alg (Effs ops)     = fwd (alg . Effs) ops
+
+instance (Functor f, Forward effs MaybeT) =>
+  Forward (Scp f : effs) MaybeT where
+    fwd :: forall m . (Monad m)
+        => Algebra (Scp f : effs) (m)
+        -> Algebra (Scp f : effs) (MaybeT m)
+    fwd alg (Eff (Scp op)) = (MaybeT . alg . Eff . Scp . fmap runMaybeT) op
+    fwd alg (Effs ops)     = fwd (alg . Effs) ops
+
+instance (Functor f, Forward effs ListT) =>
+  Forward (Scp f : effs) ListT where
+    fwd :: forall m . (Monad m)
+        => Algebra (Scp f : effs) (m)
+        -> Algebra (Scp f : effs) (ListT m)
+    fwd alg (Eff (Scp op)) = (ListT . alg . Eff . Scp . fmap runListT) op
+    fwd alg (Effs ops)     = fwd (alg . Effs) ops
