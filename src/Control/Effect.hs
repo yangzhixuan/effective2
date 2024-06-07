@@ -21,6 +21,7 @@ module Control.Effect
   , Handler' (..)
   , injCall
   , progAlg
+  , interpret
   , interpret'
   , eval
   -- , fuse
@@ -219,21 +220,17 @@ handlerT alg runT (Handler' run malg) = Handler' run' malg' where
     (TCompose . alg (error "oalg is not polymorphic enough") . hmap getTCompose)
     (fwdT (malg oalg))
 
--- TODO: A better error message for unsafePrj
 interpret
-  :: forall eff effs oeffs
-  .  Member eff effs
-  => (forall m x . eff m x -> Prog oeffs x)
+  :: forall effs oeffs .
+    (forall m . Monad m =>
+      (forall x . Effs oeffs m x -> m x) -> (forall x . Effs effs m x -> m x))
   -> Handler effs oeffs '[]
-interpret f = Handler (interpret' (\oalg -> eval oalg . f . unsafePrj))
-  where
-    unsafePrj :: Effs effs m x -> eff m x
-    unsafePrj x = case prj x of Just y -> y
+interpret alg = Handler (interpret' alg)
 
 interpret'
-  :: forall effs oeffs . (forall m . Monad m
-     => (forall x . Effs oeffs m x -> m x)
-     -> (forall x . Effs effs m x -> m x))
+  :: forall effs oeffs .
+    (forall m . Monad m =>
+      (forall x . Effs oeffs m x -> m x) -> (forall x . Effs effs m x -> m x))
   -> Handler' effs oeffs IdentityT '[]
 interpret' alg
   = Handler' @effs @oeffs @IdentityT
@@ -373,7 +370,7 @@ pipe' = undefined
 --         (mfwd2 (weakenAlg oalg))
 --         (malg2 (weakenAlg oalg)))
 --     . getHCompose
--- 
+--
 --   malg :: forall m . Monad m
 --     => (forall x . Effs ((oeffs1 :\\ effs2) `Union` oeffs2) m x -> m x)
 --     -> (forall x . Effs effs1 (HCompose t1 t2 m) x -> HCompose t1 t2  m x)
@@ -383,7 +380,7 @@ pipe' = undefined
 --                             (mfwd2 (weakenAlg oalg))
 --                             (malg2 (weakenAlg oalg))))
 --     . hmap getHCompose
--- 
+--
 --   mfwd
 --     :: forall m sig . (Monad m , fam sig, HFunctor sig)
 --     => (forall x. sig m x -> m x)
@@ -392,7 +389,7 @@ pipe' = undefined
 --     = HCompose
 --     . mfwd1 (mfwd2 alg)
 --     . hmap getHCompose
--- 
+--
 -- pass :: forall sig effs oeffs fs fam .
 --   ( All Functor fs
 --   , Append effs (sig :\\ effs)

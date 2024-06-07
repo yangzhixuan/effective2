@@ -10,6 +10,9 @@ import Prelude hiding (or)
 import Control.Family.Algebraic
 import Control.Family.Scoped
 
+import Control.Monad.Trans.Identity
+import Control.Monad.Trans.TCompose
+
 
 import Data.CutList ( CutListT(..), CutListT'(..), fromCutListT' )
 import Data.HFunctor ( HFunctor(..) )
@@ -76,6 +79,10 @@ cutListAlg oalg op
 cutList :: Handler [Stop, Or, CutFail, CutCall] '[] '[[]]
 cutList = handler fromCutListT' cutListAlg
 
+cutList' :: Handler' [Stop, Or, CutFail, CutCall] '[] CutListT '[[]]
+cutList' = handler' fromCutListT' cutListAlg
+
+
 instance HFunctor CutListT where
   hmap :: (Functor f, Functor g) =>
     (forall x. f x -> g x) -> CutListT f a -> CutListT g a
@@ -87,7 +94,10 @@ instance HFunctor CutListT' where
   hmap h (x :<< xs) = x :<< fmap (hmap h) (h xs)
 
 onceCut :: Handler '[Once] '[CutCall, CutFail, Or] '[]
-onceCut = interpret' onceCutAlg
+onceCut = interpret onceCutAlg
+
+onceCut' :: Handler' '[Once] '[CutCall, CutFail, Or] IdentityT '[]
+onceCut' = interpret' onceCutAlg
 
 onceCutAlg :: forall oeff m . (Monad m , Members [CutCall, CutFail, Or] oeff)
   => (forall x. Effs oeff m x -> m x)
@@ -98,24 +108,6 @@ onceCutAlg oalg op
                       eval oalg (do cut
                                     return x))
 
--- -- TODO: I suspect this should be `pipe`, not `fuse`.
--- onceNondet :: Handler [Once, Stop, Or, CutFail, CutCall] '[] '[[]]
--- onceNondet = fuse onceCut cutList
-
--- -- TODO: I suspect this should be `pipe`, not `fuse`.
--- -- onceNondet' :: Handler' [Once, Stop, Or, CutFail, CutCall] '[] (TComposeCutListT '[[]]
--- onceNondet' :: Handler' [Once, Stop, Or, CutFail, CutCall]
---                         [CutCall, CutFail, Or]
---                         (TCompose IdentityT CutListT)   '[[]]
--- onceNondet' =
---   fuse' @'[Once]   @'[Stop, Or, CutFail, CutCall]
---         @'[]       @'[CutCall, CutFail, Or]
---         @IdentityT @CutListT
---         @'[]  @'[[]]
---         @_ @_ @_
---         undefined undefined
--- --     onceCut' cutList'
--- --   where
--- --     Handler onceCut' = onceCut
--- --     Handler cutList' = cutList
+onceNondet' :: Handler' '[Once, Stop, Or, CutFail, CutCall] '[] (TCompose IdentityT CutListT) '[[]]
+onceNondet' = fuse' onceCut' cutList'
 
