@@ -3,13 +3,16 @@
 
 module Control.Effect.Reader where
 
+import Control.Family.Algebraic
+import Control.Family.Scoped
 import Data.Functor.Composes
 import Control.Effect
 -- import Control.Monad.Trans.Class (lift)
 import qualified Control.Monad.Trans.Reader as R
 
-data Ask r k where
-  Ask :: (r -> k) -> Ask r k
+type Ask r = Alg (Ask' r)
+data Ask' r k where
+  Ask :: (r -> k) -> Ask' r k
   deriving Functor
 
 ask :: Member (Ask r) sig => Prog sig r
@@ -18,23 +21,22 @@ ask = (Call . inj) (Alg (Ask return))
 asks :: Member (Ask r) sig => (r -> a) -> Prog sig a
 asks f = fmap f ask
 
-data Local r k where
-  Local :: (r -> r) -> k -> Local r k
+type Local r = Scp (Local' r)
+data Local' r k where
+  Local :: (r -> r) -> k -> Local' r k
   deriving Functor
 
 local :: Member (Local r) sig => (r -> r) -> Prog sig a -> Prog sig a
 local f p = injCall (Scp (Local f (fmap return p)))
 
-reader :: r -> Handler [Ask r, Local r] '[] '[]
-reader r = Handler $ Handler' (readerRun r)
-                              readerAlg
-                              readerFwd
+reader :: r -> Handler' [Ask r, Local r] '[] (R.ReaderT r) '[]
+reader r = Handler' (readerRun r) readerAlg
 
 readerRun
   :: Monad m
   => r -> (forall x . Effs oeffs m x -> m x)
-  -> (forall x . R.ReaderT r m x -> m (Comps '[] x))
-readerRun r oalg = fmap CNil . flip R.runReaderT r
+  -> (forall x . R.ReaderT r m x -> m (RComps '[] x))
+readerRun r oalg = fmap RCNil . flip R.runReaderT r
 
 readerAlg
   :: Monad m
