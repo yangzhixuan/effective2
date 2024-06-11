@@ -34,7 +34,7 @@ library
     Control.Effect.Maybe
     Control.Effect.Nondet
     -- Control.Effect.Reader
-    -- Control.Effect.State
+    Control.Effect.State
     -- Control.Effect.Writer
     Control.Family
     Control.Family.Algebraic
@@ -68,7 +68,7 @@ test-suite docs
 --     Graded,
     Nondet,
 --     Parser,
---     State,
+    State,
 -- 
 -- test-suite readme
 --   type:          exitcode-stdio-1.0

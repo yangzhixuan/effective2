@@ -14,6 +14,7 @@ import Control.Monad.Trans.TCompose
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.List
+import Control.Monad.Trans.State.Lazy
 
 newtype Scp (lsig :: Type -> Type)
             (f :: Type -> Type)
@@ -80,4 +81,12 @@ instance (Functor f, Forward effs ListT) =>
         => Algebra (Scp f : effs) (m)
         -> Algebra (Scp f : effs) (ListT m)
     fwd alg (Eff (Scp op)) = (ListT . alg . Eff . Scp . fmap runListT) op
+    fwd alg (Effs ops)     = fwd (alg . Effs) ops
+
+instance (Functor f, Forward effs (StateT s)) =>
+  Forward (Scp f : effs) (StateT s) where
+    fwd :: forall m . (Monad m)
+        => Algebra (Scp f : effs) (m)
+        -> Algebra (Scp f : effs) (StateT s m)
+    fwd alg (Eff (Scp op)) = StateT (\s -> (alg (Eff (Scp (fmap (flip runStateT s) $ op)))))
     fwd alg (Effs ops)     = fwd (alg . Effs) ops

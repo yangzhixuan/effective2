@@ -2,22 +2,23 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Control.Effect.State where
-import Control.Monad.Trans.Class (lift)
+
 import Data.Tuple (swap)
 
 import Control.Effect
+import Control.Family.Algebraic
 import Data.Functor.Composes
 import qualified Control.Monad.Trans.State.Lazy as S
 
-data Put s k where
-  Put :: s -> k -> Put s k
+type Put s = Alg (Put' s)
+data Put' s k where
+  Put :: s -> k -> Put' s k
   deriving Functor
 
-data Get s k where
-  Get :: (s -> k) -> Get s k
+type Get s = Alg (Get' s)
+data Get' s k where
+  Get :: (s -> k) -> Get' s k
   deriving Functor
-
-
 
 type State s = '[Put s, Get s]
 
@@ -39,19 +40,17 @@ stateAlg _ eff
       do s <- S.get
          return (p s)
 
-stateFwd
-  :: Monad m
-  => (forall x. Effs sig m x -> m x)
-  -> (forall x. Effs sig (S.StateT s m) x -> S.StateT s m x)
-stateFwd alg (Eff (Alg x)) = lift (alg (Eff (Alg x)))
-stateFwd alg (Eff (Scp x)) = S.StateT (\s -> (alg (Eff (Scp (fmap (flip S.runStateT s) x)))))
-stateFwd alg (Effs effs)   = stateFwd (alg . Effs) effs
-
 state :: s -> Handler [Put s, Get s] '[] '[((,) s)]
-state s = handler (fmap swap . flip S.runStateT s) stateAlg stateFwd
+state s = handler (fmap swap . flip S.runStateT s) stateAlg
+
+state' :: s -> Handler' [Put s, Get s] '[] (S.StateT s) '[((,) s)]
+state' s = handler' (fmap swap . flip S.runStateT s) stateAlg
 
 -- | The `state_` handler deals with stateful operations and silenty
 -- discards the final state.
 state_ :: s -> Handler [Put s, Get s] '[] '[]
-state_ s = Handler $ Handler' (\oalg -> fmap (CNil . fst) . flip S.runStateT s) stateAlg stateFwd
+state_ s = Handler $ Handler' (\oalg -> fmap (RCNil . fst) . flip S.runStateT s) stateAlg
+
+state'_ :: s -> Handler' [Put s, Get s] '[] (S.StateT s) '[]
+state'_ s = Handler' (\oalg -> fmap (RCNil . fst) . flip S.runStateT s) stateAlg
 

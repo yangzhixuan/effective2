@@ -5,7 +5,7 @@ import Hedgehog.Main
 
 import Error
 import Nondet
--- import State
+import State
 -- import Parser
 -- import Graded ()
 
@@ -13,6 +13,6 @@ main :: IO ()
 main = defaultMain $ fmap checkParallel
   [ Error.examples
   , Nondet.examples
---  , State.examples
+  , State.examples
 --  , Parser.examples
   ]
