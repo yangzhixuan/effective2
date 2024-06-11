@@ -10,7 +10,7 @@ import Control.Effect.Type
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Identity
 
-import Control.Monad.Trans.TCompose
+import Data.HFunctor.HCompose
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.List
@@ -32,24 +32,24 @@ instance (Functor f, ForwardT effs IdentityT) =>
   ForwardT (Scp f : effs) IdentityT where
   fwdT :: forall t m . (Monad m, MonadTrans t)
       => Algebra (Scp f : effs) (t m)
-      -> Algebra (Scp f : effs) (TCompose IdentityT t m)
-  fwdT alg (Eff (Scp op)) = TCompose (IdentityT (alg (Eff (Scp (fmap (runIdentityT . getTCompose) op)))))
+      -> Algebra (Scp f : effs) (HCompose IdentityT t m)
+  fwdT alg (Eff (Scp op)) = HCompose (IdentityT (alg (Eff (Scp (fmap (runIdentityT . getHCompose) op)))))
   fwdT alg (Effs ops)     = fwdT (alg . Effs) ops
 
 instance (Functor f, ForwardT effs (ExceptT e)) =>
   ForwardT (Scp f : effs) (ExceptT e) where
     fwdT :: forall t m . (Monad m, MonadTrans t)
         => Algebra (Scp f : effs) (t m)
-        -> Algebra (Scp f : effs) (TCompose (ExceptT e) t m)
-    fwdT alg (Eff (Scp op)) = TCompose (ExceptT (alg (Eff (Scp (fmap (runExceptT . getTCompose) op)))))
+        -> Algebra (Scp f : effs) (HCompose (ExceptT e) t m)
+    fwdT alg (Eff (Scp op)) = HCompose (ExceptT (alg (Eff (Scp (fmap (runExceptT . getHCompose) op)))))
     fwdT alg (Effs ops)     = fwdT (alg . Effs) ops
 
 instance (Functor f, ForwardT effs MaybeT) =>
   ForwardT (Scp f : effs) MaybeT where
     fwdT :: forall t m . (Monad m, MonadTrans t)
         => Algebra (Scp f : effs) (t m)
-        -> Algebra (Scp f : effs) (TCompose MaybeT t m)
-    fwdT alg (Eff (Scp op)) = TCompose (MaybeT (alg (Eff (Scp (fmap (runMaybeT . getTCompose) op)))))
+        -> Algebra (Scp f : effs) (HCompose MaybeT t m)
+    fwdT alg (Eff (Scp op)) = HCompose (MaybeT (alg (Eff (Scp (fmap (runMaybeT . getHCompose) op)))))
     fwdT alg (Effs ops)     = fwdT (alg . Effs) ops
 
 instance (Functor f, Forward effs IdentityT) =>

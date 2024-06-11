@@ -14,7 +14,7 @@ import Control.Effect.State
 import Control.Effect.Maybe
 import Control.Monad (replicateM_)
 import Control.Monad.Trans.State (StateT)
-import Control.Monad.Trans.TCompose
+import Data.HFunctor.HCompose
 import Control.Monad.Trans.Maybe
 
 incr :: Prog' '[Get Int, Put Int] ()
@@ -48,7 +48,7 @@ catchDecr' = catchDecr @[Get Int, Put Int, Throw, Catch]
 globalState
   :: s -> Handler' '[Throw, Catch, Put s, Get s]
                    '[]
-                   (TCompose MaybeT (StateT s))
+                   (HCompose MaybeT (StateT s))
                    '[Maybe, (,) s]
 globalState s = fuse' except' (state' s)
 
@@ -63,7 +63,7 @@ example_globalState = property $
 localState
   :: s -> Handler' '[Put s, Get s, Throw, Catch]
                    '[]
-                   (TCompose (StateT s) MaybeT)
+                   (HCompose (StateT s) MaybeT)
                    '[((,) s), Maybe]
 localState s = fuse' (state' s) except'
 

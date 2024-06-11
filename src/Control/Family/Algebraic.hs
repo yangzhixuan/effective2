@@ -9,7 +9,7 @@ import Control.Family
 import Control.Effect.Type
 import Control.Monad.Trans.Class
 
-import Control.Monad.Trans.TCompose
+import Data.HFunctor.HCompose
 
 newtype Alg (lsig :: Type -> Type)
             (f :: Type -> Type)
@@ -25,8 +25,8 @@ instance Functor lsig => HFunctor (Alg lsig) where
 instance (MonadTrans t', ForwardT effs t') => ForwardT (Alg f ': effs) t' where
   fwdT :: forall t m . (Monad m, MonadTrans t)
       => Algebra (Alg f : effs) (t m)
-      -> Algebra (Alg f : effs) (TCompose t' t m)
-  fwdT alg (Eff (Alg op)) = TCompose (lift (alg (Eff (Alg op))))
+      -> Algebra (Alg f : effs) (HCompose t' t m)
+  fwdT alg (Eff (Alg op)) = HCompose (lift (alg (Eff (Alg op))))
   fwdT alg (Effs ops)     = fwdT (alg . Effs) ops
 
 instance (MonadTrans t', Forward effs t') => Forward (Alg f ': effs) t' where

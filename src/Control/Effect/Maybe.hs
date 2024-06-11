@@ -13,7 +13,7 @@ import Control.Family.Algebraic()
 import Control.Family.Scoped()
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Maybe
-import Control.Monad.Trans.TCompose
+import Data.HFunctor.HCompose
 
 type Catch = Scp Catch'
 data Catch' k where
@@ -52,7 +52,7 @@ except' = handler' runMaybeT exceptAlg
 exceptT
   :: forall effs oeffs fs t . (MonadTrans t, ForwardT effs MaybeT)
   => Handler' effs oeffs t fs
-  -> Handler' (Throw : Catch : effs) oeffs (TCompose MaybeT t) (Maybe ': fs)
+  -> Handler' (Throw : Catch : effs) oeffs (HCompose MaybeT t) (Maybe ': fs)
 exceptT = handlerT @'[Throw, Catch] exceptAlg runMaybeT
 
 -- multiple semantics such as retry after handling is difficult in MTL
@@ -90,7 +90,7 @@ retryT :: forall effs oeffs t fs
   .  (ForwardT effs MaybeT , MonadTrans t)
   => Handler' effs oeffs t fs
   -> Handler' (Throw : Catch : effs)
-              oeffs (TCompose MaybeT t)
+              oeffs (HCompose MaybeT t)
               (Maybe : fs)
 retryT = handlerT @'[Throw, Catch] retryAlg runMaybeT
 

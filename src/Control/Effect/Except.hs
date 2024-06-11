@@ -8,7 +8,7 @@ import Control.Effect
 import Control.Family
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class
-import Control.Monad.Trans.TCompose
+import Data.HFunctor.HCompose
 import Control.Family.Algebraic
 import Control.Family.Scoped
 
@@ -49,7 +49,7 @@ except = handler runExceptT exceptAlg
 exceptT
   :: forall effs oeffs fs t e . (MonadTrans t, ForwardT effs (ExceptT e))
   => Handler' effs oeffs t fs
-  -> Handler' (Throw e : Catch e : effs) oeffs (TCompose (ExceptT e) t) (Either e ': fs)
+  -> Handler' (Throw e : Catch e : effs) oeffs (HCompose (ExceptT e) t) (Either e ': fs)
 exceptT = handlerT @'[Throw e, Catch e] exceptAlg runExceptT
 
 -- multiple semantics such as retry after handling is difficult in MTL
@@ -84,6 +84,6 @@ retryT :: forall effs oeffs t fs e
   .  (ForwardT effs (ExceptT e), MonadTrans t)
   => Handler' effs oeffs t fs
   -> Handler' (Throw e : Catch e : effs)
-              oeffs (TCompose (ExceptT e) t)
+              oeffs (HCompose (ExceptT e) t)
               (Either e : fs)
 retryT = handlerT @'[Throw e, Catch e] retryAlg runExceptT

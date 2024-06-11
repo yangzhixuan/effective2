@@ -4,9 +4,9 @@
 
 module Control.Family where
 import Control.Monad.Trans.Class
-import Control.Monad.Trans.TCompose
 import Control.Monad.Trans.Identity
 import Data.HFunctor
+import Data.HFunctor.HCompose
 
 import Data.Kind ( Type )
 import Control.Effect.Type
@@ -17,12 +17,12 @@ import Control.Effect.Type
 class ForwardT effs (t' :: (Type -> Type) -> (Type -> Type))  where
   fwdT :: forall t m . (Monad m, MonadTrans t)
       => Algebra effs (t m)
-      -> Algebra effs (TCompose t' t m)
+      -> Algebra effs (HCompose t' t m)
 
 instance ForwardT '[] t' where
   fwdT :: forall t m . (Monad m, MonadTrans t)
       => Algebra '[] (t m)
-      -> Algebra '[] (TCompose t' t m)
+      -> Algebra '[] (HCompose t' t m)
   fwdT alg = absurdEffs
 
 class Forward effs (t :: (Type -> Type) -> (Type -> Type))  where
@@ -44,6 +44,6 @@ instance {-# INCOHERENT #-} Forward effs IdentityT where
 
 instance {-# INCOHERENT #-}
   (Forward effs t1, Forward effs t2, MonadTrans t1, MonadTrans t2)
-  => Forward effs (TCompose t1 t2) where
-   fwd :: forall m . Monad m => Algebra effs m -> Algebra effs (TCompose t1 t2 m)
-   fwd alg x = (TCompose . fwd (fwd alg) . hmap getTCompose) x
+  => Forward effs (HCompose t1 t2) where
+   fwd :: forall m . Monad m => Algebra effs m -> Algebra effs (HCompose t1 t2 m)
+   fwd alg x = (HCompose . fwd (fwd alg) . hmap getHCompose) x

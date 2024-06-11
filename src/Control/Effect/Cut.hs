@@ -11,7 +11,7 @@ import Control.Family.Algebraic
 import Control.Family.Scoped
 
 import Control.Monad.Trans.Identity
-import Control.Monad.Trans.TCompose
+import Data.HFunctor.HCompose
 
 
 import Data.CutList ( CutListT(..), CutListT'(..), fromCutListT' )
@@ -105,6 +105,6 @@ onceCutAlg oalg op
                       eval oalg (do cut
                                     return x))
 
-onceNondet' :: Handler' '[Once, Stop, Or, CutFail, CutCall] '[] (TCompose IdentityT CutListT) '[[]]
+onceNondet' :: Handler' '[Once, Stop, Or, CutFail, CutCall] '[] (HCompose IdentityT CutListT) '[[]]
 onceNondet' = fuse' onceCut' cutList'
 

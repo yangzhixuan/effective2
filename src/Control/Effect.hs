@@ -28,6 +28,7 @@ module Control.Effect
   , eval
   , fuse
   , fuse'
+  , (<&>)
   , pipe
   , joinAlg
   ) where
@@ -43,7 +44,7 @@ import Data.Functor.Composes
     ( RComps(..), Rercompose(rercompose), RComposes, rcomps, RSplit (..))
 import Data.HFunctor
 import Control.Monad.Trans.Identity
-import Control.Monad.Trans.TCompose
+import Data.HFunctor.HCompose
 import Control.Family
 
 import Control.Monad ( join, ap, liftM )
@@ -264,15 +265,15 @@ handlerT
   => AlgebraT effs' oeffs t'
   -> (forall m a . t' m a -> m (f' a))
   -> Handler' effs oeffs t fs
-  -> Handler' (effs' :++ effs) (oeffs) (TCompose t' t) (f' ': fs)
+  -> Handler' (effs' :++ effs) (oeffs) (HCompose t' t) (f' ': fs)
 handlerT alg runT (Handler' run malg) = Handler' run' malg' where
   run' :: Monad m => Algebra (oeffs) m
-       -> forall x. TCompose t' t m x -> m (RComps (f' : fs) x)
-  run' oalg x = fmap RCCons (run oalg ((runT . getTCompose) x))
+       -> forall x. HCompose t' t m x -> m (RComps (f' : fs) x)
+  run' oalg x = fmap RCCons (run oalg ((runT . getHCompose) x))
 
-  malg' :: Monad m => Algebra oeffs m -> Algebra (effs' :++ effs) (TCompose t' t m)
+  malg' :: Monad m => Algebra oeffs m -> Algebra (effs' :++ effs) (HCompose t' t m)
   malg' oalg = heither @effs' @effs
-    (TCompose . alg (error "oalg is not polymorphic enough") . hmap getTCompose)
+    (HCompose . alg (error "oalg is not polymorphic enough") . hmap getHCompose)
     (fwdT (malg oalg))
 
 
@@ -370,7 +371,7 @@ Another aspect is that
 
 When the effect is from `effs2`, the `malg2` handler must
 of course play a part. The problem is that the
-carrier that is targeted is `t ~ TCompose t1 t2`,
+carrier that is targeted is `t ~ HCompose t1 t2`,
 whereas `malg` can only work for `t2` carriers.
 This makes sense, since the operations in `effs2` must operate
 only after `h1` has done its work on the syntax tree. 
@@ -383,7 +384,7 @@ fuse'
   :: forall effs1 effs2 oeffs1 oeffs2 t1 t2 fs1 fs2 effs oeffs t fs
   . ( effs  ~ effs1 `Union` effs2
     , oeffs ~ (oeffs1 :\\ effs2) `Union` oeffs2
-    , t     ~ TCompose t1 t2
+    , t     ~ HCompose t1 t2
     , fs    ~ fs1 :++ fs2
     , Functor (RComps fs2)
     , RSplit fs1
@@ -409,24 +410,48 @@ fuse' (Handler' run1 malg1)  (Handler' run2 malg2) = Handler' run malg where
     . run1 (weakenAlg $ heither @(oeffs1 :\\ effs2) @effs2
         (fwd @(oeffs1 :\\ effs2) @t2 (weakenAlg oalg))
         (malg2 (weakenAlg oalg)))
-    . getTCompose
+    . getHCompose
 
   malg :: forall m . Monad m => Algebra oeffs m -> Algebra effs (t m)
   malg oalg
-    = TCompose
+    = HCompose
     . hunion @effs1 @effs2
         (malg1 (weakenAlg $
           heither @(oeffs1 :\\ effs2) @effs2
             (fwd @(oeffs1 :\\ effs2) @t2 (weakenAlg oalg))
             (malg2 (weakenAlg oalg))))
         (fwd @effs2 @t1 (malg2 (oalg . injs)))
-    . hmap getTCompose
+    . hmap getHCompose
+
+(<&>)
+  :: forall effs1 effs2 oeffs1 oeffs2 t1 t2 fs1 fs2 effs oeffs t fs
+  . ( effs  ~ effs1 `Union` effs2
+    , oeffs ~ (oeffs1 :\\ effs2) `Union` oeffs2
+    , t     ~ HCompose t1 t2
+    , fs    ~ fs1 :++ fs2
+    , Functor (RComps fs2)
+    , RSplit fs1
+    , Forward (oeffs1 :\\ effs2) t2
+    , Forward effs2 t1
+    , Append (oeffs1 :\\ effs2) effs2
+    , Append effs1 (effs2 :\\ effs1)
+    , Injects (oeffs1 :\\ effs2) oeffs
+    , Injects (effs2 :\\ effs1) effs2
+    , Injects oeffs2 oeffs
+    , Injects oeffs1 ((oeffs1 :\\ effs2) :++ effs2)
+    , MonadTrans t1
+    , MonadTrans t2
+    )
+  => Handler' effs1 oeffs1 t1 fs1
+  -> Handler' effs2 oeffs2 t2 fs2
+  -> Handler' effs  oeffs  t  fs
+(<&>) = fuse'
 
 pipe
   :: forall effs1 effs2 oeffs1 oeffs2 t1 t2 fs1 fs2 effs oeffs t fs
   . ( effs  ~ effs1
     , oeffs ~ (oeffs1 :\\ effs2) `Union` oeffs2
-    , t     ~ TCompose t1 t2
+    , t     ~ HCompose t1 t2
     , fs    ~ fs1 :++ fs2
     , Functor (RComps fs2)
     , RSplit fs1
@@ -452,16 +477,16 @@ pipe (Handler' run1 malg1)  (Handler' run2 malg2) = Handler' run malg where
     . run1 (weakenAlg $ heither @(oeffs1 :\\ effs2) @effs2
         (fwd @(oeffs1 :\\ effs2) @t2 (weakenAlg oalg))
         (malg2 (weakenAlg oalg)))
-    . getTCompose
+    . getHCompose
 
   malg :: forall m . Monad m => Algebra oeffs m -> Algebra effs (t m)
   malg oalg
-    = TCompose
+    = HCompose
     . malg1 (weakenAlg $
           heither @(oeffs1 :\\ effs2) @effs2
             (fwd @(oeffs1 :\\ effs2) @t2 (weakenAlg oalg))
             (malg2 (weakenAlg oalg)))
-    . hmap getTCompose
+    . hmap getHCompose
 
 -- pass :: forall sig effs oeffs fs fam .
 --   ( All Functor fs
@@ -487,8 +512,8 @@ forward = Handler $ Handler'
 handleT :: forall effs t fs a .
   ( MonadTrans t
   , Rercompose fs
-  , Forward effs (TCompose t IdentityT) )
-  => (Handler' '[] '[] IdentityT '[] -> Handler' effs '[] (TCompose t IdentityT) fs)
+  , Forward effs (HCompose t IdentityT) )
+  => (Handler' '[] '[] IdentityT '[] -> Handler' effs '[] (HCompose t IdentityT) fs)
   -> Prog effs a -> (RComposes fs a)
 handleT h = handle (Handler (h idHandler))
 
