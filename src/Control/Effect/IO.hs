@@ -6,19 +6,25 @@ import qualified System.CPUTime
 import Control.Effect
 import Data.List.Kind
 import Data.Functor.Composes
+import Control.Monad.Trans.Class
 
-data GetLine k  = GetLine (String -> k) deriving Functor
+import Control.Family.Algebraic
+
+type GetLine = Alg GetLine'
+data GetLine' k  = GetLine (String -> k) deriving Functor
 
 getLine :: Members '[GetLine] sig => Prog sig String
 getLine = injCall (Alg (GetLine return))
 
 
-data PutStrLn k = PutStrLn String k     deriving Functor
+type PutStrLn = Alg PutStrLn'
+data PutStrLn' k = PutStrLn String k     deriving Functor
 
 putStrLn :: Members '[PutStrLn] sig => String -> Prog sig ()
 putStrLn str = injCall (Alg (PutStrLn str (return ())))
 
-data GetCPUTime k = GetCPUTime (Integer -> k) deriving Functor
+type GetCPUTime = Alg (GetCPUTime')
+data GetCPUTime' k = GetCPUTime (Integer -> k) deriving Functor
 
 getCPUTime :: Members '[GetCPUTime] sig => Prog sig Integer
 getCPUTime = injCall (Alg (GetCPUTime return))
@@ -46,13 +52,14 @@ evalIO :: Prog [GetLine, PutStrLn, GetCPUTime] a -> IO a
 evalIO = eval algIO
 
 handleIO
-  :: forall ieffs oeffs fs a xeffs
+  :: forall ieffs oeffs t fs a xeffs
   . ( Append ieffs (xeffs :\\ ieffs)
     , Injects oeffs xeffs
     , Injects (xeffs :\\ ieffs) xeffs
-    , Recompose fs
+    , Rercompose fs
+    , MonadTrans t
     , xeffs ~ '[GetLine, PutStrLn, GetCPUTime] )
-  => Handler ieffs oeffs fs
-  -> Prog (ieffs `Union` xeffs) a -> IO (Composes fs a)
+  => Handler' ieffs oeffs t fs
+  -> Prog (ieffs `Union` xeffs) a -> IO (RComposes fs a)
 handleIO = handleWith algIO
 
