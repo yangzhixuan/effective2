@@ -93,9 +93,6 @@ instance HFunctor CutListT' where
   hmap _ NilT       = NilT
   hmap h (x :<< xs) = x :<< fmap (hmap h) (h xs)
 
-onceCut :: Handler '[Once] '[CutCall, CutFail, Or] '[]
-onceCut = interpret onceCutAlg
-
 onceCut' :: Handler' '[Once] '[CutCall, CutFail, Or] IdentityT '[]
 onceCut' = interpret' onceCutAlg
 
