@@ -58,6 +58,8 @@ nondetAlg oalg eff
 nondet :: Handler [Stop, Or] '[] '[[]]
 nondet = handler runListT' nondetAlg
 
+nondet' :: Handler' [Stop, Or] '[] ListT '[[]]
+nondet' = handler' runListT' nondetAlg
 
 -------------------------------
 -- Example: Backtracking (and Culling?)
