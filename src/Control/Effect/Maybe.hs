@@ -46,6 +46,9 @@ exceptAlg _ eff
 except :: Handler [Throw, Catch] '[] '[Maybe]
 except = handler runMaybeT exceptAlg
 
+except' :: Handler' [Throw, Catch] '[] MaybeT '[Maybe]
+except' = handler' runMaybeT exceptAlg
+
 exceptT
   :: forall effs oeffs fs t . (MonadTrans t, ForwardT effs MaybeT)
   => Handler' effs oeffs t fs
@@ -79,6 +82,9 @@ retryAlg _ eff
 
 retry :: Handler [Throw, Catch] '[] '[Maybe]
 retry = handler runMaybeT retryAlg
+
+retry' :: Handler' [Throw, Catch] '[] MaybeT '[Maybe]
+retry' = handler' runMaybeT retryAlg
 
 retryT :: forall effs oeffs t fs
   .  (ForwardT effs MaybeT , MonadTrans t)

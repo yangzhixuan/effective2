@@ -24,7 +24,7 @@ module Control.Effect
   , interpret
   , interpret'
   , eval
-  -- , fuse
+  , fuse
   , fuse'
   , joinAlg
   ) where
@@ -133,27 +133,78 @@ forwarded is then exposed at the type level of the handler type:
 ```
   data Handler' effs oeffs t fs feffs
 ```
-where `feffs` are the effects that can be forwarded, and then we would need
-constraints such as `Forward feffs t` to be in place. The advantage
+where `feffs` is the family of effects that can be forwarded, and then we would
+need constraints such as `Forward feffs t` to be in place. The advantage
 is that custom effects can forward more flexibly, but at the cost
 of added complexity in the signature.
-
 That complexity could be hidden by another datatype, much
 in the same way as `Handler` obscures the underlying `t` type.
--}
--- use a proxy for t as a datatype here?
+
+Another design, which was previously implemented
+is to have families explicit in the handler signature.
+A list of such families would indicate those that can be handled.
+If `h1 :: Handler eff1 t1 fam1`, and `h2 :: Handler eff2 t2 fam2`, then the two
+can be composed so long as `fam1 ⊇ fam2`. All of `eff1` will be
+dealt with into carrier the `t1` carrier, and need not concern `h2`,
+so long as the carrier is compatible with `eff2`. However, if `eff2` contains a
+family of effects that is not recognised by `h1`, then it is
+impossible to forward those effects and fusion is impossible.
+
+Yet another design is to use a handler of the form:
+```
 type Handler
   :: [Effect]                          -- effs  : input effects
   -> [Effect]                          -- oeffs : output effects
   -> [Type -> Type]                    -- f     : carrier type
   -> Type
 data Handler effs oeffs fs
-  =  forall t . (MonadTrans t, Forward effs t)
+  =  forall t . (MonadTrans t
+              -- Forward effs t
+                )
   => Handler (Handler' effs oeffs t fs)
+```
+This is a wrapper around a handler that involves a transformer
+held as an existential held in some unexposed variable `t`.
+The problem with this a approach is that handlers can no longer
+fuse easily, since fusion requires a `Forward` constraint
+that mentions `t` explicitly.
 
---   => Handler (Proxy t, Handler' effs oeffs t fs)
--- data Proxy t = Proxy
+The closest `fuse` using this interface is:
+```
+fuse
+  :: forall effs1 effs2 oeffs1 oeffs2 fs1 fs2 oeffs1' .
+  ( Functor (RComps fs1), RSplit fs2
+  , Append effs1 (effs2 :\\ effs1),  Append (oeffs1 :\\ effs2) effs2
+  , Injects oeffs2 ((oeffs1 :\\ effs2) :++ (oeffs2 :\\ (oeffs1 :\\ effs2)))
+  , Injects oeffs1 ((oeffs1 :\\ effs2) :++ effs2)
+  , Injects (oeffs1 :\\ effs2)    ((oeffs1 :\\ effs2) :++ (oeffs2 :\\ (oeffs1 :\\ effs2)))
+  , Injects (effs2 :\\ effs1) effs2
+  , oeffs1' ~ oeffs1 :\\ effs2
+  , forall t . MonadTrans t => Forward effs2 t
+  , forall t . MonadTrans t => Forward oeffs1' t
+  )
+  => Handler effs1 oeffs1 fs2
+  -> Handler effs2 oeffs2 fs1
+  -> Handler (effs1 :++ (effs2 :\\ effs1))
+             ((oeffs1 :\\ effs2) :++ (oeffs2 :\\ (oeffs1 :\\ effs2)))
+             (fs2 :++ fs1)
+fuse (Handler h1) (Handler h2) = Handler (fuse' h1 h2)
+```
+This uses `Forward` constraints that work regardless of `t`,
+that is, `forall t . MonadTrans t => Forward effs2 t`. While this is definable
+for algebraic effects, it is not possible for all scoped effects.
 
+-}
+type Handler
+  :: [Effect]                          -- effs  : input effects
+  -> [Effect]                          -- oeffs : output effects
+  -> [Type -> Type]                    -- f     : carrier type
+  -> Type
+data Handler effs oeffs fs
+  =  forall t . (MonadTrans t
+              -- Forward effs t
+                )
+  => Handler (Handler' effs oeffs t fs)
 
 type Handler'
   :: [Effect]                             -- effs  : input effects
@@ -170,6 +221,7 @@ data Handler' effs oeffs t fs =
   , malg :: forall m . Monad m
          => Algebra oeffs m -> Algebra effs (t m)
   }
+
 
 handler
   :: (MonadTrans t, Functor f, Forward effs t)
@@ -253,8 +305,67 @@ interpret' alg
 --   => Handler effs1 oeffs1 fs1
 --   -> Handler effs2 oeffs2 fs2
 --   -> Handler effs  oeffs  fs
--- fuse (Handler h1) (Handler h2) = Handler (fuse' h1 h2)
 
+fuse
+  :: forall effs1 effs2 oeffs1 oeffs2 fs1 fs2 oeffs1' .
+  ( Functor (RComps fs1), RSplit fs2
+  , Append effs1 (effs2 :\\ effs1),  Append (oeffs1 :\\ effs2) effs2
+  , Injects oeffs2 ((oeffs1 :\\ effs2) :++ (oeffs2 :\\ (oeffs1 :\\ effs2)))
+  , Injects oeffs1 ((oeffs1 :\\ effs2) :++ effs2)
+  , Injects (oeffs1 :\\ effs2)    ((oeffs1 :\\ effs2) :++ (oeffs2 :\\ (oeffs1 :\\ effs2)))
+  , Injects (effs2 :\\ effs1) effs2
+  , oeffs1' ~ oeffs1 :\\ effs2
+  , forall t . MonadTrans t => Forward effs2 t
+  , forall t . MonadTrans t => Forward oeffs1' t
+  )
+  => Handler effs1 oeffs1 fs2
+  -> Handler effs2 oeffs2 fs1
+  -> Handler (effs1 :++ (effs2 :\\ effs1))
+             ((oeffs1 :\\ effs2) :++ (oeffs2 :\\ (oeffs1 :\\ effs2)))
+             (fs2 :++ fs1)
+fuse (Handler h1) (Handler h2) = Handler (fuse' h1 h2)
+
+{-
+
+Fusing handlers `h1 :: Handler effs1 oeffs1 t1 fs1` and `h2 :: Handler effs2
+oeffs2 t2 fs2` results in a handler that can deal with the effects of `eff1` and
+those of `eff2`, as well as appropriately deal with effects `oeff1` that get
+output by the first handler.
+
+A handler consists of `malg`, which deals with all the operations in the
+syntax tree that the handler will be applied to, and `run`, which
+turns the final transformed monad into a functor.
+
+The task of of the `malg` algebra is to interpret the union of `effs1` and
+`effs2`. To do so, it must appropriately use the output algebra `oalg` that it
+is given, which is responsible for handling any effects that the handler
+may produce. The effects in `oeffs1` are produced by `h1`, and
+the effects in `oeffs2` are produced by `h2`. If an effect `oeff1` is in
+`effs2`, then it means that it is produced by `h1` and can be consumed by `h2`.
+To do so, `malg2` is used. Any other effect produced by `h1` will not
+be recognised by `h2`, and must therefore be forwarded into the `t2`
+transformer as outlined by the `fwd @(oeffs1 :\\ effs2) t2` function.
+
+Effects
+
+means that any syntax of `eff2` must be forwarded by the
+transformer `t1` of `h1`, since the effect must bypass `eff1` into syntax in the
+context given by `t1`, ready to be consumed by the second handler.  This is
+captured by the `Forward eff2 t1` constraint.
+
+Another aspect is that
+
+When the effect is from `effs2`, the `malg2` handler must
+of course play a part. The problem is that the
+carrier that is targeted is `t ~ TCompose t1 t2`,
+whereas `malg` can only work for `t2` carriers.
+This makes sense, since the operations in `effs2` must operate
+only after `h1` has done its work on the syntax tree. 
+To make use of `malg` operate with the `t1` carrier,
+
+
+
+-}
 fuse'
   :: forall effs1 effs2 oeffs1 oeffs2 t1 t2 fs1 fs2 effs oeffs t fs
   . ( effs  ~ effs1 `Union` effs2
@@ -282,10 +393,9 @@ fuse' (Handler' run1 malg1)  (Handler' run2 malg2) = Handler' run malg where
   run oalg
     = fmap unrsplit
     . run2 (oalg . injs)
-    . run1 (weakenAlg $
-        heither @(oeffs1 :\\ effs2) @effs2
-          (fwd @(oeffs1 :\\ effs2) @t2 (weakenAlg oalg))  -- TODO: is fwd' really the right thing? Could we use fwd?
-          (malg2 (weakenAlg oalg)))
+    . run1 (weakenAlg $ heither @(oeffs1 :\\ effs2) @effs2
+        (fwd @(oeffs1 :\\ effs2) @t2 (weakenAlg oalg))
+        (malg2 (weakenAlg oalg)))
     . getTCompose
 
   malg :: forall m . Monad m => Algebra oeffs m -> Algebra effs (t m)
@@ -298,6 +408,9 @@ fuse' (Handler' run1 malg1)  (Handler' run2 malg2) = Handler' run malg where
             (malg2 (weakenAlg oalg))))
         (fwd @effs2 @t1 (malg2 (oalg . injs)))
     . hmap getTCompose
+
+
+
 
 -- (<&>) :: forall effs1 effs2 oeffs1 oeffs2 fs1 fs2 effs oeffs fam .
 --   ( All Functor fs1, All Functor fs2, All Functor (fs2 :++ fs1)
