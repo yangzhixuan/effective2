@@ -39,15 +39,15 @@ stateAlg _ eff
       do s <- S.get
          return (p s)
 
-stateT :: s -> Handler [Put s, Get s] '[] '[S.StateT s] '[((,) s)]
-stateT s = handler' (fmap swap . flip S.runStateT s) stateAlg
+state :: s -> Handler [Put s, Get s] '[] '[S.StateT s] '[((,) s)]
+state s = handler' (fmap swap . flip S.runStateT s) stateAlg
 
 -- | The `state_` handler deals with stateful operations and silenty
 -- discards the final state.
 -- state_ :: s -> Handler [Put s, Get s] '[] '[]
 -- state_ s = Handler $ Handler (\oalg -> fmap (RCNil . fst) . flip S.runStateT s) stateAlg
 
-stateT_ :: s -> Handler [Put s, Get s] '[] '[S.StateT s] '[]
--- stateT_ s = Handler (\oalg -> fmap (RCNil . fst) . flip S.runStateT s) stateAlg
-stateT_ s = handler (fmap fst . flip S.runStateT s) stateAlg
+state_ :: s -> Handler [Put s, Get s] '[] '[S.StateT s] '[]
+-- state_ s = Handler (\oalg -> fmap (RCNil . fst) . flip S.runStateT s) stateAlg
+state_ s = handler (fmap fst . flip S.runStateT s) stateAlg
 

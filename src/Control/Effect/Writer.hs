@@ -30,11 +30,11 @@ writerAlg _ eff
       do W.tell w
          return k
 
-writerT :: Monoid w => Handler '[Tell w] '[] '[W.WriterT w] '[(,) w]
-writerT = handler' (fmap swap . W.runWriterT) writerAlg
+writer :: Monoid w => Handler '[Tell w] '[] '[W.WriterT w] '[(,) w]
+writer = handler' (fmap swap . W.runWriterT) writerAlg
 
-writerT_ :: Monoid w => Handler '[Tell w] '[] '[W.WriterT w] '[]
-writerT_ = handler (fmap fst . W.runWriterT) writerAlg
+writer_ :: Monoid w => Handler '[Tell w] '[] '[W.WriterT w] '[]
+writer_ = handler (fmap fst . W.runWriterT) writerAlg
 
 
 type Censor w = Scp (Censor' w)

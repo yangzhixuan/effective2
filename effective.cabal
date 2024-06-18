@@ -68,13 +68,12 @@ test-suite docs
     Nondet,
     Parser,
     State,
--- 
--- test-suite readme
---   type:          exitcode-stdio-1.0
---   ghc-options:   -threaded -pgmL markdown-unlit
---   main-is:       README.lhs
---   default-language: GHC2021
---   hs-source-dirs:  .
---   build-depends: base, transformers, effective, hedgehog
---   build-tool-depends: markdown-unlit:markdown-unlit>=0.6
--- 
+
+test-suite readme
+  type:          exitcode-stdio-1.0
+  ghc-options:   -threaded -pgmL markdown-unlit
+  main-is:       README.lhs
+  default-language: GHC2021
+  hs-source-dirs:  .
+  build-depends: base, transformers, effective, hedgehog
+  build-tool-depends: markdown-unlit:markdown-unlit>=0.6

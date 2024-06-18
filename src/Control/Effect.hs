@@ -25,6 +25,7 @@ module Control.Effect
   , fuse
   , (<&>)
   , pipe
+  , hide
   , joinAlg
   ) where
 import Control.Effect.Type
@@ -192,6 +193,7 @@ that is, `forall t . MonadTrans t => Forward effs2 t`. While this is definable
 for algebraic effects, it is not possible for all scoped effects.
 
 -}
+
 type Handler
   :: [Effect]                             -- effs  : input effects
   -> [Effect]                             -- oeffs : output effects
@@ -466,21 +468,21 @@ handleWith xalg (Handler run malg)
   . run @m (xalg . injs)
   . eval (hunion @ieffs @xeffs (malg (xalg . injs)) (fwd xalg))
 
--- weaken
---   :: forall ieffs ieffs' oeffs oeffs' fs
---   . ( Injects ieffs ieffs'
---     , Injects oeffs oeffs'
---     )
---   => Handler ieffs' oeffs fs
---   -> Handler ieffs oeffs' fs
--- weaken (Handler (Handler run malg))
---   = Handler (Handler (\oalg -> run (oalg . injs)) (\oalg -> malg (oalg . injs) . injs))
+weaken
+  :: forall ieffs ieffs' oeffs oeffs' ts fs
+  . ( Injects ieffs ieffs'
+    , Injects oeffs oeffs'
+    )
+  => Handler ieffs' oeffs ts fs
+  -> Handler ieffs oeffs' ts fs
+weaken (Handler run malg)
+  = (Handler (\oalg -> run (oalg . injs)) (\oalg -> malg (oalg . injs) . injs))
 
--- hide
---   :: forall sigs effs oeffs fs
---   .  (Injects (effs :\\ sigs) effs, Injects oeffs oeffs)
---   => Handler effs oeffs fs -> Handler (effs :\\ sigs) oeffs fs
--- hide h = weaken h
+hide
+  :: forall sigs effs oeffs ts fs
+  .  (Injects (effs :\\ sigs) effs, Injects oeffs oeffs)
+  => Handler effs oeffs ts fs -> Handler (effs :\\ sigs) oeffs ts fs
+hide h = weaken h
 
 weakenAlg
   :: forall eff eff' m x . (Injects eff eff')

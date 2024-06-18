@@ -24,7 +24,7 @@ incr = do
 example_incr :: Property
 example_incr = property $ do
   n <- forAll $ Gen.int $ Range.linear 1 1000
-  handle (stateT n) incr === (n+1,())
+  handle (state n) incr === (n+1,())
 
 decr :: Prog' '[Get Int, Put Int, Throw] ()
 decr = do
@@ -49,7 +49,7 @@ globalState
                    '[]
                    '[MaybeT, (StateT s)]
                    '[Maybe, (,) s]
-globalState s = fuse exceptT (stateT s)
+globalState s = fuse exceptT (state s)
 
 -- This is global state because the `Int` is decremented
 -- twice before the exception is thrown.
@@ -64,7 +64,7 @@ localState
                    '[]
                    '[StateT s, MaybeT]
                    '[((,) s), Maybe]
-localState s = fuse (stateT s) exceptT
+localState s = fuse (state s) exceptT
 
 -- With local state, the state is reset to its value
 -- before the catch where the exception was raised.
@@ -120,7 +120,7 @@ catchDecr44 = do
 -- and a bit more ... and so on.
 example_Retry1 :: Property
 example_Retry1 = property $
-    (handle (fuse retryT (stateT 2)) catchDecr44 :: (Int, Maybe ()))
+    (handle (fuse retryT (state 2)) catchDecr44 :: (Int, Maybe ()))
   ===
     (42,Just ())
 
