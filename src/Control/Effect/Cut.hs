@@ -10,10 +10,6 @@ import Prelude hiding (or)
 import Control.Family.Algebraic
 import Control.Family.Scoped
 
-import Control.Monad.Trans.Identity
-import Data.HFunctor.HCompose
-
-
 import Data.CutList ( CutListT(..), CutListT'(..), fromCutListT' )
 import Data.HFunctor ( HFunctor(..) )
 import Control.Applicative ( Alternative((<|>), empty) )
@@ -76,11 +72,11 @@ cutListAlg oalg op
   | Just (Alg CutFail)     <- prj op = CutListT (return ZeroT)
   | Just (Scp (CutCall x)) <- prj op = callAlg x
 
-cutList :: Handler [Stop, Or, CutFail, CutCall] '[] '[[]]
-cutList = handler fromCutListT' cutListAlg
+-- cutList :: Handler [Stop, Or, CutFail, CutCall] '[] '[[]]
+-- cutList = handler fromCutListT' cutListAlg
 
-cutList' :: Handler' [Stop, Or, CutFail, CutCall] '[] CutListT '[[]]
-cutList' = handler' fromCutListT' cutListAlg
+cutList' :: HandlerT [Stop, Or, CutFail, CutCall] '[] '[CutListT] '[[]]
+cutList' = handlerT' fromCutListT' cutListAlg
 
 
 instance HFunctor CutListT where
@@ -93,8 +89,8 @@ instance HFunctor CutListT' where
   hmap _ NilT       = NilT
   hmap h (x :<< xs) = x :<< fmap (hmap h) (h xs)
 
-onceCut' :: Handler' '[Once] '[CutCall, CutFail, Or] IdentityT '[]
-onceCut' = interpret' onceCutAlg
+onceCut' :: HandlerT '[Once] '[CutCall, CutFail, Or] '[] '[]
+onceCut' = interpretT onceCutAlg
 
 onceCutAlg :: forall oeff m . (Monad m , Members [CutCall, CutFail, Or] oeff)
   => (forall x. Effs oeff m x -> m x)
@@ -105,6 +101,6 @@ onceCutAlg oalg op
                       eval oalg (do cut
                                     return x))
 
-onceNondet' :: Handler' '[Once, Stop, Or, CutFail, CutCall] '[] (HCompose IdentityT CutListT) '[[]]
-onceNondet' = fuse' onceCut' cutList'
+onceNondet' :: HandlerT '[Once, Stop, Or, CutFail, CutCall] '[] ('[CutListT]) '[[]]
+onceNondet' = fuseT onceCut' cutList'
 

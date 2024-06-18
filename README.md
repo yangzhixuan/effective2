@@ -155,7 +155,7 @@ To execute such a program that uses both state and IO
 requires a handler that is specialized to deal with IO:
 ```haskell
 exampleEchoTick :: IO (Int, ())
-exampleEchoTick = handleIO (state (0 :: Int)) echoTick
+exampleEchoTick = handleIO (stateT (0 :: Int)) echoTick
 ```
 When this is executed, it counts the number of lines received:
 ```haskell ignore
@@ -193,13 +193,14 @@ Here is how to write a handler that intercepts a `getLine` operation, only to
 emit it again while also incrementing a counter in the state:
 ```haskell
 getLineIncr
-  :: Handler '[GetLine]                       -- input effects
+  :: HandlerT '[GetLine]                       -- input effects
              '[GetLine, Get Int, Put Int]     -- output effects
+             IdentityT
              '[]                              -- output wrapper
 getLineIncr = interpret $
-  \(Alg (GetLine k)) -> do xs <- getLine
-                           incr
-                           return (k xs)
+  \(Eff (Alg (GetLine k))) -> do xs <- getLine
+                                 incr
+                                 return (k xs)
 ```
 The handler says that it will deal with `[GetLine]` as an input effect,
 and will output the effects `[GetLine, Get Int, Put Int]`.
@@ -207,11 +208,12 @@ and will output the effects `[GetLine, Get Int, Put Int]`.
 Now the task is to connect this handler with `state`. This can
 be achieved with a `pipe`:
 ```haskell
-getLineIncrState :: Handler '[GetLine]   -- input effects
-                            '[GetLine]   -- output effects
-                            '[(,) Int]   -- output wrapper
+getLineIncrState :: HandlerT '[GetLine]   -- input effects
+                             '[GetLine]   -- output effects
+                             (HCompose IdentityT (StateT Int))
+                             '[(,) Int]   -- output wrapper
 getLineIncrState
-  = pipe getLineIncr (state (0 :: Int))
+  = pipe getLineIncr (stateT (0 :: Int))
 ```
 This can then be executed using `handleIO`, which will deal with
 the residual `GetLine` effect:
@@ -250,13 +252,13 @@ list of strings. Here is how `getLine` can be interpreted in terms of the
 operations `get` and `put` from a state containing a list of strings:
 ```haskell
 getLineState
-  :: Handler '[GetLine] '[Get [String], Put [String]] '[]
+  :: HandlerT '[GetLine] '[Get [String], Put [String]] IdentityT '[]
 getLineState = interpret $
-  \(Alg (GetLine k)) -> do xss <- get
-                           case xss of
-                             []        -> return (k "")
-                             (xs:xss') -> do put xss'
-                                             return (k xs)
+  \(Eff (Alg (GetLine k))) -> do xss <- get
+                                 case xss of
+                                   []        -> return (k "")
+                                   (xs:xss') -> do put xss'
+                                                   return (k xs)
 ```
 The signature of `getLineState` says that it is a handler that recognizes
 `GetLine` operations and interprets them in terms of some output effects in
@@ -342,10 +344,10 @@ Using this, values can be written as the output of a program.
 Now the task is to interpret all `putStrLn` operations in terms of the
 `tell` operation:
 ```haskell
-putStrLnTell :: Handler '[PutStrLn] '[Tell [String]] '[]
+putStrLnTell :: HandlerT '[PutStrLn] '[Tell [String]] IdentityT '[]
 putStrLnTell = interpret $
-  \(Alg (PutStrLn str k)) -> do tell [str]
-                                return k
+  \(Eff (Alg (PutStrLn str k))) -> do tell [str]
+                                      return k
 ```
 This can in turn be piped into the `writer` handler to make
 a pure version of `putStrLn`:
@@ -420,8 +422,8 @@ to modify output:
 ```haskell
 retell :: forall w w' . (Monoid w, Monoid w') => (w -> w') -> Handler '[Tell w] '[Tell w'] '[]
 retell f = interpret $
-  \(Alg (Tell w k )) -> do tell (f w)
-                           return k
+  \(Eff (Alg (Tell w k ))) -> do tell (f w)
+                                 return k
 ```
 Simply put, every `tell w` is intercepted, and retold as `tell (f w)`. Thus,
 a simple message can be made louder at the flick of a switch:
@@ -572,7 +574,7 @@ first transform any `putStrLn` operation into a `tell` using
 `putStrLnTell`, then apply the `censors` handler, and finally
 turn any `tell` back into `putStrLn` with using `tellPutStrLn`:
 ```haskell
-tellPutStrLn :: Handler '[Tell [String]] '[PutStrLn] '[]
+tellPutStrLn :: HandlerT '[Tell [String]] '[PutStrLn] IdentityT '[]
 tellPutStrLn = interpret $
   \(Alg (Tell strs k)) -> do putStrLn (unwords strs)
                              return k
@@ -580,7 +582,7 @@ tellPutStrLn = interpret $
 This chain of handlers might be called `censorsPutStrLn`:
 ```haskell
 censorsPutStrLn :: ([String] -> [String])
-                -> Handler [PutStrLn, Tell [String], Censor [String]] '[PutStrLn] '[]
+                -> HandlerT [PutStrLn, Tell [String], Censor [String]] '[PutStrLn] '[]
 censorsPutStrLn cipher = putStrLnTell <&> censors cipher <&> tellPutStrLn
 ```
 The ensuing chain of handlers seems to do the job:
@@ -657,11 +659,11 @@ logger str = do time <- getCPUTime
 However, this is a case where a reinterpretation might be better where all
 instances of `tell` are augmented with the appropriate timestamp.
 ```haskell
-timestamp :: forall w . Monoid w => Handler '[Tell w] '[Tell [(Integer, w)], GetCPUTime] '[]
+timestamp :: forall w . Monoid w => HandlerT '[Tell w] '[Tell [(Integer, w)], GetCPUTime] IdentityT '[]
 timestamp = interpret $
-  \(Alg (Tell (w :: w) k)) -> do time <- getCPUTime
-                                 tell [(time, w)]
-                                 return k
+  \(Eff (Alg (Tell (w :: w) k))) -> do time <- getCPUTime
+                                       tell [(time, w)]
+                                       return k
 ```
 Now a timestamp is added to the start of messages emitted by `tell`:
 ```haskell ignore
@@ -738,6 +740,12 @@ import Control.Effect.Writer hiding (uncensors)
 import qualified Control.Effect.Writer as W
 import Control.Effect.IO
 
+import Control.Family.Algebraic
+import Control.Family.Scoped
+import Data.HFunctor.HCompose
+import Control.Monad.Trans.Identity
+import Control.Monad.Trans.State (StateT)
+
 import Data.Char (toUpper)
 
 import Prelude hiding (putStrLn, getLine)
@@ -757,6 +765,8 @@ props = $$(discover)
 
 main :: IO ()
 main = defaultMain $ fmap checkParallel [props]
+
+
 ```
 -->
 
@@ -767,4 +777,3 @@ References
 * [Modular Models of Monoids with Operations. Z. Yang, N. Wu. ICFP. 2023](https://dl.acm.org/doi/10.1145/3607850)
 
 [^Gordon1992]: A. Gordon. Functional Programming and Input/Output. PhD Thesis, King's College London. 1992
-

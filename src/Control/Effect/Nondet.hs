@@ -48,18 +48,15 @@ selects (x:xs)  =  return (x, xs)  <|>  do  (y, ys) <- selects xs
                                             return (y, x:ys)
 
 nondetAlg
-  :: (MonadTrans t, Alternative (t m) , Monad m)
-  => (forall x. Effs oeff m x -> m x)
-  -> (forall x. Effs [Stop , Or] (t m) x -> t m x)
+  :: (MonadTrans t, Alternative (t m), Monad m)
+  => (Algebra oeffs m)
+  -> (Algebra [Stop , Or] (t m))
 nondetAlg oalg eff
   | Just (Alg Stop)     <- prj eff = empty
   | Just (Alg (Or x y)) <- prj eff = return x <|> return y
 
-nondet :: Handler [Stop, Or] '[] '[[]]
-nondet = handler runListT' nondetAlg
-
-nondet' :: Handler' [Stop, Or] '[] ListT '[[]]
-nondet' = handler' runListT' nondetAlg
+nondetT :: HandlerT [Stop, Or] '[] '[ListT] '[[]]
+nondetT = handlerT' runListT' nondetAlg
 
 -------------------------------
 -- Example: Backtracking (and Culling?)
@@ -114,5 +111,5 @@ backtrackAlg' = joinAlg nondetAlg backtrackOnceAlg
 -- TODO: The alternative with monad transformers is painful.
 -- TODO: this becomes interesting when different search strategies are used
 
-backtrack :: Handler [Stop, Or, Once] '[] '[[]]
-backtrack = handler runListT' backtrackAlg'
+backtrackT :: HandlerT [Stop, Or, Once] '[] '[ListT] '[[]]
+backtrackT = handlerT' runListT' backtrackAlg'

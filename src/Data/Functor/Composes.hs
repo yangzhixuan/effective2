@@ -99,6 +99,9 @@ data RComps fs a where
   RCNil  :: a -> RComps '[] a
   RCCons :: RComps fs (f a) -> RComps (f ': fs) a
 
+rcomps :: Functor f => f a -> RComps '[f] a
+rcomps = RCCons . RCNil
+
 unrcnil :: RComps '[] a -> a
 unrcnil (RCNil x) = x
 
@@ -127,9 +130,6 @@ instance (Rercompose fs, Functor f) => Rercompose (f ': fs) where
   dercompose :: (Rercompose fs, Functor f) => RComposes (f : fs) a -> RComps (f : fs) a
   -- dercompose x = RCCons (fmap dercompose x)
   dercompose x = RCCons (dercompose x)
-
-rcomps :: Functor f => f a -> RComps '[f] a
-rcomps = RCCons . RCNil
 
 -- The proof is the same as the reverse split law:
 --   reverse (xs ++ ys) = reverse ys ++ reverse xs

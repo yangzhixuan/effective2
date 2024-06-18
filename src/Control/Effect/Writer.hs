@@ -11,7 +11,6 @@ import Control.Family.Algebraic
 import Control.Family.Scoped
 import qualified Control.Monad.Trans.Writer as W
 import Data.HFunctor
-import Data.Functor.Composes
 
 
 type Tell w = Alg (Tell' w)
@@ -31,17 +30,11 @@ writerAlg _ eff
       do W.tell w
          return k
 
-writer :: Monoid w => Handler '[Tell w] '[] '[(,) w]
-writer = handler (fmap swap . W.runWriterT) writerAlg
+writerT :: Monoid w => HandlerT '[Tell w] '[] '[W.WriterT w] '[(,) w]
+writerT = handlerT' (fmap swap . W.runWriterT) writerAlg
 
-writer_ :: Monoid w => Handler '[Tell w] '[] '[]
-writer_ = Handler $ Handler' (\oalg -> fmap (RCNil . fst) . W.runWriterT) writerAlg
-
-writer' :: Monoid w => Handler' '[Tell w] '[] (W.WriterT w) '[(,) w]
-writer' = handler' (fmap swap . W.runWriterT) writerAlg
-
-writer'_ :: Monoid w => Handler' '[Tell w] '[] (W.WriterT w) '[]
-writer'_ = Handler' (\oalg -> fmap (RCNil . fst) . W.runWriterT) writerAlg
+writerT_ :: Monoid w => HandlerT '[Tell w] '[] '[W.WriterT w] '[]
+writerT_ = handlerT (fmap fst . W.runWriterT) writerAlg
 
 
 type Censor w = Scp (Censor' w)
@@ -52,12 +45,10 @@ data Censor' w k where
 censor :: Member (Censor w) sig => (w -> w) -> Prog sig a -> Prog sig a
 censor cipher p = (Call . inj) (Scp (Censor cipher (fmap return p)))
 
-censors :: forall w . Monoid w => (w -> w) -> Handler' '[Tell w, Censor w] '[Tell w]  (ReaderT (w -> w)) '[]
-censors cipher = Handler' run alg where
-  run :: Monad m
-      => (forall x. Effs '[Tell w] m x -> m x)
-      -> (forall x. ReaderT (w -> w) m x -> m (RComps '[] x))
-  run oalg (ReaderT mx) = fmap RCNil (mx cipher)
+censors :: forall w . Monoid w => (w -> w) -> HandlerT '[Tell w, Censor w] '[Tell w]  '[ReaderT (w -> w)] '[]
+censors cipher = handlerT run alg where
+  run :: Monad m => (forall x. ReaderT (w -> w) m x -> m (x))
+  run (ReaderT mx) = mx cipher
 
   alg :: Monad m
       => (forall x. Effs '[Tell w] m x -> m x)
@@ -76,12 +67,10 @@ censors cipher = Handler' run alg where
       -> (forall x. Effs sig (ReaderT (w -> w) m) x -> ReaderT (w -> w) m x)
   fwd oalg c = ReaderT (\f -> oalg $ hmap (flip runReaderT f) c)
 
-uncensors :: forall w . Monoid w => Handler' '[Censor w] '[] (IdentityT) '[]
-uncensors = Handler' run alg where
-  run :: Monad m
-      => (forall x. Effs '[] m x -> m x)
-      -> (forall x. IdentityT m x -> m (RComps '[] x))
-  run oalg (IdentityT mx) = fmap RCNil (mx)
+uncensors :: forall w . Monoid w => HandlerT '[Censor w] '[] '[IdentityT] '[]
+uncensors = handlerT run alg where
+  run :: Monad m => (forall x. IdentityT m x -> m x)
+  run (IdentityT mx) = mx
 
   alg :: Monad m
       => (forall x. Effs '[] m x -> m x)
@@ -90,12 +79,10 @@ uncensors = Handler' run alg where
 
 -- NOTE: this cannot be done as the fusion of `censorsTell` and `censorsCensor`,
 -- since `tell` must be sensitive to any encapsulating `censor`.
-recensors :: forall w . Monoid w => (w -> w) -> Handler' '[Tell w, Censor w]  '[Tell w, Censor w] (ReaderT (w -> w)) '[]
-recensors cipher = Handler' run alg where
-  run :: Monad m
-      => (forall x. Effs '[Tell w, Censor w] m x -> m x)
-      -> (forall x. ReaderT (w -> w) m x -> m (RComps '[] x))
-  run oalg (ReaderT mx) = fmap RCNil (mx cipher)
+recensors :: forall w . Monoid w => (w -> w) -> HandlerT '[Tell w, Censor w]  '[Tell w, Censor w] '[ReaderT (w -> w)] '[]
+recensors cipher = handlerT run alg where
+  run :: Monad m => (forall x. ReaderT (w -> w) m x -> m x)
+  run = ($ cipher) . runReaderT
 
   alg :: Monad m
       => (forall x. Effs '[Tell w, Censor w] m x -> m x)

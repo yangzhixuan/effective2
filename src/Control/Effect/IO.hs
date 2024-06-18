@@ -2,6 +2,7 @@
 
 module Control.Effect.IO where
 
+import Data.HFunctor.HComposes
 import qualified System.CPUTime
 import Control.Effect
 import Data.List.Kind
@@ -52,14 +53,14 @@ evalIO :: Prog [GetLine, PutStrLn, GetCPUTime] a -> IO a
 evalIO = eval algIO
 
 handleIO
-  :: forall ieffs oeffs t fs a xeffs
+  :: forall ieffs oeffs ts fs a xeffs
   . ( Append ieffs (xeffs :\\ ieffs)
     , Injects oeffs xeffs
     , Injects (xeffs :\\ ieffs) xeffs
     , Rercompose fs
-    , MonadTrans t
+    , MonadTrans (HComps ts)
     , xeffs ~ '[GetLine, PutStrLn, GetCPUTime] )
-  => Handler' ieffs oeffs t fs
+  => HandlerT ieffs oeffs ts fs
   -> Prog (ieffs `Union` xeffs) a -> IO (RComposes fs a)
 handleIO = handleWith algIO
 

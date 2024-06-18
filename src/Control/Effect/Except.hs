@@ -5,10 +5,7 @@
 module Control.Effect.Except where
 
 import Control.Effect
-import Control.Family
 import Control.Monad.Trans.Except
-import Control.Monad.Trans.Class
-import Data.HFunctor.HCompose
 import Control.Family.Algebraic
 import Control.Family.Scoped
 
@@ -43,14 +40,8 @@ exceptAlg _ eff
                        Left e  -> runExceptT (h e)
                        Right x -> return (Right x)
 
-except :: Handler '[Throw e, Catch e] '[] '[Either e]
-except = handler runExceptT exceptAlg
-
-exceptT
-  :: forall effs oeffs fs t e . (MonadTrans t, ForwardT effs (ExceptT e))
-  => Handler' effs oeffs t fs
-  -> Handler' (Throw e : Catch e : effs) oeffs (HCompose (ExceptT e) t) (Either e ': fs)
-exceptT = handlerT @'[Throw e, Catch e] exceptAlg runExceptT
+exceptT :: HandlerT '[Throw e, Catch e] '[] '[ExceptT e] '[Either e]
+exceptT = handlerT' runExceptT exceptAlg
 
 -- multiple semantics such as retry after handling is difficult in MTL
 -- without resorting to entirely different newtype wrapping through
@@ -77,13 +68,5 @@ retryAlg _ eff
                               Right y  -> loop p h
                Right x  -> return (Right x)
 
-retry :: Handler '[Throw e, Catch e] '[] '[Either e]
-retry = handler runExceptT retryAlg
-
-retryT :: forall effs oeffs t fs e
-  .  (ForwardT effs (ExceptT e), MonadTrans t)
-  => Handler' effs oeffs t fs
-  -> Handler' (Throw e : Catch e : effs)
-              oeffs (HCompose (ExceptT e) t)
-              (Either e : fs)
-retryT = handlerT @'[Throw e, Catch e] retryAlg runExceptT
+retryT :: HandlerT '[Throw e, Catch e] '[] '[ExceptT e] '[Either e]
+retryT = handlerT' runExceptT retryAlg

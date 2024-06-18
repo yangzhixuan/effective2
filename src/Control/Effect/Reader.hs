@@ -29,8 +29,8 @@ data Local' r k where
 local :: Member (Local r) sig => (r -> r) -> Prog sig a -> Prog sig a
 local f p = injCall (Scp (Local f (fmap return p)))
 
-reader :: r -> Handler' [Ask r, Local r] '[] (R.ReaderT r) '[]
-reader r = Handler' (readerRun r) readerAlg
+readerT :: r -> HandlerT [Ask r, Local r] '[] '[R.ReaderT r] '[]
+readerT r = handlerT (flip R.runReaderT r) (\alg -> undefined)
 
 readerRun
   :: Monad m
@@ -50,10 +50,3 @@ readerAlg oalg eff
       R.local f p
       -- do r <- R.ask
       --    lift (p (f r))
-
-readerFwd
-  :: Monad m
-  => (forall x. Effs sig m x -> m x)
-  -> (forall x. Effs sig (R.ReaderT r m) x -> R.ReaderT r m x)
-readerFwd xalg = undefined
-

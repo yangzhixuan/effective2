@@ -33,19 +33,19 @@ example_Nondet1 = property $ (list $ knapsack 3 [3, 2, 1] :: [[Int]])
 -- handle `once`. Here it is immaterial because `once`
 -- does not appear in the program
 example_Nondet2 :: Property
-example_Nondet2 = property $ (handle nondet $ knapsack 3 [3, 2, 1] :: [[Int]])
+example_Nondet2 = property $ (handleT nondetT $ knapsack 3 [3, 2, 1] :: [[Int]])
   === [[3],[2,1],[1,2],[1,1,1]]
 
 -- `backtrack` is modular, and is furthermore simply
 -- the joining of the nondet algebra with an algebra
 -- for once
 example_backtrack1 :: Property
-example_backtrack1 = property $ (handle backtrack $ knapsack 3 [3, 2, 1] :: [[Int]])
+example_backtrack1 = property $ (handleT backtrackT $ knapsack 3 [3, 2, 1] :: [[Int]])
   === [[3],[2,1],[1,2],[1,1,1]]
 
 -- onceEx :: (Member Or sig, Member Once sig) => Prog sig I
 example_backtrack2 :: Property
-example_backtrack2 = property $ handle backtrack p === [1, 2] where
+example_backtrack2 = property $ handleT backtrackT p === [1, 2] where
   p :: Members '[Or, Once] sig => Prog sig Int
   p = do x <- once (or (return 0) (return 5))
          or (return (x + 1)) (return (x + 2))
@@ -53,7 +53,7 @@ example_backtrack2 = property $ handle backtrack p === [1, 2] where
 -- [1,2]
 
 example_Once' :: Property
-example_Once' = property $ handle' onceNondet' p === [1, 2] where
+example_Once' = property $ handleT onceNondet' p === [1, 2] where
   p :: Members '[Or, Once] sig => Prog sig Int
   p = do x <- once (or (return 0) (return 5))
          or (return (x + 1)) (return (x + 2))
@@ -61,13 +61,13 @@ example_Once' = property $ handle' onceNondet' p === [1, 2] where
 -- [1,2]
 
 example_Once'' :: Property
-example_Once'' = property $ handle' onceNondet' p === [1, 2] where
+example_Once'' = property $ handleT onceNondet' p === [1, 2] where
   p :: Members '[Or, Once] sig => Prog sig Int
   p = do x <- once (or (return 0) (return 5))
          or (return (x + 1)) (return (x + 2))
 
 example_Once''' :: Property
-example_Once''' = property $ handle' onceNondet' p === [1, 2] where
+example_Once''' = property $ handleT onceNondet' p === [1, 2] where
   p :: Members '[Or, Once] sig => Prog sig Int
   p = do x <- once (or (return 0) (return 5))
          or (return (x + 1)) (return (x + 2))

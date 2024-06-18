@@ -8,12 +8,9 @@ import Control.Effect
 import Control.Family.Algebraic
 import Control.Family.Scoped
 
-import Control.Family
 import Control.Family.Algebraic()
 import Control.Family.Scoped()
-import Control.Monad.Trans.Class
 import Control.Monad.Trans.Maybe
-import Data.HFunctor.HCompose
 
 type Catch = Scp Catch'
 data Catch' k where
@@ -43,17 +40,17 @@ exceptAlg _ eff
                       Nothing -> runMaybeT q
                       Just x  -> return (Just x)
 
-except :: Handler [Throw, Catch] '[] '[Maybe]
-except = handler runMaybeT exceptAlg
+-- exceptT :: Handler [Throw, Catch] '[] '[Maybe]
+-- exceptT = handler runMaybeT exceptAlg
 
-except' :: Handler' [Throw, Catch] '[] MaybeT '[Maybe]
-except' = handler' runMaybeT exceptAlg
+exceptT :: HandlerT [Throw, Catch] '[] '[MaybeT] '[Maybe]
+exceptT = handlerT' runMaybeT exceptAlg
 
-exceptT
-  :: forall effs oeffs fs t . (MonadTrans t, ForwardT effs MaybeT)
-  => Handler' effs oeffs t fs
-  -> Handler' (Throw : Catch : effs) oeffs (HCompose MaybeT t) (Maybe ': fs)
-exceptT = handlerT @'[Throw, Catch] exceptAlg runMaybeT
+-- exceptT
+--   :: forall effs oeffs fs t . (MonadTrans t, ForwardT effs MaybeT)
+--   => HandlerT effs oeffs t fs
+--   -> HandlerT (Throw : Catch : effs) oeffs (HCompose MaybeT t) (Maybe ': fs)
+-- exceptT = handlerT @'[Throw, Catch] exceptAlg runMaybeT
 
 -- multiple semantics such as retry after handling is difficult in MTL
 -- without resorting to entirely different newtype wrapping through
@@ -80,17 +77,6 @@ retryAlg _ eff
                                Just y  -> loop p q
                Just x  -> return (Just x)
 
-retry :: Handler [Throw, Catch] '[] '[Maybe]
-retry = handler runMaybeT retryAlg
-
-retry' :: Handler' [Throw, Catch] '[] MaybeT '[Maybe]
-retry' = handler' runMaybeT retryAlg
-
-retryT :: forall effs oeffs t fs
-  .  (ForwardT effs MaybeT , MonadTrans t)
-  => Handler' effs oeffs t fs
-  -> Handler' (Throw : Catch : effs)
-              oeffs (HCompose MaybeT t)
-              (Maybe : fs)
-retryT = handlerT @'[Throw, Catch] retryAlg runMaybeT
+retryT :: HandlerT [Throw, Catch] '[] '[MaybeT] '[Maybe]
+retryT = handlerT' runMaybeT retryAlg
 

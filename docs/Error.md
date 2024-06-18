@@ -23,17 +23,17 @@ example_monus = property $ do
   y <- forAll $ Gen.int $ Range.linear 1 1000
 
   if (x < y)
-    then handle except (monus x y) === Nothing
-    else handle except (monus x y) === Just (x - y)
-
-example_monusT :: Property
-example_monusT = property $ do
-  x <- forAll $ Gen.int $ Range.linear 1 1000
-  y <- forAll $ Gen.int $ Range.linear 1 1000
-
-  if (x < y)
     then handleT exceptT (monus x y) === Nothing
     else handleT exceptT (monus x y) === Just (x - y)
+
+-- example_monusT :: Property
+-- example_monusT = property $ do
+--   x <- forAll $ Gen.int $ Range.linear 1 1000
+--   y <- forAll $ Gen.int $ Range.linear 1 1000
+-- 
+--   if (x < y)
+--     then handleT exceptT (monus x y) === Nothing
+--     else handleT exceptT (monus x y) === Just (x - y)
 
 example_safeMonus :: Property
 example_safeMonus = property $ do
@@ -41,17 +41,17 @@ example_safeMonus = property $ do
   y <- forAll $ Gen.int $ Range.linear 1 1000
 
   if (x < y)
-    then handle except (safeMonus x y) === Just 0
-    else handle except (safeMonus x y) === Just (x - y)
-
-example_safeMonusT :: Property
-example_safeMonusT = property $ do
-  x <- forAll $ Gen.int $ Range.linear 1 1000
-  y <- forAll $ Gen.int $ Range.linear 1 1000
-
-  if (x < y)
     then handleT exceptT (safeMonus x y) === Just 0
     else handleT exceptT (safeMonus x y) === Just (x - y)
+
+-- example_safeMonusT :: Property
+-- example_safeMonusT = property $ do
+--   x <- forAll $ Gen.int $ Range.linear 1 1000
+--   y <- forAll $ Gen.int $ Range.linear 1 1000
+-- 
+--   if (x < y)
+--     then handleT exceptT (safeMonus x y) === Just 0
+--     else handleT exceptT (safeMonus x y) === Just (x - y)
 
 examples :: Group
 examples = $$(discoverPrefix "example_")
