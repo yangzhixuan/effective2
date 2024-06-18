@@ -16,6 +16,7 @@ import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.List
 import Control.Monad.Trans.State.Lazy
 import Control.Monad.Trans.Writer
+import Control.Monad.Trans.Reader
 
 newtype Scp (lsig :: Type -> Type)
             (f :: Type -> Type)
@@ -100,5 +101,12 @@ instance (Functor f, Forward effs (WriterT w)) =>
     fwd alg (Eff (Scp op)) = WriterT (alg (Eff (Scp (fmap runWriterT op))))
     fwd alg (Effs ops)     = fwd (alg . Effs) ops
 
+instance (Functor f, Forward effs (ReaderT w)) =>
+  Forward (Scp f : effs) (ReaderT w) where
+    fwd :: forall m . (Monad m)
+        => Algebra (Scp f : effs) (m)
+        -> Algebra (Scp f : effs) (ReaderT w m)
+    fwd alg (Eff (Scp op)) = ReaderT (\r -> alg (Eff (Scp (fmap (flip runReaderT r) op))))
+    fwd alg (Effs ops)     = fwd (alg . Effs) ops
 
 
