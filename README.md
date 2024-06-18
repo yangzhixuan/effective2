@@ -193,7 +193,7 @@ Here is how to write a handler that intercepts a `getLine` operation, only to
 emit it again while also incrementing a counter in the state:
 ```haskell
 getLineIncr
-  :: HandlerT '[GetLine]                       -- input effects
+  :: Handler '[GetLine]                       -- input effects
              '[GetLine, Get Int, Put Int]     -- output effects
              IdentityT
              '[]                              -- output wrapper
@@ -208,7 +208,7 @@ and will output the effects `[GetLine, Get Int, Put Int]`.
 Now the task is to connect this handler with `state`. This can
 be achieved with a `pipe`:
 ```haskell
-getLineIncrState :: HandlerT '[GetLine]   -- input effects
+getLineIncrState :: Handler '[GetLine]   -- input effects
                              '[GetLine]   -- output effects
                              (HCompose IdentityT (StateT Int))
                              '[(,) Int]   -- output wrapper
@@ -252,7 +252,7 @@ list of strings. Here is how `getLine` can be interpreted in terms of the
 operations `get` and `put` from a state containing a list of strings:
 ```haskell
 getLineState
-  :: HandlerT '[GetLine] '[Get [String], Put [String]] IdentityT '[]
+  :: Handler '[GetLine] '[Get [String], Put [String]] IdentityT '[]
 getLineState = interpret $
   \(Eff (Alg (GetLine k))) -> do xss <- get
                                  case xss of
@@ -344,7 +344,7 @@ Using this, values can be written as the output of a program.
 Now the task is to interpret all `putStrLn` operations in terms of the
 `tell` operation:
 ```haskell
-putStrLnTell :: HandlerT '[PutStrLn] '[Tell [String]] IdentityT '[]
+putStrLnTell :: Handler '[PutStrLn] '[Tell [String]] IdentityT '[]
 putStrLnTell = interpret $
   \(Eff (Alg (PutStrLn str k))) -> do tell [str]
                                       return k
@@ -574,7 +574,7 @@ first transform any `putStrLn` operation into a `tell` using
 `putStrLnTell`, then apply the `censors` handler, and finally
 turn any `tell` back into `putStrLn` with using `tellPutStrLn`:
 ```haskell
-tellPutStrLn :: HandlerT '[Tell [String]] '[PutStrLn] IdentityT '[]
+tellPutStrLn :: Handler '[Tell [String]] '[PutStrLn] IdentityT '[]
 tellPutStrLn = interpret $
   \(Alg (Tell strs k)) -> do putStrLn (unwords strs)
                              return k
@@ -582,7 +582,7 @@ tellPutStrLn = interpret $
 This chain of handlers might be called `censorsPutStrLn`:
 ```haskell
 censorsPutStrLn :: ([String] -> [String])
-                -> HandlerT [PutStrLn, Tell [String], Censor [String]] '[PutStrLn] '[]
+                -> Handler [PutStrLn, Tell [String], Censor [String]] '[PutStrLn] '[]
 censorsPutStrLn cipher = putStrLnTell <&> censors cipher <&> tellPutStrLn
 ```
 The ensuing chain of handlers seems to do the job:
@@ -659,7 +659,7 @@ logger str = do time <- getCPUTime
 However, this is a case where a reinterpretation might be better where all
 instances of `tell` are augmented with the appropriate timestamp.
 ```haskell
-timestamp :: forall w . Monoid w => HandlerT '[Tell w] '[Tell [(Integer, w)], GetCPUTime] IdentityT '[]
+timestamp :: forall w . Monoid w => Handler '[Tell w] '[Tell [(Integer, w)], GetCPUTime] IdentityT '[]
 timestamp = interpret $
   \(Eff (Alg (Tell (w :: w) k))) -> do time <- getCPUTime
                                        tell [(time, w)]

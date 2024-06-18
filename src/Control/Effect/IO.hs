@@ -60,7 +60,7 @@ handleIO
     , Rercompose fs
     , MonadTrans (HComps ts)
     , xeffs ~ '[GetLine, PutStrLn, GetCPUTime] )
-  => HandlerT ieffs oeffs ts fs
+  => Handler ieffs oeffs ts fs
   -> Prog (ieffs `Union` xeffs) a -> IO (RComposes fs a)
 handleIO = handleWith algIO
 

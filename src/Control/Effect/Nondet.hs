@@ -55,8 +55,8 @@ nondetAlg oalg eff
   | Just (Alg Stop)     <- prj eff = empty
   | Just (Alg (Or x y)) <- prj eff = return x <|> return y
 
-nondetT :: HandlerT [Stop, Or] '[] '[ListT] '[[]]
-nondetT = handlerT' runListT' nondetAlg
+nondetT :: Handler [Stop, Or] '[] '[ListT] '[[]]
+nondetT = handler' runListT' nondetAlg
 
 -------------------------------
 -- Example: Backtracking (and Culling?)
@@ -111,5 +111,5 @@ backtrackAlg' = joinAlg nondetAlg backtrackOnceAlg
 -- TODO: The alternative with monad transformers is painful.
 -- TODO: this becomes interesting when different search strategies are used
 
-backtrackT :: HandlerT [Stop, Or, Once] '[] '[ListT] '[[]]
-backtrackT = handlerT' runListT' backtrackAlg'
+backtrackT :: Handler [Stop, Or, Once] '[] '[ListT] '[[]]
+backtrackT = handler' runListT' backtrackAlg'

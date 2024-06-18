@@ -75,8 +75,8 @@ cutListAlg oalg op
 -- cutList :: Handler [Stop, Or, CutFail, CutCall] '[] '[[]]
 -- cutList = handler fromCutListT' cutListAlg
 
-cutList' :: HandlerT [Stop, Or, CutFail, CutCall] '[] '[CutListT] '[[]]
-cutList' = handlerT' fromCutListT' cutListAlg
+cutList' :: Handler [Stop, Or, CutFail, CutCall] '[] '[CutListT] '[[]]
+cutList' = handler' fromCutListT' cutListAlg
 
 
 instance HFunctor CutListT where
@@ -89,7 +89,7 @@ instance HFunctor CutListT' where
   hmap _ NilT       = NilT
   hmap h (x :<< xs) = x :<< fmap (hmap h) (h xs)
 
-onceCut' :: HandlerT '[Once] '[CutCall, CutFail, Or] '[] '[]
+onceCut' :: Handler '[Once] '[CutCall, CutFail, Or] '[] '[]
 onceCut' = interpretT onceCutAlg
 
 onceCutAlg :: forall oeff m . (Monad m , Members [CutCall, CutFail, Or] oeff)
@@ -101,6 +101,6 @@ onceCutAlg oalg op
                       eval oalg (do cut
                                     return x))
 
-onceNondet' :: HandlerT '[Once, Stop, Or, CutFail, CutCall] '[] ('[CutListT]) '[[]]
-onceNondet' = fuseT onceCut' cutList'
+onceNondet' :: Handler '[Once, Stop, Or, CutFail, CutCall] '[] ('[CutListT]) '[[]]
+onceNondet' = fuse onceCut' cutList'
 

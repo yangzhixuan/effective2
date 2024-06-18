@@ -29,8 +29,8 @@ data Local' r k where
 local :: Member (Local r) sig => (r -> r) -> Prog sig a -> Prog sig a
 local f p = injCall (Scp (Local f (fmap return p)))
 
-readerT :: r -> HandlerT [Ask r, Local r] '[] '[R.ReaderT r] '[]
-readerT r = handlerT (flip R.runReaderT r) (\alg -> undefined)
+readerT :: r -> Handler [Ask r, Local r] '[] '[R.ReaderT r] '[]
+readerT r = handler (flip R.runReaderT r) (\alg -> undefined)
 
 readerRun
   :: Monad m

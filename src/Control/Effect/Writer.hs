@@ -30,11 +30,11 @@ writerAlg _ eff
       do W.tell w
          return k
 
-writerT :: Monoid w => HandlerT '[Tell w] '[] '[W.WriterT w] '[(,) w]
-writerT = handlerT' (fmap swap . W.runWriterT) writerAlg
+writerT :: Monoid w => Handler '[Tell w] '[] '[W.WriterT w] '[(,) w]
+writerT = handler' (fmap swap . W.runWriterT) writerAlg
 
-writerT_ :: Monoid w => HandlerT '[Tell w] '[] '[W.WriterT w] '[]
-writerT_ = handlerT (fmap fst . W.runWriterT) writerAlg
+writerT_ :: Monoid w => Handler '[Tell w] '[] '[W.WriterT w] '[]
+writerT_ = handler (fmap fst . W.runWriterT) writerAlg
 
 
 type Censor w = Scp (Censor' w)
@@ -45,8 +45,8 @@ data Censor' w k where
 censor :: Member (Censor w) sig => (w -> w) -> Prog sig a -> Prog sig a
 censor cipher p = (Call . inj) (Scp (Censor cipher (fmap return p)))
 
-censors :: forall w . Monoid w => (w -> w) -> HandlerT '[Tell w, Censor w] '[Tell w]  '[ReaderT (w -> w)] '[]
-censors cipher = handlerT run alg where
+censors :: forall w . Monoid w => (w -> w) -> Handler '[Tell w, Censor w] '[Tell w]  '[ReaderT (w -> w)] '[]
+censors cipher = handler run alg where
   run :: Monad m => (forall x. ReaderT (w -> w) m x -> m (x))
   run (ReaderT mx) = mx cipher
 
@@ -67,8 +67,8 @@ censors cipher = handlerT run alg where
       -> (forall x. Effs sig (ReaderT (w -> w) m) x -> ReaderT (w -> w) m x)
   fwd oalg c = ReaderT (\f -> oalg $ hmap (flip runReaderT f) c)
 
-uncensors :: forall w . Monoid w => HandlerT '[Censor w] '[] '[IdentityT] '[]
-uncensors = handlerT run alg where
+uncensors :: forall w . Monoid w => Handler '[Censor w] '[] '[IdentityT] '[]
+uncensors = handler run alg where
   run :: Monad m => (forall x. IdentityT m x -> m x)
   run (IdentityT mx) = mx
 
@@ -79,8 +79,8 @@ uncensors = handlerT run alg where
 
 -- NOTE: this cannot be done as the fusion of `censorsTell` and `censorsCensor`,
 -- since `tell` must be sensitive to any encapsulating `censor`.
-recensors :: forall w . Monoid w => (w -> w) -> HandlerT '[Tell w, Censor w]  '[Tell w, Censor w] '[ReaderT (w -> w)] '[]
-recensors cipher = handlerT run alg where
+recensors :: forall w . Monoid w => (w -> w) -> Handler '[Tell w, Censor w]  '[Tell w, Censor w] '[ReaderT (w -> w)] '[]
+recensors cipher = handler run alg where
   run :: Monad m => (forall x. ReaderT (w -> w) m x -> m x)
   run = ($ cipher) . runReaderT
 

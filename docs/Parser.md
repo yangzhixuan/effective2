@@ -59,7 +59,12 @@ fact = or (int)
 parse
   :: text -> Prog [Put text, Get text, Stop, Or] a
   -> [(text, a)]
-parse cs p = handleT (fuseT (stateT cs) nondetT) p
+parse cs p = handle (fuse (stateT cs) nondetT) p
+
+parseBacktrack
+  :: text -> Prog [Put text, Get text, Stop, Or, Once] a
+  -> [(text, a)]
+parseBacktrack cs p = handle (fuse (stateT cs) backtrackT) p
 
 example_Parse1 :: Property
 example_Parse1 = property $
@@ -71,7 +76,7 @@ example_Parse1 = property $
 notParse
   :: String -> Prog [Stop, Or, Put String, Get String] a
   -> (String, [a])
-notParse cs p = handleT (fuseT nondetT (stateT cs)) p
+notParse cs p = handle (fuse nondetT (stateT cs)) p
 
 example_NotParse :: Property
 example_NotParse = property $
@@ -94,7 +99,7 @@ fact' = or int
 --
 -- A different parser!
 parse' :: text -> Prog [Put text, Get text, Once, Stop, Or, CutFail, CutCall] a -> [(text, a)]
-parse' cs p  = handleT (fuseT (stateT cs) onceNondet') p
+parse' cs p  = handle (fuse (stateT cs) onceNondet') p
 
 example_Parse2 :: Property
 example_Parse2 = property $

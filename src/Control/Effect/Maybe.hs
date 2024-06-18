@@ -43,14 +43,14 @@ exceptAlg _ eff
 -- exceptT :: Handler [Throw, Catch] '[] '[Maybe]
 -- exceptT = handler runMaybeT exceptAlg
 
-exceptT :: HandlerT [Throw, Catch] '[] '[MaybeT] '[Maybe]
-exceptT = handlerT' runMaybeT exceptAlg
+exceptT :: Handler [Throw, Catch] '[] '[MaybeT] '[Maybe]
+exceptT = handler' runMaybeT exceptAlg
 
 -- exceptT
 --   :: forall effs oeffs fs t . (MonadTrans t, ForwardT effs MaybeT)
---   => HandlerT effs oeffs t fs
---   -> HandlerT (Throw : Catch : effs) oeffs (HCompose MaybeT t) (Maybe ': fs)
--- exceptT = handlerT @'[Throw, Catch] exceptAlg runMaybeT
+--   => Handler effs oeffs t fs
+--   -> Handler (Throw : Catch : effs) oeffs (HCompose MaybeT t) (Maybe ': fs)
+-- exceptT = handler @'[Throw, Catch] exceptAlg runMaybeT
 
 -- multiple semantics such as retry after handling is difficult in MTL
 -- without resorting to entirely different newtype wrapping through
@@ -77,6 +77,6 @@ retryAlg _ eff
                                Just y  -> loop p q
                Just x  -> return (Just x)
 
-retryT :: HandlerT [Throw, Catch] '[] '[MaybeT] '[Maybe]
-retryT = handlerT' runMaybeT retryAlg
+retryT :: Handler [Throw, Catch] '[] '[MaybeT] '[Maybe]
+retryT = handler' runMaybeT retryAlg
 

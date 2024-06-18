@@ -40,8 +40,8 @@ exceptAlg _ eff
                        Left e  -> runExceptT (h e)
                        Right x -> return (Right x)
 
-exceptT :: HandlerT '[Throw e, Catch e] '[] '[ExceptT e] '[Either e]
-exceptT = handlerT' runExceptT exceptAlg
+exceptT :: Handler '[Throw e, Catch e] '[] '[ExceptT e] '[Either e]
+exceptT = handler' runExceptT exceptAlg
 
 -- multiple semantics such as retry after handling is difficult in MTL
 -- without resorting to entirely different newtype wrapping through
@@ -68,5 +68,5 @@ retryAlg _ eff
                               Right y  -> loop p h
                Right x  -> return (Right x)
 
-retryT :: HandlerT '[Throw e, Catch e] '[] '[ExceptT e] '[Either e]
-retryT = handlerT' runExceptT retryAlg
+retryT :: Handler '[Throw e, Catch e] '[] '[ExceptT e] '[Either e]
+retryT = handler' runExceptT retryAlg
