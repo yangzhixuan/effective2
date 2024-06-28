@@ -10,8 +10,9 @@ Wu, as well as [Effect Handlers in
 Scope](https://dl.acm.org/doi/10.1145/2633357.2633358) by Wu, Schrijvers, and
 Hinze.
 
-This README is a literate Haskell file and therefore can be executed. You can interact
-with its contents with `cabal repl readme` and follow the examples. The language extensions and imports required are at the bottom of this file.
+This README is a literate Haskell file and therefore can be executed. You can
+interact with its contents with `cabal repl readme` and follow the examples. The
+language extensions and imports required are at the bottom of this file.
 
 
 Working with IO
@@ -69,6 +70,7 @@ handler is given by:
 ```haskell ignore
 state :: s -> Handler '[Put s, Get s]  -- input effects
                       '[]              -- output effects
+                      '[StateT]        -- transformers
                       '[((,) s)]       -- output wrapper
 ```
 The signature of the handler tells us how it behaves:
@@ -574,7 +576,7 @@ first transform any `putStrLn` operation into a `tell` using
 `putStrLnTell`, then apply the `censors` handler, and finally
 turn any `tell` back into `putStrLn` with using `tellPutStrLn`:
 ```haskell
-tellPutStrLn :: Handler '[Tell [String]] '[PutStrLn] _ '[]
+tellPutStrLn :: Handler '[Tell [String]] '[PutStrLn] '[] '[]
 tellPutStrLn = interpret $
   \(Eff (Alg (Tell strs k))) -> do putStrLn (unwords strs)
                                    return k
@@ -582,7 +584,7 @@ tellPutStrLn = interpret $
 This chain of handlers might be called `censorsPutStrLn`:
 ```haskell
 censorsPutStrLn :: ([String] -> [String])
-                -> Handler [PutStrLn, Tell [String], Censor [String]] '[PutStrLn] _ '[]
+                -> Handler [PutStrLn, Tell [String], Censor [String]] '[PutStrLn] '[ReaderT ([String] -> [String])] '[]
 censorsPutStrLn cipher = putStrLnTell <&> censors cipher <&> tellPutStrLn
 ```
 The ensuing chain of handlers seems to do the job:
@@ -768,8 +770,6 @@ props = $$(discover)
 
 main :: IO ()
 main = defaultMain $ fmap checkParallel [props]
-
-
 ```
 -->
 
