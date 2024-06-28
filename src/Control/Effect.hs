@@ -4,6 +4,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE ImplicitParams #-}
 
 module Control.Effect
   ( module Control.Effect.Type
@@ -211,16 +212,18 @@ data Handler effs oeffs ts fs =
   }
 
 handler
-  :: (Forward effs (HComps '[t]), HFunctor t)
+  :: (MonadTrans t)
   => (forall m a . Monad m => t m a -> m a)
   -> (forall m . Monad m => Algebra oeffs m -> Algebra effs (t m))
   -> Handler effs oeffs '[t] '[]
 handler run malg = Handler
-  (\oalg -> fmap RCNil . run . hmap unHNil . unHCons)
+  (\oalg -> fmap RCNil . unHNil . run . unHCons)
+  -- (\oalg -> fmap RCNil . run . hmap unHNil . unHCons)
   (\oalg -> HCons . malg (HNil . oalg . hmap unHNil) . hmap unHCons)
 
+-- TODO: HFunctor t should be MonadTrans t
 handler'
-  :: (Functor f, Forward effs (HComps '[t]), HFunctor t)
+  :: (Functor f, HFunctor t)
   => (forall m a . Monad m => t m a -> m (f a))
   -> (forall m . Monad m => Algebra oeffs m -> Algebra effs (t m))
   -> Handler effs oeffs '[t] '[f]
@@ -229,11 +232,12 @@ handler' run malg = Handler
   (\oalg -> HCons . malg (HNil . oalg . hmap unHNil) . hmap unHCons)
 
 handler''
-  :: (MonadTrans (HComps ts), Functor f, Forward effs (HComps ts))
+  :: (MonadTrans (HComps ts), Functor f)
   => (forall m a . Monad m => HComps ts m a -> m (f a))
   -> (forall m . Monad m => Algebra oeffs m -> Algebra effs (HComps ts m))
   -> Handler effs oeffs ts '[f]
 handler'' run malg = Handler (const (fmap rcomps . run)) malg
+
 
 type AlgebraT effs oeffs t = forall m.  Monad m
   => (forall x. Effs oeffs m x -> m x)
@@ -544,3 +548,20 @@ hunion :: forall xs ys f a b
   ,   Injects (ys :\\ xs) ys )
   => (Effs xs f a -> b) -> (Effs ys f a -> b) -> (Effs (xs `Union` ys) f a -> b)
 hunion xalg yalg = heither @xs @(ys :\\ xs) xalg (yalg . injs)
+
+-- handleOne
+--   :: (Monad (HComps ts (Prog oeffs)), Recompose fs)
+--   => Handler effs ts fs oeffs -> Prog effs a -> Prog oeffs (Composes fs a)
+-- handleOne (Handler run malg mfwd)
+--   = fmap recompose . run (Call . fmap return) . eval (malg (Call . fmap return))
+--
+-- handleSome
+--   :: forall sig eff oeffs ts fs a
+--   .  (Injects oeffs (oeffs :++ sig), Injects sig (oeffs :++ sig), Append eff sig
+--   ,  Monad (HComps ts (Prog (oeffs :++ sig))), Recompose fs)
+--   => Handler eff ts fs oeffs -> Prog (eff :++ sig) a -> Prog (oeffs :++ sig) (Composes fs a)
+-- handleSome (Handler run malg mfwd)
+--   = fmap recompose
+--   . run (Call . injs . fmap return)
+--   . eval (heither @eff @sig (malg @(Prog (oeffs :++ sig)) (Call . injs . fmap return))
+--                             (mfwd @(Prog (oeffs :++ sig)) (Call . injs . fmap return)))
