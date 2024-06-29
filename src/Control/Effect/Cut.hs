@@ -90,7 +90,7 @@ instance HFunctor CutListT' where
   hmap h (x :<< xs) = x :<< fmap (hmap h) (h xs)
 
 onceCut' :: Handler '[Once] '[CutCall, CutFail, Or] '[] '[]
-onceCut' = interpretT onceCutAlg
+onceCut' = interpretM onceCutAlg
 
 onceCutAlg :: forall oeff m . (Monad m , Members [CutCall, CutFail, Or] oeff)
   => (forall x. Effs oeff m x -> m x)

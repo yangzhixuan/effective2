@@ -21,7 +21,7 @@ module Control.Effect
   , injCall
   , progAlg
   , interpret
-  , interpretT
+  , interpretM
   , eval
   , fuse
   , (<&>)
@@ -252,19 +252,19 @@ interpret
   :: forall effs oeffs
   .  (forall m x . Effs effs m x -> Prog oeffs x)
   -> Handler effs oeffs '[] '[]
-interpret alg = interpretT talg
+interpret alg = interpretM talg
   where
     talg :: forall m . Monad m
          => (forall x. Effs oeffs m x -> m x)
          -> (forall x. Effs effs m x  -> m x)
     talg oalg op = eval oalg (alg op)
 
-interpretT
+interpretM
   :: forall effs oeffs .
     (forall m . Monad m =>
       (forall x . Effs oeffs m x -> m x) -> (forall x . Effs effs m x -> m x))
   -> Handler effs oeffs '[] '[]
-interpretT alg
+interpretM alg
   = Handler @effs @oeffs @'[]
       (const (\(HNil mx) -> fmap RCNil mx))
       (\oalg -> HNil . alg oalg . hmap unHNil)
