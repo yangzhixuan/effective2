@@ -209,27 +209,13 @@ data Handler effs oeffs ts fs =
   , malg :: forall m . Monad m
          => Algebra oeffs m -> Algebra effs (HComps ts m)
   }
+-- TODO: Maybe this could be
+--   , malg :: forall m . Monad m => (forall m . Monad m => Algebra oeffs m) -> Algebra effs (HComps ts m)
 
--- handler
---   :: (MonadTrans t)
---   => (forall m a . Monad m => t m a -> m a)
---   -> (forall m . Monad m => Algebra oeffs m -> Algebra effs (t m))
---   -> Handler effs oeffs '[t] '[]
--- handler run malg = Handler
---   (\oalg -> fmap RCNil . unHNil . run . unHCons)
---   -- (\oalg -> fmap RCNil . run . hmap unHNil . unHCons)
---   (\oalg -> HCons . malg (HNil . oalg . hmap unHNil) . hmap unHCons)
-
-handler'
-  :: (MonadTrans t)
-  => (forall m a . Monad m => t m a -> m (f a))
-  -> (forall m . Monad m => Algebra oeffs m -> Algebra effs (t m))
-  -> Handler effs oeffs '[t] '[f]
-handler' run malg = Handler
-  (\oalg -> fmap (RCCons . RCNil) . unHNil . run . unHCons)
-  -- (\oalg -> fmap (RCCons . RCNil) . run . hmap unHNil . unHCons)
-  (\oalg -> HCons . malg (HNil . oalg . hmap unHNil) . hmap unHCons)
-
+-- The definition of `handler` motivates the need for a snoc list
+-- in the functor carrier. Without this, we need to expose the functors
+-- using `Exposes fs '[f']`, and this becomes very burdensome for the
+-- end user.
 handler
   :: (MonadTrans t, Functors fs)
   => (forall m a . Monad m => t m a -> m (RComposes fs a))
@@ -240,22 +226,39 @@ handler run malg = Handler
   -- (\oalg -> fmap (RCCons . RCNil) . run . hmap unHNil . unHCons)
   (\oalg -> HCons . malg (HNil . oalg . hmap unHNil) . hmap unHCons)
 
-handler''
-  :: (MonadTrans (HComps ts), Functor f)
-  => (forall m a . Monad m => HComps ts m a -> m (f a))
+handlerT
+  :: forall effs oeffs ts fs
+  .  (MonadTrans (HComps ts), Functors fs)
+  => (forall m a . Monad m => HComps ts m a -> m (RComposes fs a))
   -> (forall m . Monad m => Algebra oeffs m -> Algebra effs (HComps ts m))
-  -> Handler effs oeffs ts '[f]
-handler'' run malg = Handler (const (fmap rcomps . run)) malg
+  -> Handler effs oeffs ts fs
+handlerT run malg = Handler (const (fmap dercompose . run)) malg
 
+-- TODO:
+-- The following is a more general handler type that generalises `handler`
+-- and would be easier to use than `handlerT`.
+-- However, it has an illegal type because a type synonym family
+-- appears in the instance: `Functor (HComposes ts m)` is not allowed.
+-- We need it because of the `hmap` in the definition of `alg'`, since
+-- an `HFunctor` requires both of its parameters to be functors. It's possible
+-- that with some careful class redefinitions that this might be implementable.
+--
+-- handler'
+--   :: forall effs oeffs ts fs.
+--      (Functors fs, forall m . HRecompose ts m, forall m . Functor m => Functor (HComposes ts m))
+--   => (forall m a . Monad m => HComposes ts m a -> m (RComposes fs a))
+--   -> (forall m . Monad m => Algebra oeffs m -> Algebra effs (HComposes ts m))
+--   -> Handler effs oeffs ts fs
+-- handler' run alg = Handler run' alg' where
+--   run' :: Monad m => Algebra oeffs m -> forall x. HComps ts m x -> m (RComps fs x)
+--   run' oalg = fmap dercompose . run . hrecompose
+--
+--   alg' :: Monad m => Algebra oeffs m -> Algebra effs (HComps ts m)
+--   alg' oalg = hdecompose . alg oalg . hmap hrecompose
 
 type AlgebraT effs oeffs t = forall m.  Monad m
   => (forall x. Effs oeffs m x -> m x)
   -> (forall x. Effs effs (t m) x -> t m x)
-
--- The definition of `handler` motivates the need for a snoc list
--- in the functor carrier. Without this, we need to expose the functors
--- using `Exposes fs '[f']`, and this becomes very burdensome for the
--- end user.
 
 interpret
   :: forall effs oeffs
