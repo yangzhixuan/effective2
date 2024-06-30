@@ -40,7 +40,7 @@ stateAlg _ eff
          return (p s)
 
 state :: s -> Handler [Put s, Get s] '[] '[S.StateT s] '[((,) s)]
-state s = handler' (fmap swap . flip S.runStateT s) stateAlg
+state s = handler (fmap swap . flip S.runStateT s) stateAlg
 
 -- | The `state_` handler deals with stateful operations and silenty
 -- discards the final state.

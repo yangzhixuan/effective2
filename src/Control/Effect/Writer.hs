@@ -31,7 +31,7 @@ writerAlg _ eff
          return k
 
 writer :: Monoid w => Handler '[Tell w] '[] '[W.WriterT w] '[(,) w]
-writer = handler' (fmap swap . W.runWriterT) writerAlg
+writer = handler (fmap swap . W.runWriterT) writerAlg
 
 writer_ :: Monoid w => Handler '[Tell w] '[] '[W.WriterT w] '[]
 writer_ = handler (fmap fst . W.runWriterT) writerAlg

@@ -49,7 +49,7 @@ globalState
                    '[]
                    '[MaybeT, (StateT s)]
                    '[Maybe, (,) s]
-globalState s = fuse exceptT (state s)
+globalState s = fuse except (state s)
 
 -- This is global state because the `Int` is decremented
 -- twice before the exception is thrown.
@@ -64,7 +64,7 @@ localState
                    '[]
                    '[StateT s, MaybeT]
                    '[((,) s), Maybe]
-localState s = fuse (state s) exceptT
+localState s = fuse (state s) except
 
 -- With local state, the state is reset to its value
 -- before the catch where the exception was raised.
@@ -120,7 +120,7 @@ catchDecr44 = do
 -- and a bit more ... and so on.
 example_Retry1 :: Property
 example_Retry1 = property $
-    (handle (fuse retryT (state 2)) catchDecr44 :: (Int, Maybe ()))
+    (handle (fuse retry (state 2)) catchDecr44 :: (Int, Maybe ()))
   ===
     (42,Just ())
 

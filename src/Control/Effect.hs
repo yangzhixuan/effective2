@@ -14,7 +14,6 @@ module Control.Effect
   , Members(..)
   , handle
   , handler
-  , handler'
   , handleWith
   , Handler (..)
   , Injects (..)
@@ -211,24 +210,34 @@ data Handler effs oeffs ts fs =
          => Algebra oeffs m -> Algebra effs (HComps ts m)
   }
 
-handler
-  :: (MonadTrans t)
-  => (forall m a . Monad m => t m a -> m a)
-  -> (forall m . Monad m => Algebra oeffs m -> Algebra effs (t m))
-  -> Handler effs oeffs '[t] '[]
-handler run malg = Handler
-  (\oalg -> fmap RCNil . unHNil . run . unHCons)
-  -- (\oalg -> fmap RCNil . run . hmap unHNil . unHCons)
-  (\oalg -> HCons . malg (HNil . oalg . hmap unHNil) . hmap unHCons)
+-- handler
+--   :: (MonadTrans t)
+--   => (forall m a . Monad m => t m a -> m a)
+--   -> (forall m . Monad m => Algebra oeffs m -> Algebra effs (t m))
+--   -> Handler effs oeffs '[t] '[]
+-- handler run malg = Handler
+--   (\oalg -> fmap RCNil . unHNil . run . unHCons)
+--   -- (\oalg -> fmap RCNil . run . hmap unHNil . unHCons)
+--   (\oalg -> HCons . malg (HNil . oalg . hmap unHNil) . hmap unHCons)
 
--- TODO: HFunctor t should be MonadTrans t
 handler'
-  :: (Functor f, HFunctor t)
+  :: (MonadTrans t)
   => (forall m a . Monad m => t m a -> m (f a))
   -> (forall m . Monad m => Algebra oeffs m -> Algebra effs (t m))
   -> Handler effs oeffs '[t] '[f]
 handler' run malg = Handler
-  (\oalg -> fmap (RCCons . RCNil) . run . hmap unHNil . unHCons)
+  (\oalg -> fmap (RCCons . RCNil) . unHNil . run . unHCons)
+  -- (\oalg -> fmap (RCCons . RCNil) . run . hmap unHNil . unHCons)
+  (\oalg -> HCons . malg (HNil . oalg . hmap unHNil) . hmap unHCons)
+
+handler
+  :: (MonadTrans t, Functors fs)
+  => (forall m a . Monad m => t m a -> m (RComposes fs a))
+  -> (forall m . Monad m => Algebra oeffs m -> Algebra effs (t m))
+  -> Handler effs oeffs '[t] fs
+handler run malg = Handler
+  (\oalg -> fmap dercompose  . unHNil . run . unHCons)
+  -- (\oalg -> fmap (RCCons . RCNil) . run . hmap unHNil . unHCons)
   (\oalg -> HCons . malg (HNil . oalg . hmap unHNil) . hmap unHCons)
 
 handler''
@@ -268,6 +277,15 @@ interpretM alg
   = Handler @effs @oeffs @'[]
       (const (\(HNil mx) -> fmap RCNil mx))
       (\oalg -> HNil . alg oalg . hmap unHNil)
+
+interpretT
+  :: Handler effs oeffs ts '[]
+interpretT = Handler run malg where
+  run :: Monad m => Algebra oeffs m -> forall x. HComps ts m x -> m (RComps '[] x)
+  run = undefined
+
+  malg :: Monad m => Algebra oeffs m -> Algebra effs (HComps ts m)
+  malg = undefined
 
 {-
 
@@ -446,7 +464,7 @@ idHandler = Handler run malg where
 
 handle :: forall ieffs ts fs a .
   ( Monad (HComps ts Identity)
-  , Rercompose fs )
+  , Functors fs )
   => Handler ieffs '[] ts fs
   -> Prog ieffs a -> RComposes fs a
 handle (Handler run malg)
@@ -458,7 +476,7 @@ handle (Handler run malg)
 handleWith :: forall ieffs oeffs xeffs m ts fs a .
   ( Monad m
   , MonadTrans (HComps ts)
-  , Rercompose fs
+  , Functors fs
   , Forward xeffs (HComps ts)
   , Append ieffs (xeffs :\\ ieffs)
   , Injects oeffs xeffs

@@ -23,8 +23,8 @@ example_monus = property $ do
   y <- forAll $ Gen.int $ Range.linear 1 1000
 
   if (x < y)
-    then handle exceptT (monus x y) === Nothing
-    else handle exceptT (monus x y) === Just (x - y)
+    then handle except (monus x y) === Nothing
+    else handle except (monus x y) === Just (x - y)
 
 -- example_monusT :: Property
 -- example_monusT = property $ do
@@ -41,8 +41,8 @@ example_safeMonus = property $ do
   y <- forAll $ Gen.int $ Range.linear 1 1000
 
   if (x < y)
-    then handle exceptT (safeMonus x y) === Just 0
-    else handle exceptT (safeMonus x y) === Just (x - y)
+    then handle except (safeMonus x y) === Just 0
+    else handle except (safeMonus x y) === Just (x - y)
 
 -- example_safeMonusT :: Property
 -- example_safeMonusT = property $ do

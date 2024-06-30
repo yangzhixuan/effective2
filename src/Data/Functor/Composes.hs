@@ -1,7 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Data.Functor.Composes where
+module Data.Functor.Composes (RSplit(..), RComposes(..), RComps(..), rcomps, Functors(..), RRecompose(..)) where
 
 import Data.Kind ( Type )
 
@@ -115,19 +115,23 @@ instance (Functor f, Functor (RComps fs)) => Functor (RComps (f ': fs)) where
   fmap :: (Functor f, Functor (RComps fs)) => (a -> b) -> RComps (f : fs) a -> RComps (f : fs) b
   fmap f (RCCons x) = RCCons (fmap (fmap f) x)
 
-class Rercompose fs where
+class RRecompose fs => Functors fs where
+instance Functors '[]
+instance (Functors fs, Functor f) => Functors (f ': fs)
+
+class RRecompose fs where
   rercompose :: RComps fs a -> RComposes fs a
   dercompose :: RComposes fs a -> RComps fs a
 
-instance Rercompose '[] where
+instance RRecompose '[] where
   rercompose (RCNil x) = x
   dercompose = RCNil
 
-instance (Rercompose fs, Functor f) => Rercompose (f ': fs) where
-  rercompose :: (Rercompose fs, Functor f) => RComps (f : fs) a -> RComposes (f : fs) a
+instance (RRecompose fs, Functor f) => RRecompose (f ': fs) where
+  rercompose :: (RRecompose fs, Functor f) => RComps (f : fs) a -> RComposes (f : fs) a
   rercompose (RCCons x) = rercompose x
 
-  dercompose :: (Rercompose fs, Functor f) => RComposes (f : fs) a -> RComps (f : fs) a
+  dercompose :: (RRecompose fs, Functor f) => RComposes (f : fs) a -> RComps (f : fs) a
   -- dercompose x = RCCons (fmap dercompose x)
   dercompose x = RCCons (dercompose x)
 

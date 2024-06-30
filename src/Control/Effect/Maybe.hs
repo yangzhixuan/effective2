@@ -43,8 +43,8 @@ exceptAlg _ eff
 -- exceptT :: Handler [Throw, Catch] '[] '[Maybe]
 -- exceptT = handler runMaybeT exceptAlg
 
-exceptT :: Handler [Throw, Catch] '[] '[MaybeT] '[Maybe]
-exceptT = handler' runMaybeT exceptAlg
+except :: Handler [Throw, Catch] '[] '[MaybeT] '[Maybe]
+except = handler runMaybeT exceptAlg
 
 -- exceptT
 --   :: forall effs oeffs fs t . (MonadTrans t, ForwardT effs MaybeT)
@@ -77,6 +77,6 @@ retryAlg _ eff
                                Just y  -> loop p q
                Just x  -> return (Just x)
 
-retryT :: Handler [Throw, Catch] '[] '[MaybeT] '[Maybe]
-retryT = handler' runMaybeT retryAlg
+retry :: Handler [Throw, Catch] '[] '[MaybeT] '[Maybe]
+retry = handler runMaybeT retryAlg
 

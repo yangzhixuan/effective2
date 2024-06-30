@@ -57,7 +57,7 @@ handleIO
   . ( Append ieffs (xeffs :\\ ieffs)
     , Injects oeffs xeffs
     , Injects (xeffs :\\ ieffs) xeffs
-    , Rercompose fs
+    , Functors fs
     , MonadTrans (HComps ts)
     , xeffs ~ '[GetLine, PutStrLn, GetCPUTime] )
   => Handler ieffs oeffs ts fs
