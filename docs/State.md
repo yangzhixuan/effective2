@@ -9,12 +9,15 @@ import Hedgehog
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
 
+import Control.Family.Algebraic
 import Control.Effect
 import Control.Effect.State
 import Control.Effect.Maybe
 import Control.Monad (replicateM_)
 import Control.Monad.Trans.State (StateT)
 import Control.Monad.Trans.Maybe
+
+import Control.Effect.Reader
 
 incr :: Prog' '[Get Int, Put Int] ()
 incr = do
@@ -49,7 +52,7 @@ globalState
                    '[]
                    '[MaybeT, (StateT s)]
                    '[Maybe, (,) s]
-globalState s = fuse except (state s)
+globalState s = except `fuse` state s
 
 -- This is global state because the `Int` is decremented
 -- twice before the exception is thrown.
@@ -64,7 +67,7 @@ localState
                    '[]
                    '[StateT s, MaybeT]
                    '[((,) s), Maybe]
-localState s = fuse (state s) except
+localState s = state s `fuse` except
 
 -- With local state, the state is reset to its value
 -- before the catch where the exception was raised.
@@ -124,6 +127,24 @@ example_Retry1 = property $
   ===
     (42,Just ())
 
+getAsk :: Prog' '[Get Int, Local Int, Ask Int] (Int, Int)
+getAsk = local (+ (100 :: Int)) (do x <- get ; y <- ask ; return (x , y) )
+
+getToAsk :: Handler '[Get Int] '[Ask Int] '[] '[]
+getToAsk= interpret $
+    \(Eff (Alg (Get k))) -> do x <- ask @Int
+                               return (k x)
+
+example_getAsk1 :: Property
+example_getAsk1 = property $
+  handle (getToAsk `fuse` readerT (0 :: Int)) getAsk === (100, 100)
+
+example_getAsk2 :: Property
+example_getAsk2 = property $
+  handle (readerT (0 :: Int) `fuse` getToAsk `fuse` readerT (200 :: Int)) getAsk === (200, 100)
+
 examples :: Group
 examples = $$(discoverPrefix "example_")
+
+
 ```haskell
