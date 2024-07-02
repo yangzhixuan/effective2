@@ -137,11 +137,11 @@ getToAsk= interpret $
 
 example_getAsk1 :: Property
 example_getAsk1 = property $
-  handle (getToAsk `fuse` readerT (0 :: Int)) getAsk === (100, 100)
+  handle (getToAsk `fuse` reader (0 :: Int)) getAsk === (100, 100)
 
 example_getAsk2 :: Property
 example_getAsk2 = property $
-  handle (readerT (0 :: Int) `fuse` getToAsk `fuse` readerT (200 :: Int)) getAsk === (200, 100)
+  handle (reader (0 :: Int) `fuse` getToAsk `fuse` reader (200 :: Int)) getAsk === (200, 100)
 
 examples :: Group
 examples = $$(discoverPrefix "example_")
