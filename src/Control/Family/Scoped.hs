@@ -53,60 +53,23 @@ instance (Functor f, ForwardT effs MaybeT) =>
     fwdT alg (Eff (Scp op)) = HCompose (MaybeT (alg (Eff (Scp (fmap (runMaybeT . getHCompose) op)))))
     fwdT alg (Effs ops)     = fwdT (alg . Effs) ops
 
-instance (Functor f, Forward effs IdentityT) =>
-  Forward (Scp f : effs) IdentityT where
-    fwd :: forall m . (Monad m)
-        => Algebra (Scp f : effs) (m)
-        -> Algebra (Scp f : effs) (IdentityT m)
-    fwd alg (Eff (Scp op)) = (IdentityT . alg . Eff . Scp . fmap runIdentityT) op
-    fwd alg (Effs ops)     = fwd (alg . Effs) ops
+instance Family Scp IdentityT where
+  fam alg (Scp op) = (IdentityT . alg . Scp . fmap runIdentityT) op
 
-instance (Functor f, Forward effs (ExceptT e)) =>
-  Forward (Scp f : effs) (ExceptT e) where
-    fwd :: forall m . (Monad m)
-        => Algebra (Scp f : effs) (m)
-        -> Algebra (Scp f : effs) (ExceptT e m)
-    fwd alg (Eff (Scp op)) = (ExceptT . alg . Eff . Scp . fmap runExceptT) op
-    fwd alg (Effs ops)     = fwd (alg . Effs) ops
+instance Family Scp (ExceptT e) where
+  fam alg (Scp op) = (ExceptT . alg . Scp . fmap runExceptT) op
 
-instance (Functor f, Forward effs MaybeT) =>
-  Forward (Scp f : effs) MaybeT where
-    fwd :: forall m . (Monad m)
-        => Algebra (Scp f : effs) (m)
-        -> Algebra (Scp f : effs) (MaybeT m)
-    fwd alg (Eff (Scp op)) = (MaybeT . alg . Eff . Scp . fmap runMaybeT) op
-    fwd alg (Effs ops)     = fwd (alg . Effs) ops
+instance Family Scp MaybeT where
+  fam alg (Scp op) = (MaybeT . alg . Scp . fmap runMaybeT) op
 
-instance (Functor f, Forward effs ListT) =>
-  Forward (Scp f : effs) ListT where
-    fwd :: forall m . (Monad m)
-        => Algebra (Scp f : effs) (m)
-        -> Algebra (Scp f : effs) (ListT m)
-    fwd alg (Eff (Scp op)) = (ListT . alg . Eff . Scp . fmap runListT) op
-    fwd alg (Effs ops)     = fwd (alg . Effs) ops
+instance Family Scp ListT where
+  fam alg (Scp op) = (ListT . alg . Scp . fmap runListT) op
 
-instance (Functor f, Forward effs (StateT s)) =>
-  Forward (Scp f : effs) (StateT s) where
-    fwd :: forall m . (Monad m)
-        => Algebra (Scp f : effs) (m)
-        -> Algebra (Scp f : effs) (StateT s m)
-    fwd alg (Eff (Scp op)) = StateT (\s -> (alg (Eff (Scp (fmap (flip runStateT s) $ op)))))
-    fwd alg (Effs ops)     = fwd (alg . Effs) ops
+instance Family Scp (StateT s) where
+  fam alg (Scp op) = StateT (\s -> (alg (Scp (fmap (flip runStateT s) $ op))))
 
-instance (Functor f, Forward effs (WriterT w)) =>
-  Forward (Scp f : effs) (WriterT w) where
-    fwd :: forall m . (Monad m)
-        => Algebra (Scp f : effs) (m)
-        -> Algebra (Scp f : effs) (WriterT w m)
-    fwd alg (Eff (Scp op)) = WriterT (alg (Eff (Scp (fmap runWriterT op))))
-    fwd alg (Effs ops)     = fwd (alg . Effs) ops
+instance Family Scp (WriterT s) where
+  fam alg (Scp op) = WriterT (alg (Scp (fmap runWriterT op)))
 
-instance (Functor f, Forward effs (ReaderT w)) =>
-  Forward (Scp f : effs) (ReaderT w) where
-    fwd :: forall m . (Monad m)
-        => Algebra (Scp f : effs) (m)
-        -> Algebra (Scp f : effs) (ReaderT w m)
-    fwd alg (Eff (Scp op)) = ReaderT (\r -> alg (Eff (Scp (fmap (flip runReaderT r) op))))
-    fwd alg (Effs ops)     = fwd (alg . Effs) ops
-
-
+instance Family Scp (ReaderT w) where
+  fam alg (Scp op) = ReaderT (\r -> alg (Scp (fmap (flip runReaderT r) op)))

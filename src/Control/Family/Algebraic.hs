@@ -29,9 +29,5 @@ instance (MonadTrans t', ForwardT effs t') => ForwardT (Alg f ': effs) t' where
   fwdT alg (Eff (Alg op)) = HCompose (lift (alg (Eff (Alg op))))
   fwdT alg (Effs ops)     = fwdT (alg . Effs) ops
 
-instance (MonadTrans t', Forward effs t') => Forward (Alg f ': effs) t' where
-  fwd :: forall m . (Monad m)
-      => Algebra (Alg f : effs) (m)
-      -> Algebra (Alg f : effs) (t' m)
-  fwd alg (Eff (Alg op)) = (lift (alg (Eff (Alg op))))
-  fwd alg (Effs ops)     = fwd (alg . Effs) ops
+instance MonadTrans t => Family Alg t where
+  fam alg (Alg op) = lift (alg (Alg op))

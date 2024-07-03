@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE QuantifiedConstraints #-}
 
 module Control.Effect.IO where
 
@@ -8,6 +9,7 @@ import Control.Effect
 import Data.List.Kind
 import Data.Functor.Composes
 import Control.Monad.Trans.Class
+import Control.Family
 
 import Control.Family.Algebraic
 
@@ -29,7 +31,6 @@ data GetCPUTime' k = GetCPUTime (Integer -> k) deriving Functor
 
 getCPUTime :: Members '[GetCPUTime] sig => Prog sig Integer
 getCPUTime = injCall (Alg (GetCPUTime return))
-
 
 algIO :: Effs [GetLine, PutStrLn, GetCPUTime] IO a -> IO a
 algIO eff
@@ -58,7 +59,8 @@ handleIO
     , Injects oeffs xeffs
     , Injects (xeffs :\\ ieffs) xeffs
     , Functors fs
-    , MonadTrans (HComps ts)
+    , Forwards xeffs ts
+    , forall m . Monad m => Monad (HComps ts m)
     , xeffs ~ '[GetLine, PutStrLn, GetCPUTime] )
   => Handler ieffs oeffs ts fs
   -> Prog (ieffs `Union` xeffs) a -> IO (RComposes fs a)

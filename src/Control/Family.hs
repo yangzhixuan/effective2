@@ -1,6 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
+{-# LANGUAGE QuantifiedConstraints #-}
 
 module Control.Family where
 import Control.Monad.Trans.Class
@@ -31,7 +32,7 @@ class Forward effs (t :: (Type -> Type) -> (Type -> Type))  where
       => Algebra effs m
       -> Algebra effs (t m)
 
-instance {-# INCOHERENT #-} Forward '[] t where
+instance Forward '[] t where
   fwd :: forall m . Monad m
       => Algebra '[] (m)
       -> Algebra '[] (t m)
@@ -48,25 +49,37 @@ instance {-# INCOHERENT #-} Forward '[] t where
 -- instance ForwardTs effs IdentityT where
 --   fwdTs alg = alg
 
-instance {-# INCOHERENT #-} Forward effs IdentityT where
-  fwd :: forall m . Monad m
-    => Algebra effs m
-    -> Algebra effs (IdentityT m)
-  fwd alg x = (IdentityT . alg . hmap runIdentityT) x
+-- instance Forward effs IdentityT where
+--   fwd :: forall m . Monad m
+--     => Algebra effs m
+--     -> Algebra effs (IdentityT m)
+--   fwd alg x = (IdentityT . alg . hmap runIdentityT) x
 
-instance {-# INCOHERENT #-}
+instance
   (Forward effs t1, Forward effs t2, MonadTrans t1, MonadTrans t2)
   => Forward effs (HCompose t1 t2) where
    fwd :: forall m . Monad m => Algebra effs m -> Algebra effs (HCompose t1 t2 m)
    fwd alg x = (HCompose . fwd (fwd alg) . hmap getHCompose) x
 
-instance {-# INCOHERENT #-} Forward effs (HComps ('[])) where
-   fwd :: forall m . Monad m => Algebra effs m -> Algebra effs (HComps '[] m)
-   fwd alg = HNil . alg . hmap unHNil
+class Family fam t where
+  fam :: forall m f . (Monad m, Functor f) => (forall x . (fam f) m x -> m x)
+                                           -> (forall x . (fam f) (t m) x -> (t m) x)
 
-instance {-# INCOHERENT #-} (Forward effs t, Forward effs (HComps ts)
-  , MonadTrans t, MonadTrans (HComps ts)) =>
-  Forward effs (HComps (t ': ts)) where
-   fwd :: forall m . Monad m => Algebra effs m -> Algebra effs (HComps (t ': ts) m)
-   fwd alg x = HCons . fwd (fwd alg) . hmap unHCons $ x
+instance (Family fam t, Functor f, Forward effs t) => Forward (fam f ': effs) t where
+  fwd :: forall m . Monad m => Algebra (fam f ': effs) m -> Algebra (fam f ': effs) (t m)
+  fwd alg (Eff op)   = fam @fam @t @m (alg . Eff) op
+  fwd alg (Effs ops) = fwd (alg . Effs) ops
+
+class (forall m . Monad m => Monad (HComps ts m)) => Forwards effs ts where
+  fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (HComps ts m)
+
+instance Forwards effs '[] where
+  fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (HComps '[] m)
+  fwds alg = HNil . alg . hmap unHNil
+
+instance (forall m . Monad m => Monad (t (HComps ts m)), Forward effs t, Forwards effs ts)
+  => Forwards effs (t ': ts) where
+  fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (HComps (t ': ts) m)
+  fwds alg x = HCons . fwd (fwds alg) . hmap unHCons $ x
+
 
