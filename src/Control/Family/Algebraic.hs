@@ -6,10 +6,7 @@ module Control.Family.Algebraic where
 import Data.Kind ( Type )
 import Data.HFunctor
 import Control.Family
-import Control.Effect.Type
 import Control.Monad.Trans.Class
-
-import Data.HFunctor.HCompose
 
 newtype Alg (lsig :: Type -> Type)
             (f :: Type -> Type)
@@ -21,13 +18,6 @@ instance Functor lsig => Functor (Alg lsig f) where
 
 instance Functor lsig => HFunctor (Alg lsig) where
   hmap f (Alg x) = Alg x
-
-instance (MonadTrans t', ForwardT effs t') => ForwardT (Alg f ': effs) t' where
-  fwdT :: forall t m . (Monad m, MonadTrans t)
-      => Algebra (Alg f : effs) (t m)
-      -> Algebra (Alg f : effs) (HCompose t' t m)
-  fwdT alg (Eff (Alg op)) = HCompose (lift (alg (Eff (Alg op))))
-  fwdT alg (Effs ops)     = fwdT (alg . Effs) ops
 
 instance MonadTrans t => Family Alg t where
   fam alg (Alg op) = lift (alg (Alg op))
