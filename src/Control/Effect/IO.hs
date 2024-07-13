@@ -63,5 +63,5 @@ handleIO
     , xeffs ~ '[GetLine, PutStrLn, GetCPUTime] )
   => Handler ieffs oeffs ts fs
   -> Prog (ieffs `Union` xeffs) a -> IO (RComposes fs a)
-handleIO = handleWith algIO
+handleIO = handleM algIO
 

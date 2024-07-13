@@ -28,7 +28,6 @@ library
   exposed-modules:
     Control.Effect
     Control.Effect.Type
-    Control.Effect.Accum
     Control.Effect.Cut
     Control.Effect.Except
     Control.Effect.IO

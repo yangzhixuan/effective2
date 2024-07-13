@@ -693,7 +693,7 @@ ieffs ts fs oeffs`, depending on how their interfaces correspond:
    operations exposed by the program. Any residual effects will have to be
    handled later. In the effective library, a handler's interface can be
    extended using `fuse` and `pipe` with another handler, and residual
-   effects can be dealt with using an algebra as a parameter to `handleWith`.
+   effects can be dealt with using an algebra as a parameter to `handleM`.
 
 When there is transition between program and handler, there may be a difference
 in the orders of the effects presented in the signatures. The philosophy of 

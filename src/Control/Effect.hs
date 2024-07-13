@@ -14,7 +14,8 @@ module Control.Effect
   , Members(..)
   , handle
   , handler
-  , handleWith
+  , handlerT
+  , handleM
   , Handler (..)
   , Injects (..)
   , injCall
@@ -23,10 +24,11 @@ module Control.Effect
   , interpretM
   , eval
   , fuse
-  , (<&>)
+  , (|>)
   , pipe
   , hide
   , joinAlg
+  , identity
   ) where
 import Control.Effect.Type
 
@@ -365,7 +367,7 @@ fuse (Handler run1 malg1)  (Handler run2 malg2) = Handler run malg where
         (fwds @effs2 @ts1 (malg2 (oalg . injs)))
     . hmap (hexpose @ts1)
 
-(<&>)
+(|>)
   :: forall effs1 effs2 oeffs1 oeffs2 ts1 ts2 fs1 fs2 effs oeffs ts fs
   . ( effs  ~ effs1 `Union` effs2
     , oeffs ~ (oeffs1 :\\ effs2) `Union` oeffs2
@@ -387,7 +389,7 @@ fuse (Handler run1 malg1)  (Handler run2 malg2) = Handler run malg where
   => Handler effs1 oeffs1 ts1 fs1
   -> Handler effs2 oeffs2 ts2 fs2
   -> Handler effs  oeffs  ts  fs
-(<&>) = fuse
+(|>) = fuse
 
 pipe
   :: forall effs1 effs2 oeffs1 oeffs2 ts1 ts2 fs1 fs2 effs oeffs ts fs
@@ -448,8 +450,8 @@ pipe (Handler run1 malg1)  (Handler run2 malg2) = Handler run malg where
 -- pass h = fuse h (forward @sig)
 --      (\alg  -> IdentityT . alg . hmap runIdentityT)
 
-idHandler :: Handler '[] '[] '[] '[]
-idHandler = Handler run malg where
+identity :: Handler '[] '[] '[] '[]
+identity = Handler run malg where
 
   run :: Functor m => Algebra '[] m -> (forall x. HComps '[] m x -> m (RComps '[] x))
   run _ (HNil x) = fmap RCNil x
@@ -468,7 +470,7 @@ handle (Handler run malg)
   . run @Identity (absurdEffs . injs)
   . eval (malg (absurdEffs . injs))
 
-handleWith :: forall ieffs oeffs xeffs m ts fs a .
+handleM :: forall ieffs oeffs xeffs m ts fs a .
   ( Monad m
   , forall m . Monad m => Monad (HComps ts m)
   , Functors fs
@@ -480,7 +482,7 @@ handleWith :: forall ieffs oeffs xeffs m ts fs a .
   => (forall x. Effs xeffs m x -> m x)
   -> Handler ieffs oeffs ts fs
   -> Prog (ieffs `Union` xeffs) a -> m (RComposes fs a)
-handleWith xalg (Handler run malg)
+handleM xalg (Handler run malg)
   = fmap @m (rercompose @fs @a)
   . run @m (xalg . injs)
   . eval (hunion @ieffs @xeffs (malg (xalg . injs)) (fwds xalg))
