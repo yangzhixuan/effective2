@@ -42,7 +42,6 @@ import Data.HFunctor.HComposes
 import Control.Family
 
 import Control.Monad ( join, ap, liftM )
-import Control.Monad.Trans.Class
 
 joinAlg :: forall sig1 sig2 oeff t m .
   ( Monad m, Append sig1 sig2 )
@@ -56,7 +55,7 @@ joinAlg falg galg oalg =
   heither @sig1 @sig2 (falg oalg) (galg oalg)
 
 ---------------------------------------
-type Prog' sig a = forall sig' . Members sig sig' => Prog sig' a
+type Progs sig a = forall sig' . Members sig sig' => Prog sig' a
 data Prog (sigs :: [Effect]) a where
   Return :: a -> Prog sigs a
   Call   :: (Effs sigs) (Prog sigs) (Prog sigs a) -> Prog sigs a

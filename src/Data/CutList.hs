@@ -6,7 +6,6 @@ module Data.CutList where
 import Control.Applicative ( Alternative((<|>), empty) )
 import Control.Monad ( ap, liftM )
 import Control.Monad.Trans.Class ( MonadTrans(..) )
-import Control.Effect
 import Control.Family
 import Control.Family.Scoped
 

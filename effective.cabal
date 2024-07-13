@@ -28,6 +28,7 @@ library
   exposed-modules:
     Control.Effect
     Control.Effect.Type
+    Control.Effect.Accum
     Control.Effect.Cut
     Control.Effect.Except
     Control.Effect.IO
@@ -39,6 +40,7 @@ library
     Control.Family
     Control.Family.Algebraic
     Control.Family.Scoped
+    Control.Family.Parallel
     Control.Monad.Graded
     Control.Monad.Trans.List
     Data.Functor.Composes

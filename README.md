@@ -25,7 +25,7 @@ simple program that will continue to echo the input obtained by `getLine` is
 output to the terminal using `putStrLn` until a blank line is received by
 `getLine`:
 ```haskell
-echo :: Prog' [GetLine, PutStrLn] ()
+echo :: Progs [GetLine, PutStrLn] ()
 echo = do str <- getLine
           case str of
             [] -> return ()
@@ -57,7 +57,7 @@ in a signature.
 For example, here is a program that increments the number in a state
 and returns it:
 ```haskell
-incr :: Prog' [Put Int, Get Int] ()
+incr :: Progs [Put Int, Get Int] ()
 incr = do x <- get
           put @Int (x + 1)
 ```
@@ -94,7 +94,7 @@ The type of the `state` handler promises to handle both `Put s` and `Get s`
 operations, and so it is able to work with programs that use both, or
 either one of these. Here is a program that only uses `Get String`:
 ```haskell
-getStringLength :: Prog' '[Get String] Int
+getStringLength :: Progs '[Get String] Int
 getStringLength = do xs <- get @String
                      return (length xs)
 ```
@@ -144,7 +144,7 @@ when the `echo` program is executed. One approach is to change the `echo`
 program, and write something like `echoTick`, where an `incr` has been added
 after each `getLine`:
 ```haskell
-echoTick :: Prog' '[GetLine, Get Int, Put Int, PutStrLn] ()
+echoTick :: Progs '[GetLine, Get Int, Put Int, PutStrLn] ()
 echoTick =
   do str <- getLine
      incr
@@ -239,7 +239,7 @@ Another issue is trying to test the behaviour of a program that demands input
 from the terminal. For instance, suppose the task is to get a line and return
 its length. This is achieved by the `getLineLength` program:
 ```haskell
-getLineLength :: Prog' '[GetLine] Int
+getLineLength :: Progs '[GetLine] Int
 getLineLength = do xs <- getLine
                    return (length xs)
 ```
@@ -330,7 +330,7 @@ Outputting pure values is managed by the `writer` handler, in combination
 with the `tell` operation:
 ```haskell ignore
 writer :: Monoid w => Handler '[Tell w] '[] '[(,) w]
-tell   :: Monoid w => w -> Prog' '[Tell w] ()
+tell   :: Monoid w => w -> Progs '[Tell w] ()
 ```
 The signatures tell us that `tell` introduces the `Tell` effect, and
 `writer` handles this effect.
@@ -459,7 +459,7 @@ particular points of the program, to help
 [Mr Hoppy](https://en.wikipedia.org/wiki/Esio_Trot) to tell a tortoise
 called Alfie to get bigger:
 ```haskell
-hoppy :: Prog' '[Tell [String], Censor [String]] ()
+hoppy :: Progs '[Tell [String], Censor [String]] ()
 hoppy = do tell ["Hello Alfie!"]
            censor @[String] backwards $
              do tell ["tortoise"]
@@ -564,7 +564,7 @@ prop_rePutStrLn = property $ do
 A more localized approach is to use the `censor` operation so
 that a censored echo can be used:
 ```haskell
-shoutEcho :: Prog' [Censor [String], GetLine, PutStrLn] ()
+shoutEcho :: Progs [Censor [String], GetLine, PutStrLn] ()
 shoutEcho = censor shout echo
 ```
 The censoring in this program cannot be handled with the `censors` handler by
@@ -599,7 +599,7 @@ of `tell` and `putStrLn` operations.
 For example, here is a program that uses `tell` to log the fact
 that the shouty echo program is being entered before doing so:
 ```haskell
-logShoutEcho :: Prog' '[PutStrLn, GetLine, Censor [String], Tell [String]] ()
+logShoutEcho :: Progs '[PutStrLn, GetLine, Censor [String], Tell [String]] ()
 logShoutEcho = do tell ["Entering shouty echo"]
                   shoutEcho
 ```
@@ -654,7 +654,7 @@ is logged can be recorded. The traditional way of doing this might be to make
 a bespoke `logger` that ensures that there is a timestamp integrated into each
 occurence of the log:
 ```haskell
-logger :: String -> Prog' [Tell [(Integer, String)], GetCPUTime] ()
+logger :: String -> Progs [Tell [(Integer, String)], GetCPUTime] ()
 logger str = do time <- getCPUTime
                 tell [(time, str)]
 ```

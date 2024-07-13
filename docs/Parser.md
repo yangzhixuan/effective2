@@ -15,7 +15,7 @@ import Control.Effect.Cut
 import Control.Effect.Nondet
 import Control.Effect.State
 
-char :: Prog' '[Get [Char], Put [Char], Stop, Or] Char
+char :: Progs '[Get [Char], Put [Char], Stop, Or] Char
 char = do
   xxs <- get
   case xxs of

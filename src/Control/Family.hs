@@ -57,3 +57,4 @@ instance (forall m . Monad m => Monad (t (HComps ts m)), ForwardEffs effs t, For
   => Forwards effs (t ': ts) where
   fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (HComps (t ': ts) m)
   fwds alg x = HCons . fwdEffs (fwds alg) . hmap unHCons $ x
+

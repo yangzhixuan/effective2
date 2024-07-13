@@ -8,7 +8,6 @@ import qualified System.CPUTime
 import Control.Effect
 import Data.List.Kind
 import Data.Functor.Composes
-import Control.Monad.Trans.Class
 import Control.Family
 
 import Control.Family.Algebraic

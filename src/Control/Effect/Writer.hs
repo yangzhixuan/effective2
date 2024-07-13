@@ -18,7 +18,7 @@ data Tell' w k where
   Tell :: w -> k -> Tell' w k
   deriving Functor
 
-tell :: (Monoid w) => w -> Prog' '[Tell w] ()
+tell :: (Monoid w) => w -> Progs '[Tell w] ()
 tell w = (Call . inj) (Alg (Tell w (return ())))
 
 writerAlg

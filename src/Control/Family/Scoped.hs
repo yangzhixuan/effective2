@@ -8,7 +8,7 @@ import Data.HFunctor
 import Control.Family
 import Control.Monad.Trans.Identity
 
-import Control.Monad.Trans.Except
+import Control.Monad.Trans.Except 
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.List
 import Control.Monad.Trans.State.Lazy
@@ -31,6 +31,9 @@ instance Family Scp IdentityT where
 
 instance Family Scp (ExceptT e) where
   fam alg (Scp op) = (ExceptT . alg . Scp . fmap runExceptT) op
+
+instance Functor f => Forward (Scp f) (ExceptT e) where
+  fwd alg (Scp op) = (ExceptT . alg . Scp . fmap runExceptT) op
 
 instance Family Scp MaybeT where
   fam alg (Scp op) = (MaybeT . alg . Scp . fmap runMaybeT) op
