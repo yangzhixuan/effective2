@@ -9,7 +9,7 @@
 module Control.Effect
   ( module Control.Effect.Type
   , Prog(..)
-  , Prog'
+  , Progs
   , Member(..)
   , Members(..)
   , handle
