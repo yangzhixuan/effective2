@@ -19,10 +19,11 @@ import Control.Family.Algebraic
 import Control.Family.Scoped
 
 
-
+{-# INLINE stop #-}
 stop :: Members '[Empty] sig => Prog sig a
 stop  = injCall (Alg Empty)
 
+{-# INLINE or #-}
 or :: Members '[Choose] sig => Prog sig a -> Prog sig a -> Prog sig a
 or x y = injCall (Alg (Choose x y))
 
@@ -40,7 +41,7 @@ alternativeAlg
   => (Algebra oeffs m)
   -> (Algebra [Empty , Choose] (t m))
 alternativeAlg oalg eff
-  | Just (Alg Empty)     <- prj eff = empty
+  | Just (Alg Empty)        <- prj eff = empty
   | Just (Alg (Choose x y)) <- prj eff = return x <|> return y
 
 nondet :: Handler [Empty, Choose] '[] '[LogicT] '[[]]

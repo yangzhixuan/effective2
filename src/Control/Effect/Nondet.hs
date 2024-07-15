@@ -36,7 +36,7 @@ alternativeAlg
   => (Algebra oeffs m)
   -> (Algebra [Empty , Choose] (t m))
 alternativeAlg oalg eff
-  | Just (Alg Empty)     <- prj eff = empty
+  | Just (Alg Empty)        <- prj eff = empty
   | Just (Alg (Choose x y)) <- prj eff = return x <|> return y
 
 nondet :: Handler [Empty, Choose] '[] '[ListT] '[[]]

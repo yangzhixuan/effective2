@@ -85,17 +85,23 @@ data Prog (sigs :: [Effect]) a where
         -> Prog sigs a
 
 instance Functor (Prog sigs) where
+  {-# INLINE fmap #-}
   fmap :: (a -> b) -> Prog sigs a -> Prog sigs b
   fmap = liftM
 
 instance Applicative (Prog effs) where
+  {-# INLINE pure #-}
   pure :: a -> Prog effs a
   pure  = Return
 
+  {-# INLINE (<*>) #-}
   (<*>) :: Prog effs (a -> b) -> Prog effs a -> Prog effs b
   (<*>) = ap
 
 instance Monad (Prog effs) where
+  {-# INLINE return #-}
+  return = pure
+
   Return x >>= f = f x
   -- Call op  >>= f = Call (fmap (>>= f) op)
   Call op hk k  >>= f = Call op hk (k >=> f)
@@ -139,10 +145,12 @@ fold falg gen (Return x) = gen x
 fold falg gen (Call op hk k) =
   falg ((fmap (fold falg gen . k) . hmap (fold falg gen . hk)) op)
 
+{-# INLINE injCall #-}
 injCall :: Member sub sup => sub (Prog sup) (Prog sup a) -> Prog sup a
 -- injCall x = Call (inj x)
 injCall x = Call (inj x) id id
 
+{-# INLINE prjCall #-}
 prjCall :: forall sub sup a . Member sub sup => Prog sup a -> Maybe (sub (Prog sup) (Prog sup a))
 -- prjCall (Call op) = prj op
 prjCall (Call op hk k) = prj @sub @sup (hmap hk . fmap k $ op)
@@ -541,6 +549,7 @@ hide
   => Handler effs oeffs ts fs -> Handler (effs :\\ sigs) oeffs ts fs
 hide h = weaken h
 
+{-# INLINE weakenAlg #-}
 weakenAlg
   :: forall eff eff' m x . (Injects eff eff')
   => (Effs eff' m x -> m x)
@@ -555,16 +564,20 @@ class (HFunctor sig, HFunctor (Effs sigs)) => Member' sig sigs (n :: Nat) where
 
 
 instance (HFunctor sig, (sigs' ~ (sig ': sigs))) => Member' sig sigs' Z where
+  {-# INLINE inj' #-}
   inj' :: (HFunctor sig, sigs' ~ (sig : sigs)) => SNat Z -> sig f a -> Effs sigs' f a
   inj' _ = Eff
 
+  {-# INLINE prj' #-}
   prj' :: (HFunctor sig, sigs' ~ (sig : sigs)) => SNat Z -> Effs sigs' f a -> Maybe (sig f a)
   prj' _ (Eff x) = Just x
   prj' _ _        = Nothing
 
 instance (sigs' ~ (sig' ': sigs), HFunctor sig, Member' sig sigs n) => Member' sig sigs' (S n) where
+  {-# INLINE inj' #-}
   inj' _ = Effs . inj' (SNat :: SNat n)
 
+  {-# INLINE prj' #-}
   prj' _ (Eff _)  = Nothing
   prj' _ (Effs x) = prj' (SNat :: SNat n) x
 
@@ -574,7 +587,10 @@ class (Member' sig sigs (ElemIndex sig sigs)) => Member sig sigs where
   prj :: Effs sigs m a -> Maybe (sig m a)
 
 instance (Member' sig sigs (ElemIndex sig sigs)) => Member sig sigs where
+  {-# INLINE inj #-}
   inj = inj' (SNat :: SNat (ElemIndex sig sigs))
+
+  {-# INLINE prj #-}
   prj = prj' (SNat :: SNat (ElemIndex sig sigs))
 
 type family Members (xs :: [Effect]) (xys :: [Effect]) :: Constraint where
@@ -589,10 +605,13 @@ class Injects xs xys where
   injs :: Effs xs f a -> Effs xys f a
 
 instance Injects '[] xys where
+  {-# INLINE injs #-}
   injs :: Effs '[] f a -> Effs xys f a
   injs = absurdEffs
+
 instance (Member x xys, Injects xs xys)
   => Injects (x ': xs) xys where
+  {-# INLINE injs #-}
   injs (Eff x)  = inj x
   injs (Effs x) = injs x
 
@@ -620,8 +639,10 @@ hunion xalg yalg = heither @xs @(ys :\\ xs) xalg (yalg . injs)
 --                             (mfwd @(Prog (oeffs :++ sig)) (Call . injs . fmap return)))
 
 instance (Members '[Choose, Empty] sig) => Alternative (Prog sig) where
+  {-# INLINE empty #-}
   empty :: Members [Choose, Empty] sig => Prog sig a
   empty = injCall (Alg Empty)
 
+  {-# INLINE (<|>) #-}
   (<|>) :: Members [Choose, Empty] sig => Prog sig a -> Prog sig a -> Prog sig a
   x <|> y = injCall (Alg (Choose x y))
