@@ -7,7 +7,7 @@ import Control.Monad.Trans.Identity
 import Control.Monad.Trans.Reader
 import Control.Monad.Trans.Writer
 import Control.Monad.Trans.Except
-import Control.Monad.Trans.State.Lazy
+import Control.Monad.Trans.State.Strict
 
 import Data.Kind ( Type )
 

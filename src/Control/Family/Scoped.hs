@@ -8,10 +8,10 @@ import Data.HFunctor
 import Control.Family
 import Control.Monad.Trans.Identity
 
-import Control.Monad.Trans.Except 
+import Control.Monad.Trans.Except
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.List
-import Control.Monad.Trans.State.Lazy
+import Control.Monad.Trans.State.Strict
 import Control.Monad.Trans.Writer
 import Control.Monad.Trans.Reader
 

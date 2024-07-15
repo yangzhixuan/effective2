@@ -7,7 +7,8 @@ import Data.Tuple (swap)
 
 import Control.Effect
 import Control.Family.Algebraic
-import qualified Control.Monad.Trans.State.Lazy as S
+-- import qualified Control.Monad.Trans.State.Lazy as S
+import qualified Control.Monad.Trans.State.Strict as S
 
 type Put s = Alg (Put' s)
 data Put' s k where
