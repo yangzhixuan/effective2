@@ -18,6 +18,8 @@ module Control.Effect
   , handleM
   , Handler (..)
   , Injects (..)
+  , prj
+  , inj
   , injCall
   , progAlg
   , interpret
@@ -37,6 +39,8 @@ import Control.Effect.Type
 import Control.Effect.Alternative.Internal
 import Control.Applicative
 
+import Data.Proxy
+
 import Control.Family.Algebraic
 
 import Data.Kind ( Constraint )
@@ -50,8 +54,9 @@ import Data.HFunctor
 import Data.HFunctor.HComposes
 import Control.Family
 
-import Control.Monad ( join, ap, liftM, (>=>))
+import Control.Monad ( join, (>=>))
 
+{-# INLINE joinAlg #-}
 joinAlg :: forall sig1 sig2 oeff t m .
   ( Monad m, Append sig1 sig2 )
   => ((forall x . Effs oeff m x -> m x) ->
@@ -63,6 +68,7 @@ joinAlg :: forall sig1 sig2 oeff t m .
 joinAlg falg galg oalg =
   heither @sig1 @sig2 (falg oalg) (galg oalg)
 
+{-# INLINE (#) #-}
 (#) :: forall sig1 sig2 m .
   (Monad m, Append sig1 sig2 )
   => (Algebra sig1 m)
@@ -87,7 +93,8 @@ data Prog (sigs :: [Effect]) a where
 instance Functor (Prog sigs) where
   {-# INLINE fmap #-}
   fmap :: (a -> b) -> Prog sigs a -> Prog sigs b
-  fmap = liftM
+  fmap f (Return x)     = Return (f x)
+  fmap f (Call op hk k) = Call op hk (fmap f . k)
 
 instance Applicative (Prog effs) where
   {-# INLINE pure #-}
@@ -96,14 +103,27 @@ instance Applicative (Prog effs) where
 
   {-# INLINE (<*>) #-}
   (<*>) :: Prog effs (a -> b) -> Prog effs a -> Prog effs b
-  (<*>) = ap
+  Return f        <*> p         = fmap f p
+  p               <*> Return x  = fmap ($ x) p
+  Call opf hkf kf <*> q         = Call opf hkf ((<*> q) . kf)
+
+  {-# INLINE (*>) #-}
+  (*>) :: Prog effs a -> Prog effs b -> Prog effs b
+  (*>) = liftA2 (const id)
+
+
+  {-# INLINE liftA2 #-}
+  liftA2 :: (a -> b -> c) -> Prog effs a -> Prog effs b -> Prog effs c
+  liftA2 f (Return x) q        = fmap (f x) q
+  liftA2 f p (Return y)        = fmap (flip f y) p
+  liftA2 f (Call opx hkx kx) q = Call opx hkx ((flip (liftA2 f) q) . kx)
 
 instance Monad (Prog effs) where
   {-# INLINE return #-}
   return = pure
 
+  {-# INLINE (>>=) #-}
   Return x >>= f = f x
-  -- Call op  >>= f = Call (fmap (>>= f) op)
   Call op hk k  >>= f = Call op hk (k >=> f)
 
 weakenProg :: forall effs effs' a
@@ -559,39 +579,49 @@ weakenAlg alg = alg . injs
 
 
 class (HFunctor sig, HFunctor (Effs sigs)) => Member' sig sigs (n :: Nat) where
-  inj' :: SNat n -> sig f a -> Effs sigs f a
-  prj' :: SNat n -> Effs sigs f a -> Maybe (sig f a)
+  inj' :: Proxy n -> sig f a -> Effs sigs f a
+  prj' :: Proxy n -> Effs sigs f a -> Maybe (sig f a)
 
 
 instance (HFunctor sig, (sigs' ~ (sig ': sigs))) => Member' sig sigs' Z where
   {-# INLINE inj' #-}
-  inj' :: (HFunctor sig, sigs' ~ (sig : sigs)) => SNat Z -> sig f a -> Effs sigs' f a
+  inj' :: (HFunctor sig, sigs' ~ (sig : sigs)) => Proxy Z -> sig f a -> Effs sigs' f a
   inj' _ = Eff
 
   {-# INLINE prj' #-}
-  prj' :: (HFunctor sig, sigs' ~ (sig : sigs)) => SNat Z -> Effs sigs' f a -> Maybe (sig f a)
+  prj' :: (HFunctor sig, sigs' ~ (sig : sigs)) => Proxy Z -> Effs sigs' f a -> Maybe (sig f a)
   prj' _ (Eff x) = Just x
   prj' _ _        = Nothing
 
 instance (sigs' ~ (sig' ': sigs), HFunctor sig, Member' sig sigs n) => Member' sig sigs' (S n) where
   {-# INLINE inj' #-}
-  inj' _ = Effs . inj' (SNat :: SNat n)
+  inj' _ = Effs . inj' (Proxy :: Proxy n)
 
   {-# INLINE prj' #-}
   prj' _ (Eff _)  = Nothing
-  prj' _ (Effs x) = prj' (SNat :: SNat n) x
+  prj' _ (Effs x) = prj' (Proxy :: Proxy n) x
 
 type Member :: Effect -> [Effect] -> Constraint
-class (Member' sig sigs (ElemIndex sig sigs)) => Member sig sigs where
-  inj :: sig f a -> Effs sigs f a
-  prj :: Effs sigs m a -> Maybe (sig m a)
+type Member sig sigs = Member' sig sigs (ElemIndex sig sigs)
 
-instance (Member' sig sigs (ElemIndex sig sigs)) => Member sig sigs where
-  {-# INLINE inj #-}
-  inj = inj' (SNat :: SNat (ElemIndex sig sigs))
+{-# INLINE inj #-}
+inj :: forall sig sigs f a . Member sig sigs => sig f a -> Effs sigs f a
+inj = inj' (Proxy :: Proxy (ElemIndex sig sigs))
 
-  {-# INLINE prj #-}
-  prj = prj' (SNat :: SNat (ElemIndex sig sigs))
+{-# INLINE prj #-}
+prj :: forall sig sigs m a . Member sig sigs => Effs sigs m a -> Maybe (sig m a)
+prj = prj' (Proxy :: Proxy (ElemIndex sig sigs))
+
+-- class (Member' sig sigs (ElemIndex sig sigs)) => Member sig sigs where
+--   inj :: sig f a -> Effs sigs f a
+--   prj :: Effs sigs m a -> Maybe (sig m a)
+-- 
+-- instance (Member' sig sigs (ElemIndex sig sigs)) => Member sig sigs where
+--   {-# INLINE inj #-}
+--   inj = inj' (Proxy :: Proxy (ElemIndex sig sigs))
+-- 
+--   {-# INLINE prj #-}
+--   prj = prj' (Proxy :: Proxy (ElemIndex sig sigs))
 
 type family Members (xs :: [Effect]) (xys :: [Effect]) :: Constraint where
   Members '[] xys       = ()

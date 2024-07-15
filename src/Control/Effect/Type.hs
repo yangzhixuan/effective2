@@ -29,11 +29,6 @@ instance HFunctor (Effs sigs) where
   hmap h (Eff x)  = Eff (hmap h x)
   hmap h (Effs x) = Effs (hmap h x)
 
-
-type SNat :: Nat -> Type
-data SNat n = SNat
--- injecting/projecting at a specified position SNat n
-
 absurdEffs :: Effs '[] f x -> a
 absurdEffs x = case x of {}
 
