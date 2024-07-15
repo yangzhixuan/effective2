@@ -16,15 +16,17 @@ data Put' s k where
   deriving Functor
 
 type Get s = Alg (Get' s)
-data Get' s k where
+newtype Get' s k where
   Get :: (s -> k) -> Get' s k
   deriving Functor
 
 type State s = '[Put s, Get s]
 
+{-# INLINE put #-}
 put :: Member (Put s) sig => s -> Prog sig ()
 put s = injCall (Alg (Put s (return ())))
 
+{-# INLINE get #-}
 get :: Member (Get s) sig => Prog sig s
 get = injCall (Alg (Get return))
 

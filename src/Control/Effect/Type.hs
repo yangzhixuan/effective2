@@ -8,7 +8,6 @@ module Control.Effect.Type where
 import Data.Kind ( Type, Constraint )
 import Data.HFunctor
 import Data.List.Kind
-import Data.Nat
 
 type Signature = Type -> Type
 type Effect = (Type -> Type) -> (Type -> Type)
