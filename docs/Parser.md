@@ -15,7 +15,7 @@ import Control.Effect.Cut
 import Control.Effect.Nondet
 import Control.Effect.State
 
-char :: Progs '[Get [Char], Put [Char], Stop, Or] Char
+char :: Progs '[Get [Char], Put [Char], Empty, Choose] Char
 char = do
   xxs <- get
   case xxs of
@@ -23,17 +23,17 @@ char = do
     (x:xs) -> do put xs
                  return x
 
-symbol :: Members [Get [Char], Put [Char], Stop, Or] sig => Char -> Prog sig Char
+symbol :: Members [Get [Char], Put [Char], Empty, Choose] sig => Char -> Prog sig Char
 symbol c = do
   c' <- char
   if c == c'
     then return c
     else stop
 
-digit :: Members [Get [Char], Put [Char], Stop, Or] sig => Prog sig Char
+digit :: Members [Get [Char], Put [Char], Empty, Choose] sig => Prog sig Char
 digit = foldr (<|>) stop (fmap symbol ['0' .. '9'])
 
-int, expr, term, fact :: Members [Get [Char], Put [Char], Stop, Or] sig => Prog sig Int
+int, expr, term, fact :: Members [Get [Char], Put [Char], Empty, Choose] sig => Prog sig Int
 int  = do ds <- some digit ; return (read ds)
 expr = or (do i <- term ; symbol '+' ; j <- expr ; return (i + j))
           (do i <- term ; return i)
@@ -45,8 +45,8 @@ fact = or (int)
 -- int', expr', term', fact' :: forall sig .
 --   ( Member ((Get [Char])) sig
 --   , Member ((Put [Char])) sig
---   , Member (Stop) sig
---   , Member (Or) sig)
+--   , Member (Empty) sig
+--   , Member (Choose) sig)
 --   => Prog sig Int
 --
 -- int'  = read <$> some digit
@@ -57,12 +57,12 @@ fact = or (int)
 
 -- A parser!
 parse
-  :: text -> Prog [Put text, Get text, Stop, Or] a
+  :: text -> Prog [Put text, Get text, Empty, Choose] a
   -> [(text, a)]
 parse cs p = handle (state cs `fuse` nondet) p
 
 parseBacktrack
-  :: text -> Prog [Put text, Get text, Stop, Or, Once] a
+  :: text -> Prog [Put text, Get text, Empty, Choose, Once] a
   -> [(text, a)]
 parseBacktrack cs p = handle (state cs `fuse` backtrack) p
 
@@ -74,7 +74,7 @@ example_Parse1 = property $
 
 -- Not a parser!
 notParse
-  :: String -> Prog [Stop, Or, Put String, Get String] a
+  :: String -> Prog [Empty, Choose, Put String, Get String] a
   -> (String, [a])
 notParse cs p = handle (nondet `fuse` state cs) p
 
@@ -86,7 +86,7 @@ example_NotParse = property $
 
 -- This example demonstrates the use of Cut
 expr', term', fact' :: forall sig .
-  Members [Get [Char], Put [Char], Stop, Or, CutFail, CutCall] sig
+  Members [Get [Char], Put [Char], Empty, Choose, CutFail, CutCall] sig
   => Prog sig Int
 expr' = do i <- term'
            cutCall (or (do symbol '+' ; cut; j <- expr' ; return (i + j))
@@ -98,7 +98,7 @@ fact' = or int
            (do symbol '(' ; i <- expr' ; symbol ')' ; return i)
 --
 -- A different parser!
-parse' :: text -> Prog [Put text, Get text, Once, Stop, Or, CutFail, CutCall] a -> [(text, a)]
+parse' :: text -> Prog [Put text, Get text, Once, Empty, Choose, CutFail, CutCall] a -> [(text, a)]
 parse' cs p  = handle (state cs `fuse` onceNondet) p
 
 example_Parse2 :: Property

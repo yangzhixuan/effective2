@@ -15,7 +15,7 @@ import Control.Monad (guard)
 import Hedgehog
 
 knapsack
-  :: Int -> [Int] -> Progs '[Stop, Or] [Int]
+  :: Int -> [Int] -> Progs '[Empty, Choose] [Int]
 knapsack w vs
   | w <  0    = stop
   | w == 0    = return []
@@ -43,10 +43,10 @@ example_backtrack1 :: Property
 example_backtrack1 = property $ (handle backtrack $ knapsack 3 [3, 2, 1] :: [[Int]])
   === [[3],[2,1],[1,2],[1,1,1]]
 
--- onceEx :: (Member Or sig, Member Once sig) => Prog sig I
+-- onceEx :: (Member Choose sig, Member Once sig) => Prog sig I
 example_backtrack2 :: Property
 example_backtrack2 = property $ handle backtrack p === [1, 2] where
-  p :: Members '[Or, Once] sig => Prog sig Int
+  p :: Members '[Choose, Once] sig => Prog sig Int
   p = do x <- once (or (return 0) (return 5))
          or (return (x + 1)) (return (x + 2))
 -- ghci> exampleOnce
@@ -54,7 +54,7 @@ example_backtrack2 = property $ handle backtrack p === [1, 2] where
 
 example_Once' :: Property
 example_Once' = property $ handle onceNondet p === [1, 2] where
-  p :: Members '[Or, Once] sig => Prog sig Int
+  p :: Members '[Choose, Once] sig => Prog sig Int
   p = do x <- once (or (return 0) (return 5))
          or (return (x + 1)) (return (x + 2))
 -- ghci> exampleOnce'
@@ -62,24 +62,24 @@ example_Once' = property $ handle onceNondet p === [1, 2] where
 
 example_Once'' :: Property
 example_Once'' = property $ handle onceNondet p === [1, 2] where
-  p :: Members '[Or, Once] sig => Prog sig Int
+  p :: Members '[Choose, Once] sig => Prog sig Int
   p = do x <- once (or (return 0) (return 5))
          or (return (x + 1)) (return (x + 2))
 
 example_Once''' :: Property
 example_Once''' = property $ handle onceNondet p === [1, 2] where
-  p :: Members '[Or, Once] sig => Prog sig Int
+  p :: Members '[Choose, Once] sig => Prog sig Int
   p = do x <- once (or (return 0) (return 5))
          or (return (x + 1)) (return (x + 2))
 
 -- queens n = [c_1, c_2, ... , c_n] where
 --   (i, c_i) is the (row, column) of a queen
-queens :: Int -> Progs '[Stop, Or] [Int]
+queens :: Int -> Progs '[Empty, Choose] [Int]
 queens n = go [1 .. n] []
   where
     -- `go cs qs` searches the rows `cs` for queens that do
     -- not threaten the queens in `qs`
-    go :: [Int] -> [Int] -> Progs [Stop, Or] [Int]
+    go :: [Int] -> [Int] -> Progs [Empty, Choose] [Int]
     go [] qs =  return qs
     go cs qs =  do (c, cs') <- selects cs
                    guard (noThreat qs c 1)

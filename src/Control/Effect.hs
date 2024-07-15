@@ -31,7 +31,13 @@ module Control.Effect
   , (#)
   , identity
   ) where
+
+
 import Control.Effect.Type
+import Control.Effect.Alternative.Internal
+import Control.Applicative
+
+import Control.Family.Algebraic
 
 import Data.Kind ( Constraint )
 import Data.Nat
@@ -511,7 +517,7 @@ handleM :: forall ieffs oeffs xeffs m ts fs a .
   , Injects oeffs xeffs
   , Injects (xeffs :\\ ieffs) xeffs
   )
-  => (forall x. Effs xeffs m x -> m x)
+  => Algebra xeffs m
   -> Handler ieffs oeffs ts fs
   -> Prog (ieffs `Union` xeffs) a -> m (RComposes fs a)
 handleM xalg (Handler run malg)
@@ -612,3 +618,10 @@ hunion xalg yalg = heither @xs @(ys :\\ xs) xalg (yalg . injs)
 --   . run (Call . injs . fmap return)
 --   . eval (heither @eff @sig (malg @(Prog (oeffs :++ sig)) (Call . injs . fmap return))
 --                             (mfwd @(Prog (oeffs :++ sig)) (Call . injs . fmap return)))
+
+instance (Members '[Choose, Empty] sig) => Alternative (Prog sig) where
+  empty :: Members [Choose, Empty] sig => Prog sig a
+  empty = injCall (Alg Empty)
+
+  (<|>) :: Members [Choose, Empty] sig => Prog sig a -> Prog sig a -> Prog sig a
+  x <|> y = injCall (Alg (Choose x y))

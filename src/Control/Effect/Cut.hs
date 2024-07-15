@@ -42,7 +42,7 @@ data CutCall' a where
   CutCall :: a -> CutCall' a
   deriving Functor
 
-cut :: (Members [Or, CutFail] sig) => Prog sig ()
+cut :: (Members [Choose, CutFail] sig) => Prog sig ()
 cut = or skip cutFail
 
 cutCall :: Member CutCall sig => Prog sig a -> Prog sig a
@@ -65,17 +65,17 @@ callAlg (CutListT mxs) = CutListT $
 
 cutListAlg
   :: Monad m => (forall x. oeff m x -> m x)
-  -> forall x. Effs [Stop, Or, CutFail, CutCall] (CutListT m) x -> CutListT m x
+  -> forall x. Effs [Empty, Choose, CutFail, CutCall] (CutListT m) x -> CutListT m x
 cutListAlg oalg op
-  | Just (Alg Stop)        <- prj op = empty
-  | Just (Alg (Or x y))    <- prj op = return x <|> return y
+  | Just (Alg Empty)        <- prj op = empty
+  | Just (Alg (Choose x y))    <- prj op = return x <|> return y
   | Just (Alg CutFail)     <- prj op = CutListT (return ZeroT)
   | Just (Scp (CutCall x)) <- prj op = callAlg x
 
--- cutList :: Handler [Stop, Or, CutFail, CutCall] '[] '[[]]
+-- cutList :: Handler [Empty, Choose, CutFail, CutCall] '[] '[[]]
 -- cutList = handler fromCutListT' cutListAlg
 
-cutList :: Handler [Stop, Or, CutFail, CutCall] '[] '[CutListT] '[[]]
+cutList :: Handler [Empty, Choose, CutFail, CutCall] '[] '[CutListT] '[[]]
 cutList = handler fromCutListT' cutListAlg
 
 
@@ -89,10 +89,10 @@ instance HFunctor CutListT' where
   hmap _ NilT       = NilT
   hmap h (x :<< xs) = x :<< fmap (hmap h) (h xs)
 
-onceCut :: Handler '[Once] '[CutCall, CutFail, Or] '[] '[]
+onceCut :: Handler '[Once] '[CutCall, CutFail, Choose] '[] '[]
 onceCut = interpretM onceCutAlg
 
-onceCutAlg :: forall oeff m . (Monad m , Members [CutCall, CutFail, Or] oeff)
+onceCutAlg :: forall oeff m . (Monad m , Members [CutCall, CutFail, Choose] oeff)
   => (forall x. Effs oeff m x -> m x)
   -> (forall x. Effs '[Once] m x -> m x)
 onceCutAlg oalg op
@@ -101,6 +101,6 @@ onceCutAlg oalg op
                       eval oalg (do cut
                                     return x))
 
-onceNondet :: Handler '[Once, Stop, Or, CutFail, CutCall] '[] ('[CutListT]) '[[]]
+onceNondet :: Handler '[Once, Empty, Choose, CutFail, CutCall] '[] ('[CutListT]) '[[]]
 onceNondet = fuse onceCut cutList
 

@@ -2,26 +2,30 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Control.Effect.Nondet
-  ( module Control.Effect.Nondet
+module Control.Effect.Logic
+  ( module Control.Effect.Logic
   , module Control.Effect.Alternative.Internal) where
+
 
 import Prelude hiding (or)
 
-import Control.Effect.Alternative.Internal
 import Control.Effect
 import Control.Applicative ( Alternative(empty, (<|>)) )
 import Control.Monad.Trans.Class ( MonadTrans(..) )
-import Control.Monad.Trans.List
+import Control.Monad.Logic
+import Control.Effect.Alternative.Internal
 
 import Control.Family.Algebraic
 import Control.Family.Scoped
+
+
 
 stop :: Members '[Empty] sig => Prog sig a
 stop  = injCall (Alg Empty)
 
 or :: Members '[Choose] sig => Prog sig a -> Prog sig a -> Prog sig a
 or x y = injCall (Alg (Choose x y))
+
 
 select :: Members [Choose, Empty] sig => [a] -> Prog sig a
 select = foldr (or . return) stop
@@ -39,8 +43,9 @@ alternativeAlg oalg eff
   | Just (Alg Empty)     <- prj eff = empty
   | Just (Alg (Choose x y)) <- prj eff = return x <|> return y
 
-nondet :: Handler [Empty, Choose] '[] '[ListT] '[[]]
-nondet = handler runListT' alternativeAlg
+nondet :: Handler [Empty, Choose] '[] '[LogicT] '[[]]
+-- nondet = handler (\x -> runLogicT x (:) []) alternativeAlg
+nondet = handler (\x -> runLogicT x (fmap . (:)) (pure [])) alternativeAlg
 
 -- This does not work becuase `Choose` is algebraic, for a greedy approach
 -- it must favour the lhs, but `return x <|> return y` prevents this
@@ -71,34 +76,29 @@ list = eval halg where
 
 backtrackAlg
   :: Monad m => (forall x. oeff m x -> m x)
-  -> (forall x. Effs [Empty, Choose, Once] (ListT m) x -> ListT m x)
+  -> (forall x. Effs [Empty, Choose, Once] (LogicT m) x -> LogicT m x)
 backtrackAlg oalg op
   | Just (Alg Empty)     <- prj op = empty
   | Just (Alg (Choose x y)) <- prj op = return x <|> return y
   | Just (Scp (Once p)) <- prj op =
-    ListT $ do mx <- runListT p
-               case mx of
-                 Nothing       -> return Nothing
-                 Just (x, mxs) -> return (Just (x, empty))
+    LogicT $ \cons nil -> runLogicT p (\x xs -> cons x nil) nil
 
 
 backtrackOnceAlg
   :: Monad m
   => (forall x . oeff m x -> m x)
-  -> (forall x . Effs '[Once] (ListT m) x -> ListT m x)
+  -> (forall x . Effs '[Once] (LogicT m) x -> LogicT m x)
 backtrackOnceAlg oalg op
   | Just (Scp (Once p)) <- prj op =
-    ListT $ do mx <- runListT p
-               case mx of
-                 Nothing       -> return Nothing
-                 Just (x, mxs) -> return (Just (x, empty))
+    LogicT $ \cons nil -> runLogicT p (\x xs -> cons x nil) nil
 
 backtrackAlg'
   :: Monad m => (forall x. Effs oeff m x -> m x)
-  -> (forall x. Effs [Empty, Choose, Once] (ListT m) x -> ListT m x)
+  -> (forall x. Effs [Empty, Choose, Once] (LogicT m) x -> LogicT m x)
 backtrackAlg' = joinAlg alternativeAlg backtrackOnceAlg
 -- TODO: The alternative with monad transformers is painful.
 -- TODO: this becomes interesting when different search strategies are used
 
-backtrack :: Handler [Empty, Choose, Once] '[] '[ListT] '[[]]
-backtrack = handler runListT' backtrackAlg'
+backtrack :: Handler [Empty, Choose, Once] '[] '[LogicT] '[[]]
+backtrack = handler (\x -> runLogicT x (fmap . (:)) (pure [])) backtrackAlg'
+

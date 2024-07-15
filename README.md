@@ -747,7 +747,7 @@ import Control.Family.Algebraic
 import Control.Family.Scoped
 import Data.HFunctor.HCompose
 import Control.Monad.Trans.Identity
-import Control.Monad.Trans.State (StateT)
+import Control.Monad.Trans.State.Strict (StateT)
 import Control.Monad.Trans.Reader (ReaderT)
 import Control.Monad.Trans.Writer (WriterT)
 

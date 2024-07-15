@@ -27,10 +27,12 @@ library
   ghc-options:   -Wunused-foralls -Wunused-imports -fprint-potential-instances
   exposed-modules:
     Control.Effect
+    Control.Effect.Alternative.Internal
     Control.Effect.Type
     Control.Effect.Cut
     Control.Effect.Except
     Control.Effect.IO
+    Control.Effect.Logic
     Control.Effect.Maybe
     Control.Effect.Nondet
     Control.Effect.Reader
@@ -53,6 +55,7 @@ library
     src
   build-depends:
     base, transformers, ghc,
+    logict,
     containers,
 
 test-suite docs
