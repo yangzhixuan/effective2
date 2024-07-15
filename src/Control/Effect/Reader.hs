@@ -16,7 +16,7 @@ data Ask' r k where
   deriving Functor
 
 ask :: Member (Ask r) sig => Prog sig r
-ask = (Call . inj) (Alg (Ask return))
+ask = injCall (Alg (Ask return))
 
 asks :: Member (Ask r) sig => (r -> a) -> Prog sig a
 asks f = fmap f ask

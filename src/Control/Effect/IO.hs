@@ -31,7 +31,7 @@ data GetCPUTime' k = GetCPUTime (Integer -> k) deriving Functor
 getCPUTime :: Members '[GetCPUTime] sig => Prog sig Integer
 getCPUTime = injCall (Alg (GetCPUTime return))
 
-algIO :: Effs [GetLine, PutStrLn, GetCPUTime] IO a -> IO a
+algIO :: Algebra [GetLine, PutStrLn, GetCPUTime] IO
 algIO eff
   | Just (Alg (GetLine k))    <- prj eff =
       do str <- Prelude.getLine

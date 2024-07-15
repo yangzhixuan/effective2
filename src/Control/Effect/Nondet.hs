@@ -47,16 +47,21 @@ selects []      =  empty
 selects (x:xs)  =  return (x, xs)  <|>  do  (y, ys) <- selects xs
                                             return (y, x:ys)
 
-nondetAlg
+alternativeAlg
   :: (MonadTrans t, Alternative (t m), Monad m)
   => (Algebra oeffs m)
   -> (Algebra [Stop , Or] (t m))
-nondetAlg oalg eff
+alternativeAlg oalg eff
   | Just (Alg Stop)     <- prj eff = empty
   | Just (Alg (Or x y)) <- prj eff = return x <|> return y
 
 nondet :: Handler [Stop, Or] '[] '[ListT] '[[]]
-nondet = handler runListT' nondetAlg
+nondet = handler runListT' alternativeAlg
+
+-- This does not work becuase `Or` is algebraic, for a greedy approach
+-- it must favour the lhs, but `return x <|> return y` prevents this
+-- greedy :: Handler [Stop, Or] '[] '[MaybeT] '[Maybe]
+-- greedy = handler runMaybeT alternativeAlg
 
 -------------------------------
 -- Example: Backtracking (and Culling?)
@@ -107,7 +112,7 @@ backtrackOnceAlg oalg op
 backtrackAlg'
   :: Monad m => (forall x. Effs oeff m x -> m x)
   -> (forall x. Effs [Stop, Or, Once] (ListT m) x -> ListT m x)
-backtrackAlg' = joinAlg nondetAlg backtrackOnceAlg
+backtrackAlg' = joinAlg alternativeAlg backtrackOnceAlg
 -- TODO: The alternative with monad transformers is painful.
 -- TODO: this becomes interesting when different search strategies are used
 

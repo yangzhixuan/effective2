@@ -22,7 +22,7 @@ data Get' s k where
 type State s = '[Put s, Get s]
 
 put :: Member (Put s) sig => s -> Prog sig ()
-put s = (Call . inj) (Alg (Put s (return ())))
+put s = injCall (Alg (Put s (return ())))
 
 get :: Member (Get s) sig => Prog sig s
 get = injCall (Alg (Get return))

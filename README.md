@@ -430,7 +430,7 @@ retell f = interpret $
 Simply put, every `tell w` is intercepted, and retold as `tell (f w)`. Thus,
 a simple message can be made louder at the flick of a switch:
 ```haskell ignore
-ghci> handle (retell (map toUpper) <&> writer @String) (tell "get bigger!")
+ghci> handle (retell (map toUpper) |> writer @String) (tell "get bigger!")
 ("GET BIGGER!",())
 ```
 The `retell` handler modifies the `tell` operations, and they are then
@@ -474,7 +474,7 @@ shout     = map (map toUpper)
 To evaluate this program, the `censors` handler is created with an initial
 cipher which is `id` so that the messages not under a `censor` are not affected:
 ```haskell ignore
-ghci> handle (censors @[String] id <&> writer) hoppy :: ([String], ())
+ghci> handle (censors @[String] id |> writer) hoppy :: ([String], ())
 (["Hello Alfie!","esiotrot","!REGGIB TEG","Goodbye!"],())
 ```
 Notice how `"get bigger!"` is both reversed and made uppercase because
@@ -483,7 +483,7 @@ the ciphers have been accumulated.
 ```haskell
 prop_esiotrot :: Property
 prop_esiotrot = property $ do
-  handle (censors @[String] id <&> writer) hoppy === (["Hello Alfie!","esiotrot","!REGGIB TEG","Goodbye!"],())
+  handle (censors @[String] id |> writer) hoppy === (["Hello Alfie!","esiotrot","!REGGIB TEG","Goodbye!"],())
 ```
 -->
 
@@ -498,7 +498,7 @@ uncensors :: forall w . Monoid w => Handler '[Censor w] '[] '[] '[]
 This handler removes all censorship from the program. The type promises that no other
 effects are generated, and that the result is pure.
 ```haskell ignore
-ghci> handle (uncensors @[String] <&> writer @[String]) hello
+ghci> handle (uncensors @[String] |> writer @[String]) hello
 (["Hello world!","tortoise","get bigger!","Goodbye!"],())
 ```
 One way to define `uncensors` is to process all `censor` operations with
@@ -508,7 +508,7 @@ any `tell` operations that were in the program before censor, the `hide`
 combinator removes them from being seen:
 ```haskell
 uncensors :: forall w . Monoid w => Handler '[Censor w] '[] '[ReaderT (w -> w), WriterT w] '[]
-uncensors = hide @'[Tell w] (censors @w id <&> writer_ @w)
+uncensors = hide @'[Tell w] (censors @w id |> writer_ @w)
 ```
 The key combinator here is `hide`:
 ```haskell ignore
@@ -524,11 +524,11 @@ is therefore more efficient.
 ```haskell
 prop_uncensors :: Property
 prop_uncensors = property $ do
-  handle (uncensors @[String] <&> writer) hoppy === (["Hello Alfie!","tortoise","get bigger!","Goodbye!"],())
+  handle (uncensors @[String] |> writer) hoppy === (["Hello Alfie!","tortoise","get bigger!","Goodbye!"],())
 
 prop_uncensors' :: Property
 prop_uncensors' = property $ do
-  handle (W.uncensors @[String] <&> writer) hoppy === (["Hello Alfie!","tortoise","get bigger!","Goodbye!"],())
+  handle (W.uncensors @[String] |> writer) hoppy === (["Hello Alfie!","tortoise","get bigger!","Goodbye!"],())
 ```
 -->
 
@@ -547,7 +547,7 @@ rePutStrLn f = interpret $
 ```
 
 ```haskell ignore
-ghci> handle (rePutStrLn (map toUpper) <&> teletypePure ["tortoise"]) echo
+ghci> handle (rePutStrLn (map toUpper) |> teletypePure ["tortoise"]) echo
 (["TORTOISE"],())
 ```
 <!--
@@ -556,7 +556,7 @@ prop_rePutStrLn :: Property
 prop_rePutStrLn = property $ do
   xss <- forAll $ list (linear 0 1000) (string (linear 0 100) ascii)
   let xss' = takeWhile (/= "") xss
-  handle (rePutStrLn (map toUpper) <&> teletypePure xss) echo
+  handle (rePutStrLn (map toUpper) |> teletypePure xss) echo
     === (map (map toUpper) xss',())
 ```
 -->
@@ -585,11 +585,11 @@ This chain of handlers might be called `censorsPutStrLn`:
 ```haskell
 censorsPutStrLn :: ([String] -> [String])
                 -> Handler [PutStrLn, Tell [String], Censor [String]] '[PutStrLn] '[ReaderT ([String] -> [String])] '[]
-censorsPutStrLn cipher = putStrLnTell <&> censors cipher <&> tellPutStrLn
+censorsPutStrLn cipher = putStrLnTell |> censors cipher |> tellPutStrLn
 ```
 The ensuing chain of handlers seems to do the job:
 ```haskell ignore
-ghci> handle (censorsPutStrLn id <&> teletypePure ["Hello world!"])
+ghci> handle (censorsPutStrLn id |> teletypePure ["Hello world!"])
              shoutEcho
 (["HELLO WORLD!"],())
 ```
@@ -605,7 +605,7 @@ logShoutEcho = do tell ["Entering shouty echo"]
 ```
 It is tempting to execute the program with the following:
 ```haskell ignore
-ghci> handle (censorsPutStrLn id <&> teletypePure ["Hello world!"]) logShoutEcho
+ghci> handle (censorsPutStrLn id |> teletypePure ["Hello world!"]) logShoutEcho
 (["Entering shouty echo","HELLO WORLD!"],())
 ```
 It seems to work, but the problem is that the logged messages are treated
@@ -626,7 +626,7 @@ a `putStrLn` originally, and those that are part of the program.
 The solution is simple: the `tell` operations to do with logging
 should be handled _before_ the teletype effects are handled:
 ```haskell ignore
-ghci> handle (writer @[String] <&> censorsPutStrLn id <&> teletypePure ["Hello wor
+ghci> handle (writer @[String] |> censorsPutStrLn id |> teletypePure ["Hello wor
 ld!"]) logShoutEcho
 (["HELLO WORLD!"],(["Entering shouty echo"],()))
 ```
@@ -636,7 +636,7 @@ and then the messages from `putStrLn` are on the outside.
 
 This even works with `handleIO`:
 ```haskell ignore
-ghci> handleIO (writer @[String] <&> censorsPutStrLn id) logShoutEcho
+ghci> handleIO (writer @[String] |> censorsPutStrLn id) logShoutEcho
 Ah, that's better
 AH, THAT'S BETTER
 
@@ -669,7 +669,7 @@ timestamp = interpret $
 ```
 Now a timestamp is added to the start of messages emitted by `tell`:
 ```haskell ignore
-ghci> handleIO (timestamp @[String] <&> censors backwards <&> writer @[(Integer, [String])] <&> censorsPutStrLn id <&> teletypePure ["Hello"]) logShoutEcho
+ghci> handleIO (timestamp @[String] |> censors backwards |> writer @[(Integer, [String])] |> censorsPutStrLn id |> teletypePure ["Hello"]) logShoutEcho
 (["Hello"],([(8073080000000,["Entering shouty echo"])],()))
 ```
 

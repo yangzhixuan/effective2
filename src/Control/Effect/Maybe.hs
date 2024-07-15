@@ -18,7 +18,7 @@ data Catch' k where
   deriving Functor
 
 catch :: Member Catch sig => Prog sig a -> Prog sig a -> Prog sig a
-catch p q = (Call . inj) (Scp (Catch (fmap return p) (fmap return q)))
+catch p q = injCall (Scp (Catch (fmap return p) (fmap return q)))
 
 type Throw = Alg Throw'
 data Throw' k where
@@ -26,7 +26,7 @@ data Throw' k where
   deriving Functor
 
 throw :: Member Throw sig => Prog sig a
-throw = (Call . inj) (Alg Throw)
+throw = injCall (Alg Throw)
 
 exceptAlg :: Monad m
   => (forall x. oeff m x -> m x)

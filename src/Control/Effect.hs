@@ -28,6 +28,7 @@ module Control.Effect
   , pipe
   , hide
   , joinAlg
+  , (#)
   , identity
   ) where
 import Control.Effect.Type
@@ -43,7 +44,7 @@ import Data.HFunctor
 import Data.HFunctor.HComposes
 import Control.Family
 
-import Control.Monad ( join, ap, liftM )
+import Control.Monad ( join, ap, liftM, (>=>))
 
 joinAlg :: forall sig1 sig2 oeff t m .
   ( Monad m, Append sig1 sig2 )
@@ -56,11 +57,26 @@ joinAlg :: forall sig1 sig2 oeff t m .
 joinAlg falg galg oalg =
   heither @sig1 @sig2 (falg oalg) (galg oalg)
 
+(#) :: forall sig1 sig2 m .
+  (Monad m, Append sig1 sig2 )
+  => (Algebra sig1 m)
+  -> (Algebra sig2 m)
+  -> (Algebra (sig1 :++ sig2) m)
+falg # galg = heither @sig1 @sig2 (falg) (galg)
+
+
 ---------------------------------------
 type Progs sig a = forall sig' . Members sig sig' => Prog sig' a
 data Prog (sigs :: [Effect]) a where
   Return :: a -> Prog sigs a
-  Call   :: (Effs sigs) (Prog sigs) (Prog sigs a) -> Prog sigs a
+  -- Call   :: (Effs sigs) (Prog sigs) (Prog sigs a) -> Prog sigs a
+
+  Call  :: forall f x sigs a
+        .  Functor f
+        => (Effs sigs) f x
+        -> (forall x . f x -> Prog sigs x)
+        -> (x -> Prog sigs a)
+        -> Prog sigs a
 
 instance Functor (Prog sigs) where
   fmap :: (a -> b) -> Prog sigs a -> Prog sigs b
@@ -75,17 +91,20 @@ instance Applicative (Prog effs) where
 
 instance Monad (Prog effs) where
   Return x >>= f = f x
-  Call op  >>= f = Call (fmap (>>= f) op)
+  -- Call op  >>= f = Call (fmap (>>= f) op)
+  Call op hk k  >>= f = Call op hk (k >=> f)
 
 weakenProg :: forall effs effs' a
   .  Injects effs effs'
   => Prog effs a -> Prog effs' a
 weakenProg (Return x) = Return x
-weakenProg (Call op)   =
-    Call ( injs @effs @effs'
-         . hmap (weakenProg @effs @effs')
-         . fmap (weakenProg @effs @effs')
-         $ op )
+-- weakenProg (Call op)   =
+--     Call ( injs @effs @effs'
+--          . hmap (weakenProg @effs @effs')
+--          . fmap (weakenProg @effs @effs')
+--          $ op )
+weakenProg (Call op hk k)   =
+    Call (injs op) (weakenProg @effs @effs' . hk) (weakenProg @effs @effs' . k)
 
 -- Universal property from initial monad `Prog sig a` equipped with
 -- `sig m -> m`
@@ -93,27 +112,39 @@ eval :: Monad m
   => Algebra effs m
   -> Prog effs a -> m a
 eval halg (Return x) = return x
-eval halg (Call op)  =
-  join (halg ((fmap (eval halg) . hmap (eval halg)) op))
+-- eval halg (Call op)  =
+  -- join (halg ((fmap (eval halg)
+--              . hmap (eval halg)) op))
+eval halg (Call op hk k)  =
+    -- join . halg . fmap (eval halg . k) . hmap (eval halg . hk) $ op
+    join . halg . fmap (eval halg . k) . hmap (eval halg . hk) $ op
+
+-- join (halg (eval halg . hk) (eval halgl . k) op)
+--   join (halg ((fmap (eval halg) . hmap (eval halg)) op))
 
 -- Universal property from the GADT, Functorial Algebra
-fold :: Functor f
+fold :: forall f effs a . Functor f
   => (forall x . (Effs effs f) (f x) -> f x)
   -> (forall x . x -> f x)
   -> Prog effs a -> f a
 fold falg gen (Return x) = gen x
-fold falg gen (Call op)  =
-  falg ((fmap (fold falg gen) . hmap (fold falg gen)) op)
+-- fold falg gen (Call op)  =
+--   falg ((fmap (fold falg gen) . hmap (fold falg gen)) op)
+fold falg gen (Call op hk k) =
+  falg ((fmap (fold falg gen . k) . hmap (fold falg gen . hk)) op)
 
 injCall :: Member sub sup => sub (Prog sup) (Prog sup a) -> Prog sup a
-injCall = Call . inj
+-- injCall x = Call (inj x)
+injCall x = Call (inj x) id id
 
-prjCall :: Member sub sup => Prog sup a -> Maybe (sub (Prog sup) (Prog sup a))
-prjCall (Call op) = prj op
-prjCall _         = Nothing
+prjCall :: forall sub sup a . Member sub sup => Prog sup a -> Maybe (sub (Prog sup) (Prog sup a))
+-- prjCall (Call op) = prj op
+prjCall (Call op hk k) = prj @sub @sup (hmap hk . fmap k $ op)
+prjCall _              = Nothing
 
 progAlg :: Effs sig (Prog sig) a -> Prog sig a
-progAlg = Call . fmap return
+-- progAlg = Call . fmap return
+progAlg x = Call x id return
 
 {-
 The original version of Handler included a forwarder:
@@ -205,10 +236,11 @@ data Handler effs oeffs ts fs =
   Handler
   { run  :: forall m . Monad m
          => Algebra oeffs m
-       -> (forall x . HComps ts m x -> m (RComps fs x))
+         -> (forall x . HComps ts m x -> m (RComps fs x))
 
   , malg :: forall m . Monad m
-         => Algebra oeffs m -> Algebra effs (HComps ts m)
+         => Algebra oeffs m
+         -> Algebra effs (HComps ts m)
   }
 
 -- The definition of `handler` motivates the need for a snoc list
