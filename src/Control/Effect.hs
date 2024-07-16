@@ -97,18 +97,17 @@ instance Applicative (Prog effs) where
   {-# INLINE (<*>) #-}
   (<*>) :: Prog effs (a -> b) -> Prog effs a -> Prog effs b
   Return f        <*> p         = fmap f p
-  p               <*> Return x  = fmap ($ x) p
+--   p               <*> Return x  = fmap ($ x) p
   Call opf hkf kf <*> q         = Call opf hkf ((<*> q) . kf)
 
   {-# INLINE (*>) #-}
   (*>) :: Prog effs a -> Prog effs b -> Prog effs b
   (*>) = liftA2 (const id)
 
-
   {-# INLINE liftA2 #-}
   liftA2 :: (a -> b -> c) -> Prog effs a -> Prog effs b -> Prog effs c
   liftA2 f (Return x) q        = fmap (f x) q
-  liftA2 f p (Return y)        = fmap (flip f y) p
+--   liftA2 f p (Return y)        = fmap (flip f y) p
   liftA2 f (Call opx hkx kx) q = Call opx hkx ((flip (liftA2 f) q) . kx)
 
 instance Monad (Prog effs) where
