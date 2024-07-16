@@ -3,7 +3,23 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Control.Effect.Type where
+module Control.Effect.Type
+  ( Signature
+  , Effect
+  , Algebra
+  , Effs (..)
+  , absurdEffs
+  , Append (..)
+  , weakenAlg
+  , Injects (..)
+  , Member (..)
+  , inj
+  , prj
+  , Members
+  , hunion
+  )
+
+ where
 
 import Data.Kind ( Type, Constraint )
 import Data.HFunctor
