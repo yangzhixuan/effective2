@@ -19,5 +19,5 @@ instance Functor lsig => Functor (Alg lsig f) where
 instance Functor lsig => HFunctor (Alg lsig) where
   hmap f (Alg x) = Alg x
 
-instance MonadTrans t => Family Alg t where
-  fam alg (Alg op) = lift (alg (Alg op))
+instance (Functor f, MonadTrans t) => Forward (Alg f) t where
+  fwd alg (Alg op) = lift (alg (Alg op))

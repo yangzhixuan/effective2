@@ -83,5 +83,5 @@ instance MonadTrans CutListT where
   lift :: Monad m => m a -> CutListT m a
   lift mx = CutListT $ liftM (\x -> x :<< return NilT) mx
 
-instance Family Scp CutListT where
-  fam alg (Scp op) = (CutListT . alg . Scp . fmap runCutListT) op
+instance Functor f => Forward (Scp f) CutListT where
+  fwd alg (Scp op) = (CutListT . alg . Scp . fmap runCutListT) op

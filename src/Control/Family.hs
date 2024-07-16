@@ -10,21 +10,10 @@ import Data.HFunctor.HComposes
 import Data.Kind ( Type )
 import Control.Effect.Type
 
-class Family fam t where
-  fam :: forall m f . (Monad m, Functor f)
-      => (forall x . (fam f) m x -> m x)
-      -> (forall x . (fam f) (t m) x -> (t m) x)
-
 class Forward (eff :: Effect) (t :: Effect) where
   fwd :: forall m . (Monad m)
        => (forall x . eff m x  -> m x)
        -> (forall x . eff (t m) x -> t m x)
-
--- The default implementation comes from a family if it is available.
--- This can be overlapped with a custom forwarder for a specific effect
--- if desired.
-instance {-# OVERLAPPABLE #-} (Family fam t, Functor f) => Forward (fam f) t where
-  fwd = fam
 
 -- This class builds a forwarder for an `Effs` by recursion over `effs`,
 -- by ensuring that each effect can be forwarded through a given `t`.
