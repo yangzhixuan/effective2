@@ -11,7 +11,6 @@ import Prelude hiding (or)
 
 import Control.Effect
 import Control.Applicative ( Alternative(empty, (<|>)) )
-import Control.Monad.Trans.Class ( MonadTrans(..) )
 import Control.Monad.Logic
 import Control.Effect.Alternative.Internal
 
@@ -35,14 +34,6 @@ selects :: [a] -> Progs [Choose, Empty] (a, [a])
 selects []      =  empty
 selects (x:xs)  =  return (x, xs)  <|>  do  (y, ys) <- selects xs
                                             return (y, x:ys)
-
-alternativeAlg
-  :: (MonadTrans t, Alternative (t m), Monad m)
-  => (Algebra oeffs m)
-  -> (Algebra [Empty , Choose] (t m))
-alternativeAlg oalg op
-  | Just (Alg Empty)        <- prj op = empty
-  | Just (Alg (Choose x y)) <- prj op = return x <|> return y
 
 nondet :: Handler [Empty, Choose] '[] '[LogicT] '[[]]
 -- nondet = handler (\x -> runLogicT x (:) []) alternativeAlg

@@ -37,6 +37,7 @@ library
     Control.Effect.Nondet
     Control.Effect.Reader
     Control.Effect.State
+    Control.Effect.Tree
     Control.Effect.Writer
     Control.Family
     Control.Family.Algebraic
@@ -44,6 +45,7 @@ library
     Control.Family.Parallel
     Control.Monad.Graded
     Control.Monad.Trans.List
+    Control.Monad.Trans.Tree
     Data.Functor.Composes
     Data.HFunctor
     Data.HFunctor.HCompose

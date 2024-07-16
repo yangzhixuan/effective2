@@ -30,12 +30,14 @@ module Control.Effect
   , joinAlg
   , (#)
   , identity
+  , alternativeAlg
   ) where
 
 
 import Control.Effect.Type
 import Control.Effect.Alternative.Internal
 import Control.Applicative
+import Control.Monad.Trans.Class
 
 import Control.Family.Algebraic
 
@@ -586,3 +588,11 @@ instance (Members '[Choose, Empty] sig) => Alternative (Prog sig) where
   {-# INLINE (<|>) #-}
   (<|>) :: Members [Choose, Empty] sig => Prog sig a -> Prog sig a -> Prog sig a
   x <|> y = injCall (Alg (Choose x y))
+
+alternativeAlg
+  :: (MonadTrans t, Alternative (t m), Monad m)
+  => (Algebra oeffs m)
+  -> (Algebra [Empty , Choose] (t m))
+alternativeAlg oalg eff
+  | Just (Alg Empty)        <- prj eff = empty
+  | Just (Alg (Choose x y)) <- prj eff = return x <|> return y
