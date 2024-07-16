@@ -45,7 +45,7 @@ type Algebra effs f =
 
 type Effs :: [Effect] -> Effect
 data Effs sigs f a where
-  Effn :: HFunctor sig => !Int -> sig f a -> Effs sigs f a
+  Effn :: HFunctor sig => {-# UNPACK #-} !Int -> sig f a -> Effs sigs f a
 
 pattern Eff :: HFunctor sig => sig f a -> Effs (sig ': sigs) f a
 pattern Eff op <- (open -> Right op) where
