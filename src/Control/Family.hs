@@ -28,7 +28,7 @@ instance ForwardEffs '[] t where
     -> Algebra '[] (t m)
   fwdEffs alg = absurdEffs
 
-instance (Forward eff t, ForwardEffs effs t) => ForwardEffs (eff ': effs) t where
+instance (HFunctor eff, Forward eff t, ForwardEffs effs t) => ForwardEffs (eff ': effs) t where
   fwdEffs :: forall m . Monad m => Algebra (eff ': effs) m -> Algebra (eff ': effs) (t m)
   fwdEffs alg (Eff op)   = fwd (alg . Eff) op
   fwdEffs alg (Effs ops) = fwdEffs (alg . Effs) ops

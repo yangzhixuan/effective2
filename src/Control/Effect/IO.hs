@@ -54,13 +54,13 @@ evalIO = eval algIO
 
 handleIO
   :: forall ieffs oeffs ts fs a xeffs
-  . ( Append ieffs (xeffs :\\ ieffs)
-    , Injects oeffs xeffs
+  . ( Injects oeffs xeffs
     , Injects (xeffs :\\ ieffs) xeffs
     , Functors fs
     , Forwards xeffs ts
     , forall m . Monad m => Monad (HComps ts m)
-    , xeffs ~ '[GetLine, PutStrLn, GetCPUTime] )
+    , xeffs ~ '[GetLine, PutStrLn, GetCPUTime]
+    , KnownNat (Length ieffs))
   => Handler ieffs oeffs ts fs
   -> Prog (ieffs `Union` xeffs) a -> IO (RComposes fs a)
 handleIO = handleM algIO

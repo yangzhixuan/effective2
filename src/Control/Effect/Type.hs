@@ -2,14 +2,18 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Control.Effect.Type
   ( Signature
   , Effect
   , Algebra
-  , Effs (..)
+  , Effs
+  , pattern Eff
+  , pattern Effs
   , absurdEffs
-  , Append (..)
   , weakenAlg
   , Injects (..)
   , Member (..)
@@ -17,6 +21,10 @@ module Control.Effect.Type
   , prj
   , Members
   , hunion
+  , heither
+  , hinl, hinr
+  , houtl, houtr
+  , KnownNat
   )
 
  where
@@ -24,77 +32,90 @@ module Control.Effect.Type
 import Data.Kind ( Type, Constraint )
 import Data.HFunctor
 import Data.List.Kind
-import Data.Proxy
-import Data.Nat
+
+import GHC.TypeLits
+import GHC.Exts
+import Unsafe.Coerce
 
 type Signature = Type -> Type
 type Effect = (Type -> Type) -> (Type -> Type)
 
 type Algebra effs f =
-   forall x . Effs effs f x -> f x
+  forall x . Effs effs f x -> f x
 
 type Effs :: [Effect] -> Effect
 data Effs sigs f a where
-  Eff  :: HFunctor sig => sig f a -> Effs (sig ': sigs) f a
-  Effs :: Effs sigs f a -> Effs (sig ': sigs) f a
+  Effn :: HFunctor sig => !Int -> sig f a -> Effs sigs f a
+
+pattern Eff :: HFunctor sig => sig f a -> Effs (sig ': sigs) f a
+pattern Eff op <- (open -> Right op) where
+  Eff op = inj op
+
+pattern Effs :: Effs sigs f a -> Effs (sig ': sigs) f a
+pattern Effs op <- (open -> Left op) where
+  Effs op = weakenEffs op
+
+{-# INLINE weakenEffs #-}
+weakenEffs :: Effs sigs f a -> Effs (sig ': sigs) f a
+weakenEffs (Effn n op) = Effn (n + 1) op
+
+{-# INLINE open #-}
+open :: Effs (sig ': sigs) f a -> Either (Effs sigs f a) (sig f a)
+open (Effn 0 op) = Right (unsafeCoerce op)
+open (Effn n op) = Left  (Effn (n - 1) op)
+
 
 instance Functor f => Functor (Effs sigs f) where
-  fmap f (Eff x)  = Eff (fmap f x)
-  fmap f (Effs x) = Effs (fmap f x)
+--  fmap f (Eff x)  = Eff (fmap f x)
+--  fmap f (Effs x) = Effs (fmap f x)
+  fmap f (Effn n op) = Effn n (fmap f op)
 
 instance HFunctor (Effs sigs) where
-  hmap h (Eff x)  = Eff (hmap h x)
-  hmap h (Effs x) = Effs (hmap h x)
+--  hmap h (Eff x)  = Eff (hmap h x)
+--  hmap h (Effs x) = Effs (hmap h x)
+  hmap h (Effn n op) = Effn n (hmap h op)
 
+{-# INLINE absurdEffs #-}
 absurdEffs :: Effs '[] f x -> a
 absurdEffs x = case x of {}
 
-type  Append :: [Effect] -> [Effect] -> Constraint
-class Append xs ys where
-  heither :: (Effs xs h a -> b) -> (Effs ys h a -> b) -> (Effs (xs :++ ys) h a -> b)
+{-# INLINE heither #-}
+heither :: forall xs ys f a b . KnownNat (Length xs)
+  => (Effs xs f a -> b) -> (Effs ys f a -> b) -> (Effs (xs :++ ys) f a -> b)
+heither xalg yalg (Effn n op)
+  | n < m     = xalg (Effn n op)
+  | otherwise = yalg (Effn (n - m) op)
+  where
+    m = fromInteger (natVal' (proxy# :: Proxy# (Length xs)))
 
+{-# INLINE hinl #-}
+hinl :: forall xs ys f a . Effs xs f a -> Effs (xs :++ ys) f a
+hinl (Effn n op) = Effn n op
 
-  hinl :: Effs xs f a -> Effs (xs :++ ys) f a
-  hinr :: Effs ys f a -> Effs (xs :++ ys) f a
+{-# INLINE hinr #-}
+hinr :: forall xs ys f a . KnownNat (Length xs)
+  => Effs ys f a -> Effs (xs :++ ys) f a
+hinr (Effn n op) = (Effn (m + n) op)
+  where
+    m = fromInteger (natVal' (proxy# :: Proxy# (Length xs)))
 
-  houtl :: Effs (xs :++ ys) f a -> Maybe (Effs xs f a)
-  houtr :: Effs (xs :++ ys) f a -> Maybe (Effs ys f a)
+{-# INLINE houtl #-}
+houtl :: forall xs ys f a . KnownNat (Length xs)
+  => Effs (xs :++ ys) f a -> Maybe (Effs xs f a)
+houtl (Effn n op)
+  | n < m     = Just (Effn n op)
+  | otherwise = Nothing
+  where
+    m = fromInteger (natVal' (proxy# :: Proxy# (Length xs)))
 
-instance Append '[] ys where
-  heither :: (Effs '[] f a -> b) -> (Effs ys f a -> b) -> (Effs ('[] :++ ys) f a -> b)
-  heither xalg yalg = yalg
-
-  hinl :: Effs '[] f a -> Effs ys f a
-  hinl = absurdEffs
-
-  hinr :: Effs ys f a -> Effs ys f a
-  hinr = id
-
-  houtl :: Effs ys f a -> Maybe (Effs '[] f a)
-  houtl = const Nothing
-
-  houtr :: Effs ys f a -> Maybe (Effs ys f a)
-  houtr = Just
-
-instance Append xs ys => Append (x ': xs) ys where
-  heither :: (Effs (x : xs) f a -> b) -> (Effs ys f a -> b) -> Effs ((x : xs) :++ ys) f a -> b
-  heither xalg yalg (Eff x)  = xalg (Eff x)
-  heither xalg yalg (Effs x) = heither (xalg . Effs) yalg x
-
-  hinl :: Effs (x : xs) f a -> Effs ((x : xs) :++ ys) f a
-  hinl (Eff x)  = Eff x
-  hinl (Effs x) = Effs (hinl @xs @ys x)
-
-  hinr :: Effs ys f a -> Effs ((x : xs) :++ ys) f a
-  hinr = Effs . hinr @xs @ys
-
-  houtl :: Effs ((x ': xs) :++ ys) f a -> Maybe (Effs (x ': xs) f a)
-  houtl (Eff x)  = Just (Eff x)
-  houtl (Effs x) = fmap Effs (houtl @xs @ys x)
-
-  houtr :: Effs ((x ': xs) :++ ys) f a -> Maybe (Effs ys f a)
-  houtr (Eff x)  = Nothing
-  houtr (Effs x) = houtr @xs @ys x
+{-# INLINE houtr #-}
+houtr :: forall xs ys f a . KnownNat (Length xs)
+  => Effs (xs :++ ys) f a -> Maybe (Effs ys f a)
+houtr (Effn n op)
+  | n < m     = Nothing
+  | otherwise = Just (Effn (n - m) op)
+  where
+    m = fromInteger (natVal' (proxy# :: Proxy# (Length xs)))
 
 {-# INLINE weakenAlg #-}
 weakenAlg
@@ -103,55 +124,31 @@ weakenAlg
   -> (Effs eff  m x -> m x)
 weakenAlg alg = alg . injs
 
-class (HFunctor sig, HFunctor (Effs sigs)) => Member' sig sigs (n :: Nat) where
-  inj' :: Proxy n -> sig f a -> Effs sigs f a
-  prj' :: Proxy n -> Effs sigs f a -> Maybe (sig f a)
-
-
-instance (HFunctor sig, (sigs' ~ (sig ': sigs))) => Member' sig sigs' Z where
-  {-# INLINE inj' #-}
-  inj' :: (HFunctor sig, sigs' ~ (sig : sigs)) => Proxy Z -> sig f a -> Effs sigs' f a
-  inj' _ x = Eff x
-
-  {-# INLINE prj' #-}
-  prj' :: (HFunctor sig, sigs' ~ (sig : sigs)) => Proxy Z -> Effs sigs' f a -> Maybe (sig f a)
-  prj' _ (Eff x) = Just x
-  prj' _ _       = Nothing
-
-instance (sigs' ~ (sig' ': sigs), HFunctor sig, Member' sig sigs n) => Member' sig sigs' (S n) where
-  {-# INLINE inj' #-}
-  inj' _ x = Effs . inj' (Proxy :: Proxy n) $ x
-
-  {-# INLINE prj' #-}
-  prj' _ (Eff _)  = Nothing
-  prj' _ (Effs x) = prj' (Proxy :: Proxy n) x
-
 type Member :: Effect -> [Effect] -> Constraint
-type Member sig sigs = Member' sig sigs (ElemIndex sig sigs)
+-- type Member sig sigs = Member' sig sigs (ElemIndex sig sigs)
+type Member sig sigs = KnownNat (ElemIndex sig sigs)
 
 {-# INLINE inj #-}
-inj :: forall sig sigs f a . Member sig sigs => sig f a -> Effs sigs f a
-inj = inj' (Proxy :: Proxy (ElemIndex sig sigs))
+inj :: forall sig sigs f a . (HFunctor sig, Member sig sigs) => sig f a -> Effs sigs f a
+inj = inj' (fromInteger (natVal' (proxy# :: Proxy# (ElemIndex sig sigs :: Nat))))
 
 {-# INLINE prj #-}
 prj :: forall sig sigs m a . Member sig sigs => Effs sigs m a -> Maybe (sig m a)
-prj = prj' (Proxy :: Proxy (ElemIndex sig sigs))
+prj = prj' (fromInteger (natVal' (proxy# :: Proxy# (ElemIndex sig sigs :: Nat))))
 
--- class (Member' sig sigs (ElemIndex sig sigs)) => Member sig sigs where
---   inj :: sig f a -> Effs sigs f a
---   prj :: Effs sigs m a -> Maybe (sig m a)
--- 
--- instance (Member' sig sigs (ElemIndex sig sigs)) => Member sig sigs where
---   {-# INLINE inj #-}
---   inj = inj' (Proxy :: Proxy (ElemIndex sig sigs))
--- 
---   {-# INLINE prj #-}
---   prj = prj' (Proxy :: Proxy (ElemIndex sig sigs))
+{-# INLINE inj' #-}
+inj' :: HFunctor sig => Int -> sig f a -> Effs sigs f a
+inj' = Effn
+
+{-# INLINE prj' #-}
+prj' :: forall n sig sigs f a . Int -> Effs sigs f a -> Maybe (sig f a)
+prj' m (Effn n x)
+  | m == n    = Just (unsafeCoerce x)
+  | otherwise = Nothing
 
 type family Members (xs :: [Effect]) (xys :: [Effect]) :: Constraint where
   Members '[] xys       = ()
   Members (x ': xs) xys = (Member x xys, Members xs xys, Injects (x ': xs) xys)
-
 
 -- Injects xs ys means that all of xs is in xys
 -- Some other effects may be in xys, so xs <= ys
@@ -164,14 +161,14 @@ instance Injects '[] xys where
   injs :: Effs '[] f a -> Effs xys f a
   injs = absurdEffs
 
-instance (Member x xys, Injects xs xys)
+instance (Member x xys, Injects xs xys, HFunctor x)
   => Injects (x ': xs) xys where
   {-# INLINE injs #-}
   injs (Eff x)  = inj x
   injs (Effs x) = injs x
 
+{-# INLINE hunion #-}
 hunion :: forall xs ys f a b
-  . ( Append xs (ys :\\ xs)
-  ,   Injects (ys :\\ xs) ys )
+  . ( Injects (ys :\\ xs) ys, KnownNat (Length xs) )
   => (Effs xs f a -> b) -> (Effs ys f a -> b) -> (Effs (xs `Union` ys) f a -> b)
 hunion xalg yalg = heither @xs @(ys :\\ xs) xalg (yalg . injs)

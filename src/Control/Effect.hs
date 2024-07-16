@@ -51,7 +51,7 @@ import Control.Monad ( join, (>=>))
 
 {-# INLINE joinAlg #-}
 joinAlg :: forall sig1 sig2 oeff t m .
-  ( Monad m, Append sig1 sig2 )
+  ( Monad m, KnownNat (Length sig1) )
   => ((forall x . Effs oeff m x -> m x) ->
      (forall x. Effs sig1 (t m) x -> t m x))
   -> ((forall x . Effs oeff m x -> m x) ->
@@ -63,7 +63,7 @@ joinAlg falg galg oalg =
 
 {-# INLINE (#) #-}
 (#) :: forall sig1 sig2 m .
-  (Monad m, Append sig1 sig2 )
+  (Monad m, KnownNat (Length sig1))
   => (Algebra sig1 m)
   -> (Algebra sig2 m)
   -> (Algebra (sig1 :++ sig2) m)
@@ -159,14 +159,14 @@ fold falg gen (Call op hk k) =
   falg ((fmap (fold falg gen . k) . hmap (fold falg gen . hk)) op)
 
 {-# INLINE injCall #-}
-injCall :: Member sub sup => sub (Prog sup) (Prog sup a) -> Prog sup a
+injCall :: forall sub sup a . (Member sub sup, HFunctor sub) => sub (Prog sup) (Prog sup a) -> Prog sup a
 -- injCall x = Call (inj x)
 injCall x = Call (inj x) id id
 
 {-# INLINE prjCall #-}
 prjCall :: forall sub sup a . Member sub sup => Prog sup a -> Maybe (sub (Prog sup) (Prog sup a))
 -- prjCall (Call op) = prj op
-prjCall (Call op hk k) = prj @sub @sup (hmap hk . fmap k $ op)
+prjCall (Call op hk k) = prj (hmap hk . fmap k $ op)
 prjCall _              = Nothing
 
 progAlg :: Effs sig (Prog sig) a -> Prog sig a
@@ -394,13 +394,13 @@ fuse
     , RSplit fs1
     , Forwards (oeffs1 :\\ effs2) (ts2)
     , Forwards effs2 (ts1)
-    , Append (oeffs1 :\\ effs2) effs2
-    , Append effs1 (effs2 :\\ effs1)
     , Injects (oeffs1 :\\ effs2) oeffs
     , Injects (effs2 :\\ effs1) effs2
     , Injects oeffs2 oeffs
     , Injects oeffs1 ((oeffs1 :\\ effs2) :++ effs2)
     , HExpose ts1
+    , KnownNat (Length (oeffs1 :\\ effs2))
+    , KnownNat (Length (effs1))
     )
   => Handler effs1 oeffs1 ts1 fs1
   -> Handler effs2 oeffs2 ts2 fs2
@@ -437,13 +437,13 @@ fuse (Handler run1 malg1)  (Handler run2 malg2) = Handler run malg where
     , RSplit fs1
     , Forwards (oeffs1 :\\ effs2) (ts2)
     , Forwards effs2 (ts1)
-    , Append (oeffs1 :\\ effs2) effs2
-    , Append effs1 (effs2 :\\ effs1)
     , Injects (oeffs1 :\\ effs2) oeffs
     , Injects (effs2 :\\ effs1) effs2
     , Injects oeffs2 oeffs
     , Injects oeffs1 ((oeffs1 :\\ effs2) :++ effs2)
     , HExpose ts1
+    , KnownNat (Length (oeffs1 :\\ effs2))
+    , KnownNat (Length (effs1))
     )
   => Handler effs1 oeffs1 ts1 fs1
   -> Handler effs2 oeffs2 ts2 fs2
@@ -460,14 +460,13 @@ pipe
     , RSplit fs1
     , Forwards (oeffs1 :\\ effs2) ts2
     , Forwards effs2 ts1
-    , Append (oeffs1 :\\ effs2) effs2
-    , Append effs1 (effs2 :\\ effs1)
     , Injects (oeffs1 :\\ effs2) oeffs
     , Injects (effs2 :\\ effs1) effs2
     , Injects oeffs2 oeffs
     , Injects oeffs1 ((oeffs1 :\\ effs2) :++ effs2)
     , forall m . Monad m => Monad (HComps ts2 m)
     , HExposes ts1 ts2
+    , KnownNat (Length (oeffs1 :\\ effs2))
     )
   => Handler effs1 oeffs1 ts1 fs1
   -> Handler effs2 oeffs2 ts2 fs2
@@ -534,9 +533,9 @@ handleM :: forall ieffs oeffs xeffs m ts fs a .
   , forall m . Monad m => Monad (HComps ts m)
   , Functors fs
   , Forwards xeffs ts
-  , Append ieffs (xeffs :\\ ieffs)
   , Injects oeffs xeffs
   , Injects (xeffs :\\ ieffs) xeffs
+  , KnownNat (Length (ieffs))
   )
   => Algebra xeffs m
   -> Handler ieffs oeffs ts fs

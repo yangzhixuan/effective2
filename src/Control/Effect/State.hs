@@ -34,11 +34,11 @@ stateAlg
   :: Monad m
   => (forall x. oeff m x -> m x)
   -> (forall x.  Effs [Put s, Get s] (S.StateT s m) x -> S.StateT s m x)
-stateAlg _ eff
-  | Just (Alg (Put s p)) <- prj eff =
+stateAlg _ op
+  | Just (Alg (Put s p)) <- prj op =
       do S.put s
          return p
-  | Just (Alg (Get p)) <- prj eff =
+  | Just (Alg (Get p)) <- prj op =
       do s <- S.get
          return (p s)
 

@@ -6,7 +6,8 @@
 
 module Data.List.Kind where
 import Data.Kind (Constraint)
-import Data.Nat
+
+import GHC.TypeLits
 
 type family (xs :: [k]) :++ (ys :: [k]) :: [k] where
   '[]       :++ ys = ys
@@ -45,5 +46,9 @@ type family All (c :: k -> Constraint) (xs :: [k]) :: Constraint where
 -- This closed type family disambiguates otherwise overlapping
 -- instances
 type family ElemIndex (x :: a) (xs :: [a]) :: Nat where
-  ElemIndex x (x ': xs) = Z
-  ElemIndex x (_ ': xs) = S (ElemIndex x xs)
+  ElemIndex x (x ': xs) = 0
+  ElemIndex x (_ ': xs) = 1 + (ElemIndex x xs)
+
+type family Length (xs :: [a]) :: Nat where
+  Length '[]       = 0
+  Length (_ ': xs) = 1 + Length xs

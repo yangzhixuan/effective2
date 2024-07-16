@@ -40,9 +40,9 @@ alternativeAlg
   :: (MonadTrans t, Alternative (t m), Monad m)
   => (Algebra oeffs m)
   -> (Algebra [Empty , Choose] (t m))
-alternativeAlg oalg eff
-  | Just (Alg Empty)        <- prj eff = empty
-  | Just (Alg (Choose x y)) <- prj eff = return x <|> return y
+alternativeAlg oalg op
+  | Just (Alg Empty)        <- prj op = empty
+  | Just (Alg (Choose x y)) <- prj op = return x <|> return y
 
 nondet :: Handler [Empty, Choose] '[] '[LogicT] '[[]]
 -- nondet = handler (\x -> runLogicT x (:) []) alternativeAlg
@@ -70,8 +70,8 @@ list :: Prog [Empty, Choose, Once] a -> [a]
 list = eval halg where
   halg :: Effs [Empty, Choose, Once] [] a -> [a]
   halg op
-    | Just (Alg Empty)          <- prj op = []
-    | Just (Alg (Choose x y))      <- prj op = [x, y]
+    | Just (Alg Empty)         <- prj op = []
+    | Just (Alg (Choose x y))  <- prj op = [x, y]
     | Just (Scp (Once []))     <- prj op = []
     | Just (Scp (Once (x:xs))) <- prj op = [x]
 
@@ -79,9 +79,9 @@ backtrackAlg
   :: Monad m => (forall x. oeff m x -> m x)
   -> (forall x. Effs [Empty, Choose, Once] (LogicT m) x -> LogicT m x)
 backtrackAlg oalg op
-  | Just (Alg Empty)     <- prj op = empty
+  | Just (Alg Empty)        <- prj op = empty
   | Just (Alg (Choose x y)) <- prj op = return x <|> return y
-  | Just (Scp (Once p)) <- prj op =
+  | Just (Scp (Once p))     <- prj op =
     LogicT $ \cons nil -> runLogicT p (\x xs -> cons x nil) nil
 
 
