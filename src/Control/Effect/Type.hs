@@ -29,7 +29,7 @@ module Control.Effect.Type
 
  where
 
-import Data.Kind ( Type, Constraint )
+import Data.Kind ( Type )
 import Data.HFunctor
 import Data.List.Kind
 
@@ -133,15 +133,15 @@ inj :: forall sig sigs f a . (HFunctor sig, Member sig sigs) => sig f a -> Effs 
 inj = inj' (fromInteger (natVal' (proxy# :: Proxy# (ElemIndex sig sigs :: Nat))))
 
 {-# INLINE prj #-}
-prj :: forall sig sigs m a . Member sig sigs => Effs sigs m a -> Maybe (sig m a)
+prj :: forall sig sigs f a . Member sig sigs => Effs sigs f a -> Maybe (sig f a)
 prj = prj' (fromInteger (natVal' (proxy# :: Proxy# (ElemIndex sig sigs :: Nat))))
 
 {-# INLINE inj' #-}
-inj' :: HFunctor sig => Int -> sig f a -> Effs sigs f a
+inj' :: forall sig sigs f a . HFunctor sig => Int -> sig f a -> Effs sigs f a
 inj' = Effn
 
 {-# INLINE prj' #-}
-prj' :: forall n sig sigs f a . Int -> Effs sigs f a -> Maybe (sig f a)
+prj' :: forall sig sigs f a . Int -> Effs sigs f a -> Maybe (sig f a)
 prj' m (Effn n x)
   | m == n    = Just (unsafeCoerce x)
   | otherwise = Nothing
