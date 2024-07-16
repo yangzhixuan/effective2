@@ -8,7 +8,7 @@ import Distribution.PackageDescription
 main = defaultMainWithHooks hooks
   where
     hooks = simpleUserHooks {
-      hookedPreProcessors = [("md", ppMarkdownUnlit)]
+      hookedPreProcessors = [(Suffix "md", ppMarkdownUnlit)]
     }
 
 ppMarkdownUnlit  :: BuildInfo -> LocalBuildInfo -> ComponentLocalBuildInfo -> PreProcessor
