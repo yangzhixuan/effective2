@@ -62,7 +62,6 @@ library
   build-depends:
     base, transformers, ghc,
     logict,
-    containers,
 
 test-suite docs
   type:          exitcode-stdio-1.0
