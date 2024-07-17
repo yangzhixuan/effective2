@@ -16,7 +16,7 @@ data Ask' r k where
   deriving Functor
 
 ask :: Member (Ask r) sig => Prog sig r
-ask = injCall (Alg (Ask return))
+ask = call (Alg (Ask return))
 
 asks :: Member (Ask r) sig => (r -> a) -> Prog sig a
 asks f = fmap f ask
@@ -27,7 +27,7 @@ data Local' r k where
   deriving Functor
 
 local :: Member (Local r) sig => (r -> r) -> Prog sig a -> Prog sig a
-local f p = injCall (Scp (Local f (fmap return p)))
+local f p = call (Scp (Local f (fmap return p)))
 
 reader :: r -> Handler [Ask r, Local r] '[] '[R.ReaderT r] '[]
 reader r = handler (flip R.runReaderT r) readerAlg

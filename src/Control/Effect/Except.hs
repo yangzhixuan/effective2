@@ -16,7 +16,7 @@ data Throw' e k where
 type Throw e = Alg (Throw' e)
 
 throw :: forall e sig a . (Member (Throw e) sig) => e -> Prog sig a
-throw e = injCall @(Throw e) (Alg (Throw e))
+throw e = call @(Throw e) (Alg (Throw e))
 
 data Catch' e k where
   Catch :: k -> (e -> k) -> Catch' e k
@@ -25,7 +25,7 @@ data Catch' e k where
 type Catch e = Scp (Catch' e)
 
 catch :: forall e sig a . Member (Catch e) sig => Prog sig a -> (e -> Prog sig a) -> Prog sig a
-catch p q = injCall @(Catch e) (Scp (Catch (fmap return p) (fmap return . q)))
+catch p q = call @(Catch e) (Scp (Catch (fmap return p) (fmap return . q)))
 
 exceptAlg :: Monad m
   => (forall x. oeff m x -> m x)

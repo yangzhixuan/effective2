@@ -33,7 +33,7 @@ unHCons :: HComps (h ': hs) f a -> h (HComps hs f) a
 unHCons (HCons x) = x
 
 hdecomps :: (HFunctor h, Functor f) => HComps '[h] f a -> h f a
-hdecomps (HCons x) = hmap (\(HNil y) -> y) x
+hdecomps (HCons x) = hmap unHNil x
 
 hcomps :: (HFunctor h, Functor f) => h f a -> HComps '[h] f a
 hcomps = HCons . hmap HNil

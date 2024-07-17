@@ -21,11 +21,11 @@ import Control.Family.Scoped
 
 {-# INLINE stop #-}
 stop :: Members '[Empty] sig => Prog sig a
-stop  = injCall (Alg Empty)
+stop  = call (Alg Empty)
 
 {-# INLINE or #-}
 or :: Members '[Choose] sig => Prog sig a -> Prog sig a -> Prog sig a
-or x y = injCall (Alg (Choose x y))
+or x y = call (Alg (Choose x y))
 
 
 select :: Members [Choose, Empty] sig => [a] -> Prog sig a
@@ -53,7 +53,7 @@ data Once' a where
 
 once
   :: Member Once sig => Prog sig a -> Prog sig a
-once p = injCall (Scp (Once (fmap return p)))
+once p = call (Scp (Once (fmap return p)))
 
 -- Everything can be handled together. Here is the non-modular way
 -- list :: (Member (Choose) sig, Member (Empty) sig, Member (Once) sig) => Prog sig a -> [a]

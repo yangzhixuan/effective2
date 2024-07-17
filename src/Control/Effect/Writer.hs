@@ -19,7 +19,7 @@ data Tell' w k where
   deriving Functor
 
 tell :: (Monoid w) => w -> Progs '[Tell w] ()
-tell w = injCall (Alg (Tell w (return ())))
+tell w = call (Alg (Tell w (return ())))
 
 writerAlg
   :: (Monad m, Monoid w)
@@ -43,7 +43,7 @@ data Censor' w k where
   deriving Functor
 
 censor :: Member (Censor w) sig => (w -> w) -> Prog sig a -> Prog sig a
-censor cipher p = injCall (Scp (Censor cipher (fmap return p)))
+censor cipher p = call (Scp (Censor cipher (fmap return p)))
 
 censors :: forall w . Monoid w => (w -> w) -> Handler '[Tell w, Censor w] '[Tell w]  '[ReaderT (w -> w)] '[]
 censors cipher = handler run alg where

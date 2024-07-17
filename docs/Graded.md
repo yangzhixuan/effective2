@@ -99,7 +99,7 @@ but a little more care is required. Consider the type of `catch`:
 ```haskell ignore
 catch
   :: (Member Catch sig) => Prog sig a -> Prog sig a -> Prog sig a
-catch p q = injCall (Scp (Catch (fmap return (p))
+catch p q = call (Scp (Catch (fmap return (p))
                                 (fmap return (q))))
 ```
 The subprograms `p` and `q` will have their types unified with the output of
@@ -117,7 +117,7 @@ catch
      , Injects sig' sig''
      , sig'' ~ Insert Catch (Union sig sig'))
   => Prog sig a -> Prog sig' a -> Prog sig'' a
-catch p q = injCall (Scp (Catch
+catch p q = call (Scp (Catch
   (fmap return (weakenProg p))
   (fmap return (weakenProg q))))
 ```

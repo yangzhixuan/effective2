@@ -16,20 +16,20 @@ type GetLine = Alg GetLine'
 data GetLine' k  = GetLine (String -> k) deriving Functor
 
 getLine :: Members '[GetLine] sig => Prog sig String
-getLine = injCall (Alg (GetLine return))
+getLine = call (Alg (GetLine return))
 
 
 type PutStrLn = Alg PutStrLn'
 data PutStrLn' k = PutStrLn String k     deriving Functor
 
 putStrLn :: Members '[PutStrLn] sig => String -> Prog sig ()
-putStrLn str = injCall (Alg (PutStrLn str (return ())))
+putStrLn str = call (Alg (PutStrLn str (return ())))
 
 type GetCPUTime = Alg (GetCPUTime')
 data GetCPUTime' k = GetCPUTime (Integer -> k) deriving Functor
 
 getCPUTime :: Members '[GetCPUTime] sig => Prog sig Integer
-getCPUTime = injCall (Alg (GetCPUTime return))
+getCPUTime = call (Alg (GetCPUTime return))
 
 algIO :: Algebra [GetLine, PutStrLn, GetCPUTime] IO
 algIO eff

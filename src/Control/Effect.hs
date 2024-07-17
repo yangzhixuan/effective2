@@ -12,16 +12,18 @@ module Control.Effect
   , Progs
   , Member(..)
   , Members(..)
-  , handle
-  , handler
-  , handlerT
-  , handleM
   , Handler (..)
   , Injects (..)
-  , injCall
+  , handler
+  , handlerT
+  , call
   , progAlg
   , interpret
   , interpretM
+  , handle
+  , handle'
+  , handle''
+  , handleM
   , eval
   , fuse
   , (|>)
@@ -74,9 +76,10 @@ falg # galg = heither @sig1 @sig2 (falg) (galg)
 type Progs sig a = forall sig' . Members sig sig' => Prog sig' a
 data Prog (sigs :: [Effect]) a where
   Return :: a -> Prog sigs a
-  -- Call   :: (Effs sigs) (Prog sigs) (Prog sigs a) -> Prog sigs a
+  -- Call'   :: (Effs sigs) (Prog sigs) (Prog sigs a) -> Prog sigs a
+  -- Call' x ~= Call x id return
 
-  Call  :: forall f x sigs a
+  Call  :: forall sigs a f x
         .  Functor f
         => (Effs sigs) f x
         -> (forall x . f x -> Prog sigs x)
@@ -112,10 +115,10 @@ instance Applicative (Prog effs) where
 
 instance (Member Choose sig, Member Empty sig) => Alternative (Prog sig) where
   {-# INLINE empty #-}
-  empty = injCall (Alg Empty)
+  empty = call (Alg Empty)
 
   {-# INLINE (<|>) #-}
-  x <|> y = injCall (Alg (Choose x y))
+  x <|> y = call (Alg (Choose x y))
 
 instance Monad (Prog effs) where
   {-# INLINE return #-}
@@ -164,10 +167,10 @@ fold falg gen (Return x) = gen x
 fold falg gen (Call op hk k) =
   falg ((fmap (fold falg gen . k) . hmap (fold falg gen . hk)) op)
 
-{-# INLINE injCall #-}
-injCall :: forall sub sup a . (Member sub sup, HFunctor sub) => sub (Prog sup) (Prog sup a) -> Prog sup a
--- injCall x = Call (inj x)
-injCall x = Call (inj x) id id
+{-# INLINE call #-}
+call :: forall sub sup a . (Member sub sup, HFunctor sub) => sub (Prog sup) (Prog sup a) -> Prog sup a
+-- call x = Call (inj x)
+call x = Call (inj x) id id
 
 {-# INLINE prjCall #-}
 prjCall :: forall sub sup a . Member sub sup => Prog sup a -> Maybe (sub (Prog sup) (Prog sup a))
@@ -289,14 +292,6 @@ handler run malg = Handler
   (\oalg -> fmap dercompose  . unHNil . run . unHCons)
   (\oalg -> HCons . malg (HNil . oalg . hmap unHNil) . hmap unHCons)
 
-handlerT
-  :: forall effs oeffs ts fs
-  .  (Functors fs)
-  => (forall m a . Monad m => HComps ts m a -> m (RComposes fs a))
-  -> (forall m . Monad m => Algebra oeffs m -> Algebra effs (HComps ts m))
-  -> Handler effs oeffs ts fs
-handlerT run malg = Handler (const (fmap dercompose . run)) malg
-
 -- TODO:
 -- The following is a more general handler type that generalises `handler`
 -- and would be easier to use than `handlerT`.
@@ -318,6 +313,40 @@ handlerT run malg = Handler (const (fmap dercompose . run)) malg
 --
 --   alg' :: Monad m => Algebra oeffs m -> Algebra effs (HComps ts m)
 --   alg' oalg = hdecompose . alg oalg . hmap hrecompose
+
+handlerT
+  :: forall effs oeffs ts fs
+  .  (Functors fs)
+  => (forall m a . Monad m => HComps ts m a -> m (RComposes fs a))
+  -> (forall m . Monad m => Algebra oeffs m -> Algebra effs (HComps ts m))
+  -> Handler effs oeffs ts fs
+handlerT run malg = Handler (const (fmap dercompose . run)) malg
+
+identity :: Handler '[] '[] '[] '[]
+identity = Handler run malg where
+
+  run :: Functor m => Algebra '[] m -> (forall x. HComps '[] m x -> m (RComps '[] x))
+  run _ (HNil x) = fmap RCNil x
+
+  malg :: Algebra '[] m -> Algebra '[] (HComps '[] m)
+  malg _ = absurdEffs
+
+weaken
+  :: forall ieffs ieffs' oeffs oeffs' ts fs
+  . ( Injects ieffs ieffs'
+    , Injects oeffs oeffs'
+    )
+  => Handler ieffs' oeffs ts fs
+  -> Handler ieffs oeffs' ts fs
+weaken (Handler run malg)
+  = (Handler (\oalg -> run (oalg . injs)) (\oalg -> malg (oalg . injs) . injs))
+
+hide
+  :: forall sigs effs oeffs ts fs
+  .  (Injects (effs :\\ sigs) effs, Injects oeffs oeffs)
+  => Handler effs oeffs ts fs
+  -> Handler (effs :\\ sigs) oeffs ts fs
+hide h = weaken h
 
 type AlgebraT effs oeffs t = forall m.  Monad m
   => (forall x. Effs oeffs m x -> m x)
@@ -514,14 +543,6 @@ pipe (Handler run1 malg1)  (Handler run2 malg2) = Handler run malg where
 -- pass h = fuse h (forward @sig)
 --      (\alg  -> IdentityT . alg . hmap runIdentityT)
 
-identity :: Handler '[] '[] '[] '[]
-identity = Handler run malg where
-
-  run :: Functor m => Algebra '[] m -> (forall x. HComps '[] m x -> m (RComps '[] x))
-  run _ (HNil x) = fmap RCNil x
-
-  malg :: Algebra '[] m -> Algebra '[] (HComps '[] m)
-  malg _ = absurdEffs
 
 handle :: forall ieffs ts fs a .
   ( Monad (HComps ts Identity)
@@ -529,10 +550,32 @@ handle :: forall ieffs ts fs a .
   => Handler ieffs '[] ts fs
   -> Prog ieffs a -> RComposes fs a
 handle (Handler run malg)
-  = runIdentity
-  . fmap @Identity (rercompose @fs @a)
+  = rercompose @fs @a
+  . runIdentity
   . run @Identity (absurdEffs . injs)
   . eval (malg (absurdEffs . injs))
+
+handle'
+  :: forall effs oeffs ts fs a . (Monad (HComps ts (Prog oeffs)), Functors fs)
+  => Handler effs oeffs ts fs -> Prog effs a -> Prog oeffs (RComposes fs a)
+handle' (Handler run malg)
+  = fmap rercompose . run (\x -> Call x id return) . eval (malg (\x -> Call x id return))
+
+handle''
+  :: forall sig eff oeffs ts fs a
+  .  (Injects oeffs (oeffs :++ sig), Injects sig (oeffs :++ sig)
+  ,  Monad (HComps ts (Prog (oeffs :++ sig)))
+  , Functors fs
+  , KnownNat (Length eff)
+  , Forward (Effs sig)  (HComps ts)
+  )
+  => Handler eff oeffs ts fs -> Prog (eff :++ sig) a -> Prog (oeffs :++ sig) (RComposes fs a)
+handle'' (Handler run malg)
+  = fmap rercompose
+  . run (\x -> Call (injs x) id return)
+  . eval (heither @eff @sig (malg @(Prog (oeffs :++ sig)) (\x -> Call (injs x) id return))
+                            (fwd (\x -> Call (injs x) id return)))
+
 
 handleM :: forall ieffs oeffs xeffs m ts fs a .
   ( Monad m
@@ -550,37 +593,3 @@ handleM xalg (Handler run malg)
   = fmap @m (rercompose @fs @a)
   . run @m (xalg . injs)
   . eval (hunion @ieffs @xeffs (malg (xalg . injs)) (fwds xalg))
-
-weaken
-  :: forall ieffs ieffs' oeffs oeffs' ts fs
-  . ( Injects ieffs ieffs'
-    , Injects oeffs oeffs'
-    )
-  => Handler ieffs' oeffs ts fs
-  -> Handler ieffs oeffs' ts fs
-weaken (Handler run malg)
-  = (Handler (\oalg -> run (oalg . injs)) (\oalg -> malg (oalg . injs) . injs))
-
-hide
-  :: forall sigs effs oeffs ts fs
-  .  (Injects (effs :\\ sigs) effs, Injects oeffs oeffs)
-  => Handler effs oeffs ts fs -> Handler (effs :\\ sigs) oeffs ts fs
-hide h = weaken h
-
-
--- handleOne
---   :: (Monad (HComps ts (Prog oeffs)), Recompose fs)
---   => Handler effs ts fs oeffs -> Prog effs a -> Prog oeffs (Composes fs a)
--- handleOne (Handler run malg mfwd)
---   = fmap recompose . run (Call . fmap return) . eval (malg (Call . fmap return))
---
--- handleSome
---   :: forall sig eff oeffs ts fs a
---   .  (Injects oeffs (oeffs :++ sig), Injects sig (oeffs :++ sig), Append eff sig
---   ,  Monad (HComps ts (Prog (oeffs :++ sig))), Recompose fs)
---   => Handler eff ts fs oeffs -> Prog (eff :++ sig) a -> Prog (oeffs :++ sig) (Composes fs a)
--- handleSome (Handler run malg mfwd)
---   = fmap recompose
---   . run (Call . injs . fmap return)
---   . eval (heither @eff @sig (malg @(Prog (oeffs :++ sig)) (Call . injs . fmap return))
---                             (mfwd @(Prog (oeffs :++ sig)) (Call . injs . fmap return)))
