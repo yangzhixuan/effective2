@@ -36,7 +36,6 @@ module Control.Effect
 import Control.Effect.Type
 import Control.Effect.Alternative.Type
 import Control.Applicative
-import Control.Monad.Trans.Class
 
 import Control.Family.Algebraic
 

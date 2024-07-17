@@ -7,7 +7,8 @@ import Control.Monad.Trans.Identity
 import Control.Monad.Trans.Reader
 import Control.Monad.Trans.Writer
 import Control.Monad.Trans.Except
-import Control.Monad.Trans.State.Strict
+import qualified Control.Monad.Trans.State.Strict as Strict
+import qualified Control.Monad.Trans.State.Lazy as Lazy
 
 import Data.Kind ( Type )
 
@@ -29,5 +30,8 @@ instance HFunctor (ReaderT s) where
 instance HFunctor (WriterT w) where
   hmap h (WriterT mx) = WriterT (h mx)
 
-instance HFunctor (StateT s) where
-  hmap h (StateT p) = StateT (\s -> h (p s))
+instance HFunctor (Strict.StateT s) where
+  hmap h (Strict.StateT p) = Strict.StateT (\s -> h (p s))
+
+instance HFunctor (Lazy.StateT s) where
+  hmap h (Lazy.StateT p) = Lazy.StateT (\s -> h (p s))
