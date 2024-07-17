@@ -37,6 +37,9 @@ library
     Control.Effect.Nondet
     Control.Effect.Reader
     Control.Effect.State
+    Control.Effect.State.Type
+    Control.Effect.State.Lazy
+    Control.Effect.State.Strict
     Control.Effect.Tree
     Control.Effect.Writer
     Control.Family
