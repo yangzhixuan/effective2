@@ -30,12 +30,11 @@ module Control.Effect
   , joinAlg
   , (#)
   , identity
-  , alternativeAlg
   ) where
 
 
 import Control.Effect.Type
-import Control.Effect.Alternative.Internal
+import Control.Effect.Alternative.Type
 import Control.Applicative
 import Control.Monad.Trans.Class
 
@@ -111,6 +110,13 @@ instance Applicative (Prog effs) where
   liftA2 f (Return x) q        = fmap (f x) q
 --   liftA2 f p (Return y)        = fmap (flip f y) p
   liftA2 f (Call opx hkx kx) q = Call opx hkx ((flip (liftA2 f) q) . kx)
+
+instance (Member Choose sig, Member Empty sig) => Alternative (Prog sig) where
+  {-# INLINE empty #-}
+  empty = injCall (Alg Empty)
+
+  {-# INLINE (<|>) #-}
+  x <|> y = injCall (Alg (Choose x y))
 
 instance Monad (Prog effs) where
   {-# INLINE return #-}
@@ -579,20 +585,3 @@ hide h = weaken h
 --   . run (Call . injs . fmap return)
 --   . eval (heither @eff @sig (malg @(Prog (oeffs :++ sig)) (Call . injs . fmap return))
 --                             (mfwd @(Prog (oeffs :++ sig)) (Call . injs . fmap return)))
-
-instance (Members '[Choose, Empty] sig) => Alternative (Prog sig) where
-  {-# INLINE empty #-}
-  empty :: Members [Choose, Empty] sig => Prog sig a
-  empty = injCall (Alg Empty)
-
-  {-# INLINE (<|>) #-}
-  (<|>) :: Members [Choose, Empty] sig => Prog sig a -> Prog sig a -> Prog sig a
-  x <|> y = injCall (Alg (Choose x y))
-
-alternativeAlg
-  :: (MonadTrans t, Alternative (t m), Monad m)
-  => (Algebra oeffs m)
-  -> (Algebra [Empty , Choose] (t m))
-alternativeAlg oalg eff
-  | Just (Alg Empty)        <- prj eff = empty
-  | Just (Alg (Choose x y)) <- prj eff = return x <|> return y

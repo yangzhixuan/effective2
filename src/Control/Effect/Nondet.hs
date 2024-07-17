@@ -4,12 +4,14 @@
 
 module Control.Effect.Nondet
   ( module Control.Effect.Nondet
-  , module Control.Effect.Alternative.Internal) where
+  , module Control.Effect.Alternative.Type
+  ) where
 
 import Prelude hiding (or)
 
-import Control.Effect.Alternative.Internal
 import Control.Effect
+import Control.Effect.Alternative
+import Control.Effect.Alternative.Type
 import Control.Applicative ( Alternative(empty, (<|>)) )
 import Control.Monad.Trans.List
 

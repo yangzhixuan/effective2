@@ -27,7 +27,8 @@ library
   ghc-options: -Wunused-foralls -Wunused-imports -fprint-potential-instances -fspecialise-aggressively -fexpose-all-unfoldings -ddump-simpl -ddump-to-file
   exposed-modules:
     Control.Effect
-    Control.Effect.Alternative.Internal
+    Control.Effect.Alternative
+    Control.Effect.Alternative.Type
     Control.Effect.Type
     Control.Effect.Cut
     Control.Effect.Except

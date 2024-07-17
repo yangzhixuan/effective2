@@ -1,4 +1,4 @@
-module Control.Effect.Alternative.Internal where
+module Control.Effect.Alternative.Type where
 
 import Control.Family.Algebraic
 

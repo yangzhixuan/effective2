@@ -4,7 +4,7 @@
 
 module Control.Effect.Logic
   ( module Control.Effect.Logic
-  , module Control.Effect.Alternative.Internal) where
+  , module Control.Effect.Alternative.Type) where
 
 
 import Prelude hiding (or)
@@ -12,7 +12,8 @@ import Prelude hiding (or)
 import Control.Effect
 import Control.Applicative ( Alternative(empty, (<|>)) )
 import Control.Monad.Logic
-import Control.Effect.Alternative.Internal
+import Control.Effect.Alternative
+import Control.Effect.Alternative.Type
 
 import Control.Family.Algebraic
 import Control.Family.Scoped
@@ -36,10 +37,9 @@ selects (x:xs)  =  return (x, xs)  <|>  do  (y, ys) <- selects xs
                                             return (y, x:ys)
 
 nondet :: Handler [Empty, Choose] '[] '[LogicT] '[[]]
--- nondet = handler (\x -> runLogicT x (:) []) alternativeAlg
 nondet = handler (\x -> runLogicT x (fmap . (:)) (pure [])) alternativeAlg
 
--- This does not work becuase `Choose` is algebraic, for a greedy approach
+-- This does not work because `Choose` is algebraic, for a greedy approach
 -- it must favour the lhs, but `return x <|> return y` prevents this
 -- greedy :: Handler [Empty, Choose] '[] '[MaybeT] '[Maybe]
 -- greedy = handler runMaybeT alternativeAlg

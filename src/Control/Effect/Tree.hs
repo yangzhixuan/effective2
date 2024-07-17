@@ -5,7 +5,7 @@ module Control.Effect.Tree where
 import Control.Monad.Trans.Tree
 import Control.Effect
 import Control.Family.Algebraic
-import Control.Effect.Alternative.Internal
+import Control.Effect.Alternative.Type
 import Control.Applicative
 
 nondetTreeAlg
