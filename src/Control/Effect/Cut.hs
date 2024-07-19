@@ -67,10 +67,10 @@ cutListAlg
   :: Monad m => (forall x. oeff m x -> m x)
   -> forall x. Effs [Empty, Choose, CutFail, CutCall] (CutListT m) x -> CutListT m x
 cutListAlg oalg op
-  | Just (Alg Empty)        <- prj op = empty
-  | Just (Alg (Choose x y))    <- prj op = return x <|> return y
-  | Just (Alg CutFail)     <- prj op = CutListT (return ZeroT)
-  | Just (Scp (CutCall x)) <- prj op = callAlg x
+  | Just (Alg Empty)         <- prj op = empty
+  | Just (Alg (Choose x y))  <- prj op = return x <|> return y
+  | Just (Alg CutFail)       <- prj op = CutListT (return ZeroT)
+  | Just (Scp (CutCall x))   <- prj op = callAlg x
 
 -- cutList :: Handler [Empty, Choose, CutFail, CutCall] '[] '[[]]
 -- cutList = handler fromCutListT' cutListAlg
