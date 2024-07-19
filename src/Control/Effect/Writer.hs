@@ -62,11 +62,6 @@ censors cipher = handler run alg where
            lift (runReaderT k (cipher . cipher'))
            -- lift (oalg (Effs (Eff (Scp (Censor cipher' (runReaderT k (cipher . cipher')))))))
 
-  fwd :: Monad m
-      => (forall x. Effs sig m x -> m x)
-      -> (forall x. Effs sig (ReaderT (w -> w) m) x -> ReaderT (w -> w) m x)
-  fwd oalg c = ReaderT (\f -> oalg $ hmap (flip runReaderT f) c)
-
 uncensors :: forall w . Monoid w => Handler '[Censor w] '[] '[IdentityT] '[]
 uncensors = handler run alg where
   run :: Monad m => (forall x. IdentityT m x -> m x)
