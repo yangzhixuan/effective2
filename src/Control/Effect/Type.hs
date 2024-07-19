@@ -48,11 +48,11 @@ data Effs sigs f a where
   Effn :: HFunctor sig => {-# UNPACK #-} !Int -> !(sig f a) -> Effs sigs f a
 
 pattern Eff :: HFunctor sig => sig f a -> Effs (sig ': sigs) f a
-pattern Eff op <- (open -> Right op) where
+pattern Eff op <- (openEff -> Just op) where
   Eff op = inj op
 
 pattern Effs :: Effs sigs f a -> Effs (sig ': sigs) f a
-pattern Effs op <- (open -> Left op) where
+pattern Effs op <- (openEffs -> Just op) where
   Effs op = weakenEffs op
 
 {-# INLINE weakenEffs #-}
@@ -64,11 +64,16 @@ open :: Effs (sig ': sigs) f a -> Either (Effs sigs f a) (sig f a)
 open (Effn 0 op) = Right (unsafeCoerce op)
 open (Effn n op) = Left  (Effn (n - 1) op)
 
-{-# INLINE opens #-}
-opens :: forall sig sigs n f a . (n ~ ElemIndex sig sigs, KnownNat n) => Effs sigs f a -> Maybe (sig f a)
-opens (Effn n op)
+{-# INLINE openEff #-}
+openEff :: forall sig sigs n f a . (n ~ ElemIndex sig sigs, KnownNat n) => Effs sigs f a -> Maybe (sig f a)
+openEff (Effn n op)
   | n == fromInteger (fromSNat (natSing @n)) = Just (unsafeCoerce op)
   | otherwise                                = Nothing
+
+{-# INLINE openEffs #-}
+openEffs :: forall sig sigs f a . Effs (sig ': sigs) f a -> Maybe (Effs sigs f a)
+openEffs (Effn 0 op) = Nothing
+openEffs (Effn n op) = Just (Effn (n - 1) op)
 
 instance Functor f => Functor (Effs sigs f) where
 --  fmap f (Eff x)  = Eff (fmap f x)
