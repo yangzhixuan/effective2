@@ -742,7 +742,7 @@ what happens to `p`. An instrument measures some quantity of interest, such as
 time memory, energy, or bandwidth.
 
 For example, the `timer` handler can be invoked to measure time. This injects
-`getCPUTime` operations to measure the time `t` before and `t'` after  `p`
+`getCPUTime` operations to measure the time `t` before and `t'` after `p`
 is executed. Then `ask` emits a pair consisting of `(name, t' - t)`,
 thus showing how much time was spent in `p`.
 

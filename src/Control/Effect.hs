@@ -40,6 +40,7 @@ import Control.Effect.Alternative.Type
 import Control.Applicative
 
 import Control.Family.Algebraic
+import Control.Family.Scoped
 
 import Data.Kind ( Type )
 import Data.List.Kind
@@ -107,18 +108,23 @@ instance Applicative (Prog effs) where
   (*>) :: Prog effs a -> Prog effs b -> Prog effs b
   (*>) = liftA2 (const id)
 
+  {-# INLINE (<*) #-}
+  (<*) :: Prog effs a -> Prog effs b -> Prog effs a
+  (<*) = liftA2 const
+
   {-# INLINE liftA2 #-}
   liftA2 :: (a -> b -> c) -> Prog effs a -> Prog effs b -> Prog effs c
   liftA2 f (Return x) q        = fmap (f x) q
 --   liftA2 f p (Return y)        = fmap (flip f y) p
   liftA2 f (Call opx hkx kx) q = Call opx hkx ((flip (liftA2 f) q) . kx)
 
-instance (Member Choose sig, Member Empty sig) => Alternative (Prog sig) where
+instance (Member Choose sigs, Member Empty sigs)
+  => Alternative (Prog sigs) where
   {-# INLINE empty #-}
   empty = call (Alg Empty)
 
   {-# INLINE (<|>) #-}
-  x <|> y = call (Alg (Choose x y))
+  xs <|> ys = call (Scp (Choose (fmap return xs) (fmap return ys)))
 
 instance Monad (Prog effs) where
   {-# INLINE return #-}

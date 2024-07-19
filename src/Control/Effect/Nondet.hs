@@ -22,7 +22,7 @@ stop :: Members '[Empty] sig => Prog sig a
 stop  = call (Alg Empty)
 
 or :: Members '[Choose] sig => Prog sig a -> Prog sig a -> Prog sig a
-or x y = call (Alg (Choose x y))
+or x y = call (Scp (Choose (return x) (return y)))
 
 select :: Members [Choose, Empty] sig => [a] -> Prog sig a
 select = foldr (or . return) stop
@@ -57,18 +57,18 @@ list :: Prog [Empty, Choose, Once] a -> [a]
 list = eval halg where
   halg :: Effs [Empty, Choose, Once] [] a -> [a]
   halg op
-    | Just (Alg Empty)         <- prj op = []
-    | Just (Alg (Choose x y))  <- prj op = [x, y]
-    | Just (Scp (Once []))     <- prj op = []
-    | Just (Scp (Once (x:xs))) <- prj op = [x]
+    | Just (Alg Empty)          <- prj op = []
+    | Just (Scp (Choose xs ys)) <- prj op = xs ++ ys
+    | Just (Scp (Once []))      <- prj op = []
+    | Just (Scp (Once (x:xs)))  <- prj op = [x]
 
 backtrackAlg
   :: Monad m => (forall x. oeff m x -> m x)
   -> (forall x. Effs [Empty, Choose, Once] (ListT m) x -> ListT m x)
 backtrackAlg oalg op
-  | Just (Alg Empty)     <- prj op = empty
-  | Just (Alg (Choose x y)) <- prj op = return x <|> return y
-  | Just (Scp (Once p)) <- prj op =
+  | Just (Alg Empty)          <- prj op = empty
+  | Just (Scp (Choose xs ys)) <- prj op = xs <|> ys
+  | Just (Scp (Once p))       <- prj op =
     ListT $ do mx <- runListT p
                case mx of
                  Nothing       -> return Nothing
