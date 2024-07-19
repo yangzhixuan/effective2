@@ -53,15 +53,15 @@ evalIO :: Prog [GetLine, PutStrLn, GetCPUTime] a -> IO a
 evalIO = eval algIO
 
 handleIO
-  :: forall ieffs oeffs ts fs a xeffs
+  :: forall effs oeffs ts fs a xeffs
   . ( Injects oeffs xeffs
-    , Injects (xeffs :\\ ieffs) xeffs
+    , Injects (xeffs :\\ effs) xeffs
     , Functors fs
     , Forwards xeffs ts
     , forall m . Monad m => Monad (HComps ts m)
     , xeffs ~ '[GetLine, PutStrLn, GetCPUTime]
-    , KnownNat (Length ieffs))
-  => Handler ieffs oeffs ts fs
-  -> Prog (ieffs `Union` xeffs) a -> IO (RComposes fs a)
+    , KnownNat (Length effs))
+  => Handler effs oeffs ts fs
+  -> Prog (effs `Union` xeffs) a -> IO (RComposes fs a)
 handleIO = handleM algIO
 
