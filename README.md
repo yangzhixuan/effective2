@@ -47,6 +47,91 @@ This will execute the `echo` program where input provided on the
 terminal user is immediately echoed back out to the terminal.
 
 
+Interpreting Operations
+-----------------------
+
+Now suppose that the task is to count the number of times `getLine` is called
+when the `echo` program is executed. One approach is to change the `echo`
+program, and write something like `echoTick`, where a `tick` has been added
+after each `getLine`:
+```haskell
+echoTick :: Progs '[GetLine, PutStrLn, Tick] ()
+echoTick =
+  do str <- getLine ; tick
+     case str of
+       [] -> return ()
+       _  -> do putStrLn str
+                echoTick
+```
+The idea is to execute this program using a specialised handler
+that counts the number of ticks:
+```haskell
+exampleEchoTick :: IO (Int, ())
+exampleEchoTick = handleIO ticker echoTick
+```
+When this is executed, it counts the number of lines received:
+```haskell ignore
+ghci> exampleEchoTick
+Hello
+Hello
+world!
+world!
+
+(3,())
+```
+This demonstrates how unhandled effects that are recognized by I/O can be
+forwarded and dealt with after the execution of the handler.
+
+We can also emulate the behaviour of `echo` by ignoring all the ticks by using
+the `unticker` handler:
+```haskell
+exampleEchoNoTick :: IO ()
+exampleEchoNoTick = handleIO unticker echoTick
+```
+Note that this is different to discarding the tick count by applying `fst`
+to the result of a program that counts ticks: the count is not even generated
+in the first place.
+
+The `tick` operation is defined by providing a datastructure to hold the syntax
+as data:
+```haskell
+type Tick = Alg Tick'
+data Tick' k = Tick k
+  deriving Functor
+
+tick :: Member Tick sig => Prog sig ()
+tick = call (Alg (Tick (return ())))
+```
+This uses a `Member` constraint to describe how `tick` can be used
+in any program where `Tick` is in its signature.
+
+The type of `echoTick` is `Progs '[GetLine, PutStrLn, Tick] ()`, which is in
+fact a synonym roughly equivalent to:
+```haskell ignore
+echoTick :: (Member GetLine sig, Member PutStrLn sig, Member Tick sig)
+         => Prog sig ()
+```
+The `Progs` datatype thus describes a family of programs which contain
+all the operations in the given signature. No order of the members is
+implied, and nor is the list necessarily exhaustive.
+
+```haskell
+unticker :: Handler '[Tick] '[] '[] '[]
+unticker = interpret alg where
+  alg :: Effs '[Tick] m x -> Prog '[] x
+  alg (Eff (Alg (Tick k))) = return k
+
+tickState :: Handler '[Tick] '[Put Int, Get Int] '[] '[]
+tickState = interpret alg where
+  alg :: Effs '[Tick] m x -> Prog [Put Int, Get Int] x
+  alg (Eff (Alg (Tick k))) = do x <- get
+                                put @Int (x + 1)
+                                return k
+
+ticker :: Handler '[Tick] '[] '[StateT Int] '[((,) Int)]
+ticker = tickState ||> state 0
+```
+
 Working with Handlers
 ----------------------
 
@@ -70,7 +155,7 @@ handler is given by:
 ```haskell ignore
 state :: s -> Handler '[Put s, Get s]  -- input effects
                       '[]              -- output effects
-                      '[StateT]        -- transformers
+                      '[StateT s]      -- transformers
                       '[((,) s)]       -- output wrapper
 ```
 The signature of the handler tells us how it behaves:
@@ -83,7 +168,7 @@ the output will be the functor `((,) s)` applied to the value of the program
 
 Executing the `incr` program with this handler can be achieved as follows:
 ```haskell ignore
-ghci> handle (state 41) incr :: (Int, ())
+ghci> handle (state 41) (do x <- get; put (x + 1) :: (Int, ())
 (42,())
 ```
 Since the program has type `Prog effs ()`, with a pure value of `()`,
@@ -136,42 +221,6 @@ This is essentially saying that `GetLine` is not supported by the state
 handler.
 
 
-Forwarding Effects
--------------------
-
-Now suppose that the task is to count the number of times `getLine` is called
-when the `echo` program is executed. One approach is to change the `echo`
-program, and write something like `echoTick`, where an `incr` has been added
-after each `getLine`:
-```haskell
-echoTick :: Progs '[GetLine, Get Int, Put Int, PutStrLn] ()
-echoTick =
-  do str <- getLine
-     incr
-     case str of
-       [] -> return ()
-       _  -> do putStrLn str
-                echoTick
-```
-To execute such a program that uses both state and IO
-requires a handler that is specialized to deal with IO:
-```haskell
-exampleEchoTick :: IO (Int, ())
-exampleEchoTick = handleIO (state (0 :: Int)) echoTick
-```
-When this is executed, it counts the number of lines received:
-```haskell ignore
-ghci> exampleEchoTick
-Hello
-Hello
-world!
-world!
-
-(3,())
-```
-This demonstrates how unhandled effects that are recognized by I/O can be
-forwarded and dealt with after the execution of the handler.
-
 
 Intercepting Operations
 -----------------------
@@ -208,14 +257,13 @@ The handler says that it will deal with `[GetLine]` as an input effect,
 and will output the effects `[GetLine, Get Int, Put Int]`.
 
 Now the task is to connect this handler with `state`. This can
-be achieved with a `pipe`:
+be achieved with a `pipe`, which we write as `||>`:
 ```haskell
 getLineIncrState :: Handler '[GetLine]   -- input effects
                             '[GetLine]   -- output effects
                             '[StateT Int]
                             '[(,) Int]   -- output wrapper
-getLineIncrState
-  = pipe getLineIncr (state (0 :: Int))
+getLineIncrState = getLineIncr ||> (state (0 :: Int))
 ```
 This can then be executed using `handleIO`, which will deal with
 the residual `GetLine` effect:
@@ -275,10 +323,10 @@ effects. These can be handled by a state handler. The output of the
 a new handler. Here are two variations:
 ```haskell
 getLinePure :: [String] -> Handler '[GetLine] '[] '[StateT [String]] '[(,) [String]]
-getLinePure str = pipe getLineState (state str)
+getLinePure str = getLineState ||> (state str)
 
 getLinePure_ :: [String] -> Handler '[GetLine] '[] '[StateT [String]] '[]
-getLinePure_ str = pipe getLineState (state_ str)
+getLinePure_ str = getLineState ||> (state_ str)
 ```
 Now we have a means of executing a program that contains only a `GetLine` effect,
 and extracting the resulting string:
@@ -329,7 +377,7 @@ redirected to do something pure.
 Outputting pure values is managed by the `writer` handler, in combination
 with the `tell` operation:
 ```haskell ignore
-writer :: Monoid w => Handler '[Tell w] '[] '[(,) w]
+writer :: Monoid w => Handler '[Tell w] '[] '[WriterT w] '[(,) w]
 tell   :: Monoid w => w -> Progs '[Tell w] ()
 ```
 The signatures tell us that `tell` introduces the `Tell` effect, and
@@ -355,15 +403,17 @@ This can in turn be piped into the `writer` handler to make
 a pure version of `putStrLn`:
 ```haskell
 putStrLnPure :: Handler '[PutStrLn] '[] '[WriterT [String]] '[(,) [String]]
-putStrLnPure = pipe putStrLnTell writer
+putStrLnPure = putStrLnTell ||> writer
 ```
 Now, a pure handler for both `putStrLn` and `getLine` can
 be defined as the fusion of `putStrLnPure` and `getLinePure`.
 ```haskell
-teletypePure
-  :: [String]
-  -> Handler '[GetLine, PutStrLn] '[] '[StateT [String], WriterT [String]] '[(,) [String]]
-teletypePure str = fuse (getLinePure_ str) putStrLnPure
+teletype :: [String]
+         -> Handler '[GetLine, PutStrLn]
+                    '[]
+                    '[StateT [String], WriterT [String]]
+                    '[(,) [String]]
+teletype str = getLinePure_ str |> putStrLnPure
 ```
 The `fuse` combinator takes two handlers and creates one that accepts the union
 of their signatures. The handlers are run in sequence so that the output of the
@@ -372,7 +422,7 @@ operations are combined and become the output of the fusion.
 
 Now the `echo` program can be executed in an entirely pure context:
 ```haskell ignore
-ghci> handle (teletypePure ["Hello", "world!"]) echo
+ghci> handle (teletype ["Hello", "world!"]) echo
 (["Hello","world!"],())
 ```
 <!--
@@ -381,7 +431,7 @@ prop_teletypePure :: Property
 prop_teletypePure = property $ do
   xss <- forAll $ list (linear 0 1000) (string (linear 0 100) ascii)
   let xss' = takeWhile (/= "") xss
-  handle (teletypePure xss) echo === (xss', ())
+  handle (teletype xss) echo === (xss', ())
 ```
 -->
 The return value of `()` comes from the result of `echo` itself, and the list
@@ -389,12 +439,12 @@ of strings is the accumulated result of the `tell` commands.
 
 One challenge is to count the number of times `getLine` is executed
 while also processing it purely. No problem, the `getLineIncrState` can be used
-to interpret `getLine` before passing the resulting `getLine` to `teletypePure`:
+to interpret `getLine` before passing the resulting `getLine` to `teletype`:
 ```haskell
 teletypeTick
   :: [String]
   -> Handler '[GetLine, PutStrLn] '[] '[StateT Int, StateT [String], WriterT [String]] '[(,) Int, (,) [String]]
-teletypeTick str = fuse getLineIncrState (teletypePure str)
+teletypeTick str = getLineIncrState |> teletype str
 ```
 This can be executed using `handle`, passing in the
 list of inputs to be fed to `getLine`:
@@ -547,7 +597,7 @@ rePutStrLn f = interpret $
 ```
 
 ```haskell ignore
-ghci> handle (rePutStrLn (map toUpper) |> teletypePure ["tortoise"]) echo
+ghci> handle (rePutStrLn (map toUpper) |> teletype ["tortoise"]) echo
 (["TORTOISE"],())
 ```
 <!--
@@ -556,7 +606,7 @@ prop_rePutStrLn :: Property
 prop_rePutStrLn = property $ do
   xss <- forAll $ list (linear 0 1000) (string (linear 0 100) ascii)
   let xss' = takeWhile (/= "") xss
-  handle (rePutStrLn (map toUpper) |> teletypePure xss) echo
+  handle (rePutStrLn (map toUpper) |> teletype xss) echo
     === (map (map toUpper) xss',())
 ```
 -->
@@ -589,7 +639,7 @@ censorsPutStrLn cipher = putStrLnTell |> censors cipher |> tellPutStrLn
 ```
 The ensuing chain of handlers seems to do the job:
 ```haskell ignore
-ghci> handle (censorsPutStrLn id |> teletypePure ["Hello world!"])
+ghci> handle (censorsPutStrLn id |> teletype ["Hello world!"])
              shoutEcho
 (["HELLO WORLD!"],())
 ```
@@ -605,7 +655,7 @@ logShoutEcho = do tell ["Entering shouty echo"]
 ```
 It is tempting to execute the program with the following:
 ```haskell ignore
-ghci> handle (censorsPutStrLn id |> teletypePure ["Hello world!"]) logShoutEcho
+ghci> handle (censorsPutStrLn id |> teletype ["Hello world!"]) logShoutEcho
 (["Entering shouty echo","HELLO WORLD!"],())
 ```
 It seems to work, but the problem is that the logged messages are treated
@@ -626,7 +676,7 @@ a `putStrLn` originally, and those that are part of the program.
 The solution is simple: the `tell` operations to do with logging
 should be handled _before_ the teletype effects are handled:
 ```haskell ignore
-ghci> handle (writer @[String] |> censorsPutStrLn id |> teletypePure ["Hello wor
+ghci> handle (writer @[String] |> censorsPutStrLn id |> teletype ["Hello wor
 ld!"]) logShoutEcho
 (["HELLO WORLD!"],(["Entering shouty echo"],()))
 ```
@@ -635,7 +685,7 @@ that come from `tell` are processed first (and so in the inner tuple),
 and then the messages from `putStrLn` are on the outside.
 
 This even works with `handleIO`:
-```haskell ignore
+```
 ghci> handleIO (writer @[String] |> censorsPutStrLn id) logShoutEcho
 Ah, that's better
 AH, THAT'S BETTER
@@ -661,24 +711,108 @@ logger str = do time <- getCPUTime
 However, this is a case where a reinterpretation might be better where all
 instances of `tell` are augmented with the appropriate timestamp.
 ```haskell
-timestamp :: forall w . Monoid w => Handler '[Tell w] '[Tell [(Integer, w)], GetCPUTime] '[] '[]
-timestamp = interpret $
+telltime :: forall w . Monoid w => Handler '[Tell w] '[Tell [(Integer, w)], GetCPUTime] '[] '[]
+telltime = interpret $
   \(Eff (Alg (Tell (w :: w) k))) -> do time <- getCPUTime
                                        tell [(time, w)]
                                        return k
 ```
 Now a timestamp is added to the start of messages emitted by `tell`:
 ```haskell ignore
-ghci> handleIO (timestamp @[String] |> censors backwards |> writer @[(Integer, [String])] |> censorsPutStrLn id |> teletypePure ["Hello"]) logShoutEcho
+ghci> handleIO (telltime @[String] |> censors backwards |> writer @[(Integer, [String])] |> censorsPutStrLn id |> teletype ["Hello"]) logShoutEcho
 (["Hello"],([(8073080000000,["Entering shouty echo"])],()))
 ```
+
+A different interface is to use a scoped operation that marks
+part of the program as of interest for profiling.
+```haskell
+type Profile = Scp Profile'
+data Profile' k where
+  Profile :: String -> k -> Profile' k
+  deriving Functor
+
+profile :: Member Profile sig => String -> Prog sig a -> Prog sig a
+profile name p = call (Scp (Profile name (fmap return p)))
+```
+
+For example, to profile some code `p`, we need to mark it as a code of interest
+by writing `profile name p`, where `name` is some identifier that we wish to see
+in the log. Then, we must decide which instrument we want to use to measure
+what happens to `p`. An instrument measures some quantity of interest, such as
+time memory, energy, or bandwidth.
+
+For example, the `timer` handler can be invoked to measure time. This injects
+`getCPUTime` operations to measure the time `t` before and `t'` after  `p`
+is executed. Then `ask` emits a pair consisting of `(name, t' - t)`,
+thus showing how much time was spent in `p`.
+
+```haskell
+timer :: Handler '[Profile] '[Tell [(String, Integer)], GetCPUTime] '[] '[]
+timer = interpretM timerAlg
+
+timerAlg :: forall effs oeffs m
+  . (Monad m, Members '[Tell [(String, Integer)],GetCPUTime] oeffs)
+  => (forall x . Effs oeffs m x -> m x)
+  -> (forall x . Effs '[Profile] m x -> m x)
+timerAlg oalg (Eff (Scp (Profile name p))) =
+  do t  <- eval oalg getCPUTime
+     k  <- p
+     eval oalg $ do
+        t' <- getCPUTime
+        tell [(name, t' - t)]
+     return k
+```
+How exactly `getCPUTime` is measured, and what is done with the `ask` is left
+to another handler. This easily allows, for instance, different ways of measuring time
+to be implemented, or for logs to be enabled and disabled.
+
+More generally, there may be other instruments that could be used, and indeed
+the `timer` handler can alternatively be defined by using `profiler`:
+```haskell
+timer' :: Handler '[Profile] '[Tell [(String, Integer)], GetCPUTime] '[] '[]
+timer' = profiler (flip (-)) getCPUTime
+```
+A new `profiler f instrument p` will inject the `instrument` before and after
+`p` and collect two measurements: one before `p` and another after `p` is
+executed. These are then combined by the given function `f` and emitted using
+`ask`.
+```haskell
+profiler :: forall instr a b . (HFunctor instr, KnownNat (ElemIndex instr '[Tell [(String, b)], instr]))
+  => (a -> a -> b) -> Prog '[instr] a -> Handler '[Profile] '[Tell [(String, b)], instr] '[] '[]
+profiler f instrument = interpretM (profilerAlg @instr f instrument)
+
+profilerAlg :: forall instr effs oeffs m a b
+  .  (HFunctor instr, Monad m, Member (Tell [(String, b)]) oeffs, Member instr oeffs)
+  => (a -> a -> b)
+  -> (Prog '[instr] a)
+  -> (forall x . Effs oeffs m x -> m x)
+  -> (forall x . Effs '[Profile] m x -> m x)
+profilerAlg f instrument oalg (Eff (Scp (Profile name p))) =
+  do t  <- eval oalg (weakenProg instrument)
+     k  <- p
+     eval oalg $ do
+        t' <- (weakenProg instrument)
+        tell [(name, f t t')]
+     return k
+```
+
+For our teletype example, we can instrument all of the `getLine` operations
+with a profileer as follows:
+```haskell
+getLineProfile :: Handler '[GetLine] '[Profile, GetLine] '[] '[]
+getLineProfile = interpret alg where
+  alg :: Effs '[GetLine] m x -> Prog [Profile, GetLine] x
+  alg (Eff (Alg (GetLine k))) = profile "getLine" (getLine >>= return . k)
+```
+
+
 
 Members
 -------
 
 There are three scenarios to consider when trying to engineer a fit between a
-program (shaft) of type `Prog effs a` and a handler (hole) of type `Handler
-ieffs ts fs oeffs`, depending on how their interfaces correspond:
+program (shaft) of type `Prog effs a` and a handler (hole) of type
+`Handler ieffs oeffs ts fs`, depending on how their interfaces correspond:
 
 1. *Transition* (`effs = ieffs`): The program and the handler have the same
    signatures. In the effective library, every effect is
@@ -696,7 +830,7 @@ ieffs ts fs oeffs`, depending on how their interfaces correspond:
    effects can be dealt with using an algebra as a parameter to `handleM`.
 
 When there is transition between program and handler, there may be a difference
-in the orders of the effects presented in the signatures. The philosophy of 
+in the orders of the effects presented in the signatures. The philosophy of
 effect handlers is that a program can be handled in different ways to create
 different semantics. Although it is reasonable for a program to insist on a
 particular order in which certain effects should be handled, the `effective`
@@ -751,7 +885,9 @@ import Control.Monad.Trans.State.Strict (StateT)
 import Control.Monad.Trans.Reader (ReaderT)
 import Control.Monad.Trans.Writer (WriterT)
 
+import Data.List.Kind
 import Data.Char (toUpper)
+import Data.HFunctor
 
 import Prelude hiding (putStrLn, getLine)
 ```
@@ -760,7 +896,7 @@ import Prelude hiding (putStrLn, getLine)
 We will hide the following from the README, because it is
 only for testing the documentaton itself.
 ```haskell top
-import Hedgehog hiding (test, evalIO)
+import Hedgehog hiding (test, evalIO, eval)
 import Hedgehog.Main
 import Hedgehog.Gen hiding (map)
 import Hedgehog.Range
