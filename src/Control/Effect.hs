@@ -25,13 +25,13 @@ module Control.Effect
   , handle''
   , handleM
   , eval
-  , fuse
-  , (|>)
-  , pipe
+  , fuse, (|>)
+  , pipe, (||>)
   , hide
   , joinAlg
   , (#)
   , identity
+  , weakenProg
   ) where
 
 
@@ -332,12 +332,12 @@ identity = Handler run malg where
   malg _ = absurdEffs
 
 weaken
-  :: forall ieffs ieffs' oeffs oeffs' ts fs
-  . ( Injects ieffs ieffs'
+  :: forall effs effs' oeffs oeffs' ts fs
+  . ( Injects effs effs'
     , Injects oeffs oeffs'
     )
-  => Handler ieffs' oeffs ts fs
-  -> Handler ieffs oeffs' ts fs
+  => Handler effs' oeffs ts fs
+  -> Handler effs oeffs' ts fs
 weaken (Handler run malg)
   = (Handler (\oalg -> run (oalg . injs)) (\oalg -> malg (oalg . injs) . injs))
 
@@ -418,50 +418,7 @@ This makes sense, since the operations in `effs2` must operate
 only after `h1` has done its work on the syntax tree.
 To make use of `malg` operate with the `t1` carrier,
 -}
-fuse
-  :: forall effs1 effs2 oeffs1 oeffs2 ts1 ts2 fs1 fs2 effs oeffs ts fs
-  . ( effs  ~ effs1 `Union` effs2
-    , oeffs ~ (oeffs1 :\\ effs2) `Union` oeffs2
-    , ts    ~ ts1 :++ ts2
-    , fs    ~ fs1 :++ fs2
-    , Functor (RComps fs2)
-    , forall m . Monad m => Monad (HComps ts2 m)
-    , RSplit fs1
-    , Forwards (oeffs1 :\\ effs2) (ts2)
-    , Forwards effs2 (ts1)
-    , Injects (oeffs1 :\\ effs2) oeffs
-    , Injects (effs2 :\\ effs1) effs2
-    , Injects oeffs2 oeffs
-    , Injects oeffs1 ((oeffs1 :\\ effs2) :++ effs2)
-    , HExpose ts1
-    , KnownNat (Length (oeffs1 :\\ effs2))
-    , KnownNat (Length (effs1))
-    )
-  => Handler effs1 oeffs1 ts1 fs1
-  -> Handler effs2 oeffs2 ts2 fs2
-  -> Handler effs  oeffs  ts  fs
-fuse (Handler run1 malg1)  (Handler run2 malg2) = Handler run malg where
-  run :: forall m . Monad m => Algebra oeffs m -> forall x. HComps ts m x -> m (RComps fs x)
-  run oalg
-    = fmap unrsplit
-    . run2 (oalg . injs)
-    . run1 (weakenAlg $ heither @(oeffs1 :\\ effs2) @effs2
-        (fwds @(oeffs1 :\\ effs2) @(ts2) (weakenAlg oalg))
-        (malg2 (weakenAlg oalg)))
-    . hexpose @ts1
-
-  malg :: forall m . Monad m => Algebra oeffs m -> Algebra effs (HComps ts m)
-  malg oalg
-    = hunexpose @ts1
-    . hunion @effs1 @effs2
-        (malg1 (weakenAlg $
-          heither @(oeffs1 :\\ effs2) @effs2
-            (fwds @(oeffs1 :\\ effs2) @ts2 (weakenAlg oalg))
-            (malg2 (weakenAlg oalg))))
-        (fwds @effs2 @ts1 (malg2 (oalg . injs)))
-    . hmap (hexpose @ts1)
-
-(|>)
+fuse, (|>)
   :: forall effs1 effs2 oeffs1 oeffs2 ts1 ts2 fs1 fs2 effs oeffs ts fs
   . ( effs  ~ effs1 `Union` effs2
     , oeffs ~ (oeffs1 :\\ effs2) `Union` oeffs2
@@ -484,8 +441,28 @@ fuse (Handler run1 malg1)  (Handler run2 malg2) = Handler run malg where
   -> Handler effs2 oeffs2 ts2 fs2
   -> Handler effs  oeffs  ts  fs
 (|>) = fuse
+fuse (Handler run1 malg1)  (Handler run2 malg2) = Handler run malg where
+  run :: forall m . Monad m => Algebra oeffs m -> forall x. HComps ts m x -> m (RComps fs x)
+  run oalg
+    = fmap unrsplit
+    . run2 (oalg . injs)
+    . run1 (weakenAlg $ heither @(oeffs1 :\\ effs2) @effs2
+        (fwds @(oeffs1 :\\ effs2) @(ts2) (weakenAlg oalg))
+        (malg2 (weakenAlg oalg)))
+    . hexpose @ts1
 
-pipe
+  malg :: forall m . Monad m => Algebra oeffs m -> Algebra effs (HComps ts m)
+  malg oalg
+    = hunexpose @ts1
+    . hunion @effs1 @effs2
+        (malg1 (weakenAlg $
+          heither @(oeffs1 :\\ effs2) @effs2
+            (fwds @(oeffs1 :\\ effs2) @ts2 (weakenAlg oalg))
+            (malg2 (weakenAlg oalg))))
+        (fwds @effs2 @ts1 (malg2 (oalg . injs)))
+    . hmap (hexpose @ts1)
+
+pipe, (||>)
   :: forall effs1 effs2 oeffs1 oeffs2 ts1 ts2 fs1 fs2 effs oeffs ts fs
   . ( effs  ~ effs1
     , oeffs ~ (oeffs1 :\\ effs2) `Union` oeffs2
@@ -506,6 +483,7 @@ pipe
   => Handler effs1 oeffs1 ts1 fs1
   -> Handler effs2 oeffs2 ts2 fs2
   -> Handler effs  oeffs  ts  fs
+(||>) = pipe
 pipe (Handler run1 malg1)  (Handler run2 malg2) = Handler run malg where
   run :: forall m . Monad m => Algebra oeffs m -> forall x. HComps ts m x -> m (RComps fs x)
   run oalg x
@@ -515,7 +493,6 @@ pipe (Handler run1 malg1)  (Handler run2 malg2) = Handler run malg where
         (fwds @(oeffs1 :\\ effs2) @ts2 (weakenAlg oalg))
         (malg2 (weakenAlg oalg)))
     . hexposes @ts1 @ts2 $ x
-
 
   malg :: forall m . Monad m =>
     Algebra oeffs m ->
@@ -544,11 +521,11 @@ pipe (Handler run1 malg1)  (Handler run2 malg2) = Handler run malg where
 --      (\alg  -> IdentityT . alg . hmap runIdentityT)
 
 
-handle :: forall ieffs ts fs a .
+handle :: forall effs ts fs a .
   ( Monad (HComps ts Identity)
   , Functors fs )
-  => Handler ieffs '[] ts fs
-  -> Prog ieffs a -> RComposes fs a
+  => Handler effs '[] ts fs
+  -> Prog effs a -> RComposes fs a
 handle (Handler run malg)
   = rercompose @fs @a
   . runIdentity
@@ -577,19 +554,19 @@ handle'' (Handler run malg)
                             (fwd (\x -> Call (injs x) id return)))
 
 
-handleM :: forall ieffs oeffs xeffs m ts fs a .
+handleM :: forall effs oeffs xeffs m ts fs a .
   ( Monad m
   , forall m . Monad m => Monad (HComps ts m)
   , Functors fs
   , Forwards xeffs ts
   , Injects oeffs xeffs
-  , Injects (xeffs :\\ ieffs) xeffs
-  , KnownNat (Length (ieffs))
+  , Injects (xeffs :\\ effs) xeffs
+  , KnownNat (Length (effs))
   )
   => Algebra xeffs m
-  -> Handler ieffs oeffs ts fs
-  -> Prog (ieffs `Union` xeffs) a -> m (RComposes fs a)
+  -> Handler effs oeffs ts fs
+  -> Prog (effs `Union` xeffs) a -> m (RComposes fs a)
 handleM xalg (Handler run malg)
   = fmap @m (rercompose @fs @a)
   . run @m (xalg . injs)
-  . eval (hunion @ieffs @xeffs (malg (xalg . injs)) (fwds xalg))
+  . eval (hunion @effs @xeffs (malg (xalg . injs)) (fwds xalg))
