@@ -54,7 +54,7 @@ import Control.Monad ( join, (>=>))
 
 {-# INLINE joinAlg #-}
 joinAlg :: forall sig1 sig2 oeff t m .
-  ( Monad m, KnownNat (Length sig1) )
+  ( Monad m, KnownNat (Length sig2) )
   => ((forall x . Effs oeff m x -> m x) ->
      (forall x. Effs sig1 (t m) x -> t m x))
   -> ((forall x . Effs oeff m x -> m x) ->
@@ -66,7 +66,7 @@ joinAlg falg galg oalg =
 
 {-# INLINE (#) #-}
 (#) :: forall sig1 sig2 m .
-  (Monad m, KnownNat (Length sig1))
+  (Monad m, KnownNat (Length sig2))
   => (Algebra sig1 m)
   -> (Algebra sig2 m)
   -> (Algebra (sig1 :++ sig2) m)
@@ -442,6 +442,8 @@ fuse, (|>)
     , HExpose ts1
     , KnownNat (Length (oeffs1 :\\ effs2))
     , KnownNat (Length (effs1))
+    , KnownNat (Length (effs2))
+    , KnownNat (Length (effs2 :\\ effs1))
     )
   => Handler effs1 oeffs1 ts1 fs1
   -> Handler effs2 oeffs2 ts2 fs2
@@ -452,9 +454,11 @@ fuse (Handler run1 malg1)  (Handler run2 malg2) = Handler run malg where
   run oalg
     = fmap unrsplit
     . run2 (oalg . injs)
-    . run1 (weakenAlg $ heither @(oeffs1 :\\ effs2) @effs2
-        (fwds @(oeffs1 :\\ effs2) @(ts2) (weakenAlg oalg))
-        (malg2 (weakenAlg oalg)))
+    . run1 (weakenAlg @oeffs1 @((oeffs1 :\\ effs2) :++ effs2) $
+        heither @(oeffs1 :\\ effs2) @effs2
+          (fwds @(oeffs1 :\\ effs2) @(ts2)
+            (weakenAlg @(oeffs1 :\\ effs2) @oeffs oalg))
+          (malg2 (weakenAlg @oeffs2 @oeffs oalg)))
     . hexpose @ts1
 
   malg :: forall m . Monad m => Algebra oeffs m -> Algebra effs (HComps ts m)
@@ -484,7 +488,7 @@ pipe, (||>)
     , Injects oeffs1 ((oeffs1 :\\ effs2) :++ effs2)
     , forall m . Monad m => Monad (HComps ts2 m)
     , HExposes ts1 ts2
-    , KnownNat (Length (oeffs1 :\\ effs2))
+    , KnownNat (Length (effs2))
     )
   => Handler effs1 oeffs1 ts1 fs1
   -> Handler effs2 oeffs2 ts2 fs2
@@ -550,6 +554,7 @@ handle''
   ,  Monad (HComps ts (Prog (oeffs :++ sig)))
   , Functors fs
   , KnownNat (Length eff)
+  , KnownNat (Length sig)
   , Forward (Effs sig)  (HComps ts)
   )
   => Handler eff oeffs ts fs -> Prog (eff :++ sig) a -> Prog (oeffs :++ sig) (RComposes fs a)
@@ -568,6 +573,7 @@ handleM :: forall effs oeffs xeffs m ts fs a .
   , Injects oeffs xeffs
   , Injects (xeffs :\\ effs) xeffs
   , KnownNat (Length (effs))
+  , KnownNat (Length (xeffs :\\ effs))
   )
   => Algebra xeffs m
   -> Handler effs oeffs ts fs

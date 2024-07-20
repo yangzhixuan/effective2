@@ -2,13 +2,16 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Control.Family where
 import Data.HFunctor
 import Data.HFunctor.HComposes
 
 import Data.Kind ( Type )
+import Data.List.Kind
 import Control.Effect.Type
+import GHC.TypeLits
 
 class Forward (eff :: Effect) (t :: Effect) where
   fwd :: forall m . (Monad m)
@@ -28,7 +31,7 @@ instance ForwardEffs '[] t where
     -> Algebra '[] (t m)
   fwdEffs alg = absurdEffs
 
-instance (HFunctor eff, Forward eff t, ForwardEffs effs t) => ForwardEffs (eff ': effs) t where
+instance (HFunctor eff, Forward eff t, ForwardEffs effs t, KnownNat (Length effs), KnownNat (1 + Length effs)) => ForwardEffs (eff ': effs) t where
   fwdEffs :: forall m . Monad m => Algebra (eff ': effs) m -> Algebra (eff ': effs) (t m)
   fwdEffs alg (Eff op)   = fwd (alg . Eff) op
   fwdEffs alg (Effs ops) = fwdEffs (alg . Effs) ops

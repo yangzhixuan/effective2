@@ -777,7 +777,7 @@ A new `profiler f instrument p` will inject the `instrument` before and after
 executed. These are then combined by the given function `f` and emitted using
 `ask`.
 ```haskell
-profiler :: forall instr a b . (HFunctor instr, KnownNat (ElemIndex instr '[Tell [(String, b)], instr]))
+profiler :: forall instr a b . (HFunctor instr, Member instr '[Tell [(String, b)], instr])
   => (a -> a -> b) -> Prog '[instr] a -> Handler '[Profile] '[Tell [(String, b)], instr] '[] '[]
 profiler f instrument = interpretM (profilerAlg @instr f instrument)
 

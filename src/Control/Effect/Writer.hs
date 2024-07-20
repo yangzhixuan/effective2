@@ -10,15 +10,13 @@ import Control.Monad.Trans.Identity
 import Control.Family.Algebraic
 import Control.Family.Scoped
 import qualified Control.Monad.Trans.Writer as W
-import Data.HFunctor
-
 
 type Tell w = Alg (Tell' w)
 data Tell' w k where
   Tell :: w -> k -> Tell' w k
   deriving Functor
 
-tell :: (Monoid w) => w -> Progs '[Tell w] ()
+tell :: (Member (Tell w) sig, Monoid w) => w -> Prog sig ()
 tell w = call (Alg (Tell w (return ())))
 
 writerAlg

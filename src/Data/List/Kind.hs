@@ -49,6 +49,14 @@ type family ElemIndex (x :: a) (xs :: [a]) :: Nat where
   ElemIndex x (x ': xs) = 0
   ElemIndex x (_ ': xs) = 1 + (ElemIndex x xs)
 
+type family ElemIndexes (xs :: [a]) (ys :: [a]) :: [Nat] where
+  ElemIndexes '[]       ys = '[]
+  ElemIndexes (x ': xs) ys = ElemIndex x ys ': ElemIndexes xs ys
+
 type family Length (xs :: [a]) :: Nat where
   Length '[]       = 0
   Length (_ ': xs) = 1 + Length xs
+
+type family Lookup (n :: Nat) (xs :: [a]) :: a where
+  Lookup 0 (x ': xs) = x
+  Lookup n (x ': xs) = Lookup (n - 1) xs

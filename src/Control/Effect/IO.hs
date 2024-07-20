@@ -60,7 +60,8 @@ handleIO
     , Forwards xeffs ts
     , forall m . Monad m => Monad (HComps ts m)
     , xeffs ~ '[GetLine, PutStrLn, GetCPUTime]
-    , KnownNat (Length effs))
+    , KnownNat (Length effs)
+    , KnownNat (Length (xeffs :\\ effs)))
   => Handler effs oeffs ts fs
   -> Prog (effs `Union` xeffs) a -> IO (RComposes fs a)
 handleIO = handleM algIO
