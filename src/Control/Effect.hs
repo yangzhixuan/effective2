@@ -131,7 +131,7 @@ instance Monad (Prog effs) where
   return = pure
 
   {-# INLINE (>>=) #-}
-  Return x >>= f = f x
+  Return x      >>= f = f x
   Call op hk k  >>= f = Call op hk (k >=> f)
 
 weakenProg :: forall effs effs' a
@@ -295,7 +295,7 @@ handler
   -> (forall m . Monad m => Algebra oeffs m -> Algebra effs (t m))
   -> Handler effs oeffs '[t] fs
 handler run malg = Handler
-  (\oalg -> fmap dercompose  . unHNil . run . unHCons)
+  (\oalg -> fmap RComps . unHNil . run . unHCons)
   (\oalg -> HCons . malg (HNil . oalg . hmap unHNil) . hmap unHCons)
 
 -- TODO:
@@ -326,13 +326,13 @@ handlerT
   => (forall m a . Monad m => HComps ts m a -> m (RComposes fs a))
   -> (forall m . Monad m => Algebra oeffs m -> Algebra effs (HComps ts m))
   -> Handler effs oeffs ts fs
-handlerT run malg = Handler (const (fmap dercompose . run)) malg
+handlerT run malg = Handler (const (fmap RComps . run)) malg
 
 identity :: Handler '[] '[] '[] '[]
 identity = Handler run malg where
 
   run :: Functor m => Algebra '[] m -> (forall x. HComps '[] m x -> m (RComps '[] x))
-  run _ (HNil x) = fmap RCNil x
+  run _ (HNil x) = fmap RComps x
 
   malg :: Algebra '[] m -> Algebra '[] (HComps '[] m)
   malg _ = absurdEffs
@@ -376,7 +376,7 @@ interpretM
   -> Handler effs oeffs '[] '[]
 interpretM alg
   = Handler @effs @oeffs @'[]
-      (const (\(HNil mx) -> fmap RCNil mx))
+      (const (\(HNil mx) -> fmap RComps mx))
       (\oalg -> HNil . alg oalg . hmap unHNil)
 
 interpretT
@@ -537,7 +537,7 @@ handle :: forall effs ts fs a .
   => Handler effs '[] ts fs
   -> Prog effs a -> RComposes fs a
 handle (Handler run malg)
-  = rercompose @fs @a
+  = unRComps @fs @a
   . runIdentity
   . run @Identity (absurdEffs . injs)
   . eval (malg (absurdEffs . injs))
@@ -546,7 +546,7 @@ handle'
   :: forall effs oeffs ts fs a . (Monad (HComps ts (Prog oeffs)), Functors fs)
   => Handler effs oeffs ts fs -> Prog effs a -> Prog oeffs (RComposes fs a)
 handle' (Handler run malg)
-  = fmap rercompose . run (\x -> Call x id return) . eval (malg (\x -> Call x id return))
+  = fmap unRComps . run (\x -> Call x id return) . eval (malg (\x -> Call x id return))
 
 handle''
   :: forall sig eff oeffs ts fs a
@@ -559,7 +559,7 @@ handle''
   )
   => Handler eff oeffs ts fs -> Prog (eff :++ sig) a -> Prog (oeffs :++ sig) (RComposes fs a)
 handle'' (Handler run malg)
-  = fmap rercompose
+  = fmap unRComps
   . run (\x -> Call (injs x) id return)
   . eval (heither @eff @sig (malg @(Prog (oeffs :++ sig)) (\x -> Call (injs x) id return))
                             (fwd (\x -> Call (injs x) id return)))
@@ -579,6 +579,6 @@ handleM :: forall effs oeffs xeffs m ts fs a .
   -> Handler effs oeffs ts fs
   -> Prog (effs `Union` xeffs) a -> m (RComposes fs a)
 handleM xalg (Handler run malg)
-  = fmap @m (rercompose @fs @a)
+  = fmap @m (unRComps @fs @a)
   . run @m (xalg . injs)
   . eval (hunion @effs @xeffs (malg (xalg . injs)) (fwds xalg))

@@ -36,7 +36,7 @@ readerRun
   :: Monad m
   => r -> (forall x . Effs oeffs m x -> m x)
   -> (forall x . R.ReaderT r m x -> m (RComps '[] x))
-readerRun r oalg = fmap RCNil . flip R.runReaderT r
+readerRun r oalg = fmap RComps . flip R.runReaderT r
 
 readerAlg
   :: Monad m
