@@ -32,12 +32,12 @@ selects []      =  empty
 selects (x:xs)  =  return (x, xs)  <|>  do  (y, ys) <- selects xs
                                             return (y, x:ys)
 
-nondet :: Handler [Empty, Choose] '[] '[ListT] '[[]]
+nondet :: Handler [Empty, Choose] '[] (ListT) []
 nondet = handler runListT' alternativeAlg
 
 -- This does not work becuase `Choose` is algebraic, for a greedy approach
 -- it must favour the lhs, but `return x <|> return y` prevents this
--- greedy :: Handler [Empty, Choose] '[] '[MaybeT] '[Maybe]
+-- greedy :: Handler [Empty, Choose] '[] MaybeT '[Maybe]
 -- greedy = handler runMaybeT alternativeAlg
 
 -------------------------------
@@ -93,5 +93,5 @@ backtrackAlg' = joinAlg alternativeAlg backtrackOnceAlg
 -- TODO: The alternative with monad transformers is painful.
 -- TODO: this becomes interesting when different search strategies are used
 
-backtrack :: Handler [Empty, Choose, Once] '[] '[ListT] '[[]]
+backtrack :: Handler [Empty, Choose, Once] '[] (ListT) []
 backtrack = handler runListT' backtrackAlg'

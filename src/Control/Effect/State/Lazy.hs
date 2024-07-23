@@ -9,17 +9,18 @@ import Control.Effect
 import Control.Effect.State.Type
 import Control.Family.Algebraic
 import qualified Control.Monad.Trans.State.Lazy as Lazy
+import Data.Functor.Identity
 
-state :: s -> Handler [Put s, Get s] '[] '[Lazy.StateT s] '[((,) s)]
+state :: s -> Handler [Put s, Get s] '[] (Lazy.StateT s) ((,) s)
 state s = handler (fmap (\ ~(x, y) -> (y, x)) . flip Lazy.runStateT s) stateAlg
 
 -- | The `state_` handler deals with stateful operations and silenty
 -- discards the final state.
 -- state_ :: s -> Handler [Put s, Get s] '[] '[]
 -- state_ s = Handler $ Handler (\oalg -> fmap (RCNil . fst) . flip S.runStateT s) stateAlg
-state_ :: s -> Handler [Put s, Get s] '[] '[Lazy.StateT s] '[]
+state_ :: s -> Handler [Put s, Get s] '[] (Lazy.StateT s) Identity
 -- state_ s = Handler (\oalg -> fmap (RCNil . fst) . flip S.runStateT s) stateAlg
-state_ s = handler (flip Lazy.evalStateT s) stateAlg
+state_ s = handler (fmap Identity . flip Lazy.evalStateT s) stateAlg
 
 stateAlg
   :: Monad m

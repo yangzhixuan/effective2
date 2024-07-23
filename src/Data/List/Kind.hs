@@ -60,3 +60,7 @@ type family Length (xs :: [a]) :: Nat where
 type family Lookup (n :: Nat) (xs :: [a]) :: a where
   Lookup 0 (x ': xs) = x
   Lookup n (x ': xs) = Lookup (n - 1) xs
+
+type family Foldr (f :: a -> b -> b) (k :: b) (xs :: [a]) :: b where
+  Foldr f k '[]       = k
+  Foldr f k (x ': xs) = f x (Foldr f k xs)

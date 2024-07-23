@@ -1,11 +1,13 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Data.Functor.Composes (RSplit(..), RComposes(..), RComps(..), Functors(..)) where
+module Data.Functor.Composes (RSplit(..), RComposes(..), RComps(..), RComps', Functors(..)) where
 
 import Data.Kind ( Type )
 
-import Data.List.Kind ( type (:++) )
+import Data.List.Kind ( type (:++), Foldr )
+import Data.Functor.Compose
+import Data.Functor.Identity
 
 class Functors fs where
 instance Functors '[]
@@ -52,6 +54,8 @@ instance (Expose fs, Functor f) => Expose (f : fs) where
 type family RComposes (fs :: [Type -> Type]) (a :: Type) :: Type where
   RComposes '[]       a = a
   RComposes (f ': fs) a = (RComposes fs (f a))
+
+type RComps' fs a = Foldr Compose Identity fs a
 
 type RComps :: [Type -> Type] -> Type -> Type
 newtype RComps fs a = RComps { unRComps :: RComposes fs a }

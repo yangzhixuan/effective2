@@ -6,6 +6,8 @@ module Control.Effect.Reader where
 import Control.Family.Algebraic
 import Control.Family.Scoped
 import Data.Functor.Composes
+import Data.Functor.Identity
+
 import Control.Effect
 -- import Control.Monad.Trans.Class (lift)
 import qualified Control.Monad.Trans.Reader as R
@@ -29,14 +31,8 @@ data Local' r k where
 local :: Member (Local r) sig => (r -> r) -> Prog sig a -> Prog sig a
 local f p = call (Scp (Local f (fmap return p)))
 
-reader :: r -> Handler [Ask r, Local r] '[] '[R.ReaderT r] '[]
-reader r = handler (flip R.runReaderT r) readerAlg
-
-readerRun
-  :: Monad m
-  => r -> (forall x . Effs oeffs m x -> m x)
-  -> (forall x . R.ReaderT r m x -> m (RComps '[] x))
-readerRun r oalg = fmap RComps . flip R.runReaderT r
+reader :: r -> Handler [Ask r, Local r] '[] (R.ReaderT r) Identity
+reader r = handler (fmap Identity . flip R.runReaderT r) readerAlg
 
 readerAlg
   :: Monad m
