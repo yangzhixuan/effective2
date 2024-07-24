@@ -33,7 +33,6 @@ library
     Control.Effect.Cut
     Control.Effect.Except
     Control.Effect.IO
-    Control.Effect.Logic
     Control.Effect.Maybe
     Control.Effect.Nondet
     Control.Effect.Reader
@@ -60,8 +59,7 @@ library
   hs-source-dirs:
     src
   build-depends:
-    base, transformers, ghc, array,
-    logict,
+    base, transformers, ghc, array
 
 test-suite docs
   type:          exitcode-stdio-1.0
