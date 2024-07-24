@@ -128,7 +128,7 @@ tickState = interpret alg where
                                 put @Int (x + 1)
                                 return k
 
-ticker :: Handler '[Tick] '[] _ _
+ticker :: Handler '[Tick] '[] (StateT Int) ((,) Int)
 ticker = tickState ||> state (0 :: Int)
 ```
 
@@ -261,7 +261,8 @@ be achieved with a `pipe`, which we write as `||>`:
 ```haskell
 getLineIncrState :: Handler '[GetLine]   -- input effects
                             '[GetLine]   -- output effects
-                            _ _
+                            (StateT Int)
+                            ((,) Int)
 getLineIncrState = getLineIncr ||> (state (0 :: Int))
 ```
 This can then be executed using `handleIO`, which will deal with
@@ -321,10 +322,10 @@ effects. These can be handled by a state handler. The output of the
 `getLineState` handler can be piped into the `state` handler to produce
 a new handler. Here are two variations:
 ```haskell
-getLinePure :: [String] -> Handler '[GetLine] '[] _ _
+getLinePure :: [String] -> Handler '[GetLine] '[] (StateT [String]) ((,) [String])
 getLinePure str = getLineState ||> (state str)
 
-getLinePure_ :: [String] -> Handler '[GetLine] '[] _ _
+getLinePure_ :: [String] -> Handler '[GetLine] '[] (StateT [String]) Identity
 getLinePure_ str = getLineState ||> (state_ str)
 ```
 Now we have a means of executing a program that contains only a `GetLine` effect,
@@ -401,7 +402,7 @@ putStrLnTell = interpret $
 This can in turn be piped into the `writer` handler to make
 a pure version of `putStrLn`:
 ```haskell
-putStrLnPure :: Handler '[PutStrLn] '[] _ _
+putStrLnPure :: Handler '[PutStrLn] '[] (WriterT [String]) ((,) [String])
 putStrLnPure = putStrLnTell ||> writer
 ```
 Now, a pure handler for both `putStrLn` and `getLine` can
@@ -410,8 +411,8 @@ be defined as the fusion of `putStrLnPure` and `getLinePure`.
 teletype :: [String]
          -> Handler '[GetLine, PutStrLn]
                     '[]
-                    _
-                    _
+                    (HCompose (StateT [String]) (WriterT [String]))
+                    ((,) [String])
 teletype str = getLinePure_ str |> putStrLnPure
 ```
 The `fuse` combinator takes two handlers and creates one that accepts the union
@@ -442,7 +443,9 @@ to interpret `getLine` before passing the resulting `getLine` to `teletype`:
 ```haskell
 teletypeTick
   :: [String]
-  -> Handler '[GetLine, PutStrLn] '[] _ _
+  -> Handler '[GetLine, PutStrLn] '[]
+             (HCompose (StateT Int) (HCompose (StateT [String]) (WriterT [String])))
+             (Compose ((,) [String]) ((,) Int) )
 teletypeTick str = getLineIncrState |> teletype str
 ```
 This can be executed using `handle`, passing in the
@@ -556,7 +559,7 @@ remove any generated `tell` operations. To prevent this handler from touching
 any `tell` operations that were in the program before censor, the `hide`
 combinator removes them from being seen:
 ```haskell
-uncensors :: forall w . Monoid w => Handler '[Censor w] '[] _ _
+uncensors :: forall w . Monoid w => Handler '[Censor w] '[] (HCompose (ReaderT (w -> w)) (WriterT w)) Identity
 uncensors = hide @'[Tell w] (censors @w id |> writer_ @w)
 ```
 The key combinator here is `hide`:
@@ -633,7 +636,7 @@ tellPutStrLn = interpret $
 This chain of handlers might be called `censorsPutStrLn`:
 ```haskell
 censorsPutStrLn :: ([String] -> [String])
-                -> Handler [PutStrLn, Tell [String], Censor [String]] '[PutStrLn] _ _
+                -> Handler [PutStrLn, Tell [String], Censor [String]] '[PutStrLn] (ReaderT ([String] -> [String])) Identity
 censorsPutStrLn cipher = putStrLnTell |> censors cipher |> tellPutStrLn
 ```
 The ensuing chain of handlers seems to do the job:
@@ -855,7 +858,7 @@ this is used to keep track of effect signatures.
 
 ```haskell top
 {-# LANGUAGE DataKinds #-}    -- Used for the list of effects
-{-# LANGUAGE PartialTypeSignatures #-}    -- Used for the list of effects
+-- {-# LANGUAGE PartialTypeSignatures #-}    -- Used for the list of effects
 ```
 <!--
 The following pragma is only needed for the testing framework.

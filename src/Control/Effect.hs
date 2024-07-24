@@ -426,63 +426,63 @@ fuse, (|>)
   :: forall effs1 effs2 oeffs1 oeffs2 ts1 ts2 fs1 fs2 effs oeffs ts fs
   . ( effs  ~ effs1 `Union` effs2
     , oeffs ~ (oeffs1 :\\ effs2) `Union` oeffs2
-    , ts    ~ ts1 `HCompose` ts2
-    , fs    ~ fs2 `Compose` fs1
+    , ts    ~ HRAssoc (ts1 `HCompose` ts2)
+    , fs    ~ RAssoc (fs2 `Compose` fs1)
     , Functor fs2
-    , forall m . Monad m => Monad (ts2 m)
-    , Forwards (oeffs1 :\\ effs2) (ts2)
-    , Forwards effs2 (ts1)
-    , Injects (oeffs1 :\\ effs2) oeffs
-    , Injects (effs2 :\\ effs1) effs2
-    , Injects oeffs2 oeffs
-    , Injects oeffs1 ((oeffs1 :\\ effs2) :++ effs2)
-    , KnownNat (Length (effs1))
-    , KnownNat (Length (effs2))
     , MonadTrans ts1
-    )
-  => Handler effs1 oeffs1 ts1 fs1
-  -> Handler effs2 oeffs2 ts2 fs2
-  -> Handler effs  oeffs  ts  fs
-(|>) = fuse
-fuse (Handler run1 malg1)  (Handler run2 malg2) = Handler run malg where
-  run :: forall m . Monad m => Algebra oeffs m -> forall x. ts m x -> m (fs x)
-  run oalg
-    = fmap Compose
-    . run2 (oalg . injs)
-    . run1 (weakenAlg @oeffs1 @((oeffs1 :\\ effs2) :++ effs2) $
-        heither @(oeffs1 :\\ effs2) @effs2
-          (fwds @(oeffs1 :\\ effs2) @(ts2)
-            (weakenAlg @(oeffs1 :\\ effs2) @oeffs oalg))
-          (malg2 (weakenAlg @oeffs2 @oeffs oalg)))
-    . getHCompose
-
-  malg :: forall m . Monad m => Algebra oeffs m -> Algebra effs (ts m)
-  malg oalg
-    = HCompose
-    . hunion @effs1 @effs2
-        (malg1 (weakenAlg $
-          heither @(oeffs1 :\\ effs2) @effs2
-            (fwds @(oeffs1 :\\ effs2) @ts2 (weakenAlg oalg))
-            (malg2 (weakenAlg oalg))))
-        (fwds @effs2 @ts1 (malg2 (oalg . injs)))
-    . hmap getHCompose
-
-pipe, (||>)
-  :: forall effs1 effs2 oeffs1 oeffs2 ts1 ts2 fs1 fs2 effs oeffs ts fs
-  . ( effs  ~ effs1
-    , oeffs ~ (oeffs1 :\\ effs2) `Union` oeffs2
-    , ts    ~ ts1 `HCompose` ts2
-    , fs    ~ fs2 `Compose` fs1
-    , Functor (fs2)
+    , forall m . Monad m => Monad (ts2 m)
     , Forwards (oeffs1 :\\ effs2) ts2
     , Forwards effs2 ts1
     , Injects (oeffs1 :\\ effs2) oeffs
     , Injects (effs2 :\\ effs1) effs2
     , Injects oeffs2 oeffs
     , Injects oeffs1 ((oeffs1 :\\ effs2) :++ effs2)
-    , KnownNat (Length (effs2))
+    , KnownNat (Length effs1)
+    , KnownNat (Length effs2)
+    )
+  => Handler effs1 oeffs1 ts1 fs1
+  -> Handler effs2 oeffs2 ts2 fs2
+  -> Handler effs  oeffs  ts  fs
+(|>) = fuse
+fuse (Handler run1 malg1) (Handler run2 malg2) = Handler run malg where
+  run :: forall m . Monad m => Algebra oeffs m -> forall x. ts m x -> m (fs x)
+  run oalg
+    = unsafeCoerce @(m (fs2 (fs1 _x))) @(m (fs _x))
+    . run2 (oalg . injs)
+    . run1 (weakenAlg @oeffs1 @((oeffs1 :\\ effs2) :++ effs2) $
+        heither @(oeffs1 :\\ effs2) @effs2
+          (fwds @(oeffs1 :\\ effs2) @(ts2)
+            (weakenAlg @(oeffs1 :\\ effs2) @oeffs oalg))
+          (malg2 (weakenAlg @oeffs2 @oeffs oalg)))
+    . unsafeCoerce @(ts m _) @(ts1 (ts2 m) _)
+
+  malg :: forall m . Monad m => Algebra oeffs m -> Algebra effs (ts m)
+  malg oalg
+    = unsafeCoerce @(ts1 (ts2 m) _) @(ts m _)
+    . hunion @effs1 @effs2
+        (malg1 (weakenAlg $
+          heither @(oeffs1 :\\ effs2) @effs2
+            (fwds @(oeffs1 :\\ effs2) @ts2 (weakenAlg oalg))
+            (malg2 (weakenAlg oalg))))
+        (fwds @effs2 @ts1 (malg2 (oalg . injs)))
+    . unsafeCoerce @(Effs effs (ts m) _) @(Effs effs (ts1 (ts2 m)) _)
+
+pipe, (||>)
+  :: forall effs1 effs2 oeffs1 oeffs2 ts1 ts2 fs1 fs2 effs oeffs ts fs
+  . ( effs  ~ effs1
+    , oeffs ~ (oeffs1 :\\ effs2) `Union` oeffs2
+    , ts    ~ HRAssoc (ts1 `HCompose` ts2)
+    , fs    ~ RAssoc (fs2 `Compose` fs1)
+    , Functor fs2
     , MonadTrans ts1
     , MonadTrans ts2
+    , Forwards (oeffs1 :\\ effs2) ts2
+    , Forwards effs2 ts1
+    , Injects (oeffs1 :\\ effs2) oeffs
+    , Injects (effs2 :\\ effs1) effs2
+    , Injects oeffs2 oeffs
+    , Injects oeffs1 ((oeffs1 :\\ effs2) :++ effs2)
+    , KnownNat (Length effs2)
     )
   => Handler effs1 oeffs1 ts1 fs1
   -> Handler effs2 oeffs2 ts2 fs2
@@ -490,23 +490,23 @@ pipe, (||>)
 (||>) = pipe
 pipe (Handler run1 malg1)  (Handler run2 malg2) = Handler run malg where
   run :: forall m . Monad m => Algebra oeffs m -> forall x. ts m x -> m (fs x)
-  run oalg x
-    = fmap Compose
+  run oalg
+    = unsafeCoerce @(m (fs2 (fs1 _x))) @(m (fs _x))
     . run2 (oalg . injs)
     . run1 (weakenAlg $ heither @(oeffs1 :\\ effs2) @effs2
         (fwds @(oeffs1 :\\ effs2) @ts2 (weakenAlg oalg))
         (malg2 (weakenAlg oalg)))
-    . getHCompose $ x
+    . unsafeCoerce @(ts m _x) @(ts1 (ts2 m) _x)
 
   malg :: forall m . Monad m =>
     Algebra oeffs m ->
     Algebra effs (ts m)
   malg oalg
-    = HCompose
+    = unsafeCoerce @(ts1 (ts2 m) _x) @(ts m _x)
     . malg1 (weakenAlg $ heither @(oeffs1 :\\ effs2) @effs2
         (fwds @(oeffs1 :\\ effs2) @ts2 (weakenAlg oalg))
         (malg2 (weakenAlg oalg)))
-    . hmap getHCompose
+    . unsafeCoerce @(Effs _effs (ts m) _x) @(Effs _effs (ts1 (ts2 m)) _x)
 
 -- pass :: forall sig effs oeffs fs fam .
 --   ( All Functor fs
@@ -577,3 +577,21 @@ type family Apply f a where
   Apply Identity a      = a
   Apply (Compose f g) a = Apply f (Apply g a)
   Apply f a             = f a
+
+-- TODO: Implement O(n) version
+type family Functors (f :: (Type -> Type)) :: [Type -> Type] where
+  Functors (Compose f g) = Functors f :++ Functors g
+  Functors (Identity)    = '[]
+  Functors f             = '[f]
+
+type family RAssoc f where
+  RAssoc f = Foldr0 Compose Identity (Functors f)
+
+type family HFunctors (f :: (Type -> Type) -> (Type -> Type))
+  :: [(Type -> Type) -> (Type -> Type)] where
+  HFunctors (HCompose f g) = HFunctors f :++ HFunctors g
+  HFunctors (IdentityT)    = '[]
+  HFunctors f              = '[f]
+
+type family HRAssoc f where
+  HRAssoc f = Foldr0 HCompose IdentityT (HFunctors f)

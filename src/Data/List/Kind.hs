@@ -64,3 +64,11 @@ type family Lookup (n :: Nat) (xs :: [a]) :: a where
 type family Foldr (f :: a -> b -> b) (k :: b) (xs :: [a]) :: b where
   Foldr f k '[]       = k
   Foldr f k (x ': xs) = f x (Foldr f k xs)
+
+type family Foldr0 (f :: a -> a -> a) (k :: a) (xs :: [a]) :: a where
+  Foldr0 f k '[] = k
+  Foldr0 f k xs  = Foldr1 f xs
+
+type family Foldr1 (f :: a -> a -> a) (xs :: [a]) :: a where
+  Foldr1 f '[x]      = x
+  Foldr1 f (x ': xs) = f x (Foldr1 f xs)
