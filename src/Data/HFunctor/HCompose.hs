@@ -4,7 +4,6 @@ module Data.HFunctor.HCompose where
 
 import Data.HFunctor
 import Control.Monad.Trans.Class
-import Control.Monad.Trans.Identity
 import Data.Kind (Type)
 
 

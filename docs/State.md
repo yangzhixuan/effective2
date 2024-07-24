@@ -16,8 +16,6 @@ import Control.Effect.Maybe
 import Control.Monad (replicateM_)
 import Control.Monad.Trans.State.Strict (StateT)
 import Control.Monad.Trans.Maybe
-import Control.Monad.Trans.Identity
-import Data.HFunctor.HCompose
 
 import Control.Effect.Reader
 

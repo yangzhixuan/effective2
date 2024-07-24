@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE MonoLocalBinds #-}
 
 module Control.Effect.IO where
 
