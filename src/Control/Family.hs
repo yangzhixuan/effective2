@@ -6,12 +6,16 @@
 
 module Control.Family where
 import Data.HFunctor
-import Data.HFunctor.HComposes
 
 import Data.Kind ( Type )
 import Data.List.Kind
 import Control.Effect.Type
 import GHC.TypeLits
+
+import Control.Monad.Trans.Identity
+import Data.HFunctor.HCompose
+
+import Control.Monad.Trans.Class
 
 class Forward (eff :: Effect) (t :: Effect) where
   fwd :: forall m . (Monad m)
@@ -26,27 +30,49 @@ class ForwardEffs effs (t :: (Type -> Type) -> (Type -> Type))  where
     -> Algebra effs (t m)
 
 instance ForwardEffs '[] t where
+  {-# INLINE fwdEffs #-}
   fwdEffs :: forall m . Monad m
     => Algebra '[] (m)
     -> Algebra '[] (t m)
   fwdEffs alg = absurdEffs
 
 instance (HFunctor eff, Forward eff t, ForwardEffs effs t, KnownNat (Length effs), KnownNat (1 + Length effs)) => ForwardEffs (eff ': effs) t where
+  {-# INLINE fwdEffs #-}
   fwdEffs :: forall m . Monad m => Algebra (eff ': effs) m -> Algebra (eff ': effs) (t m)
   fwdEffs alg (Eff op)   = fwd (alg . Eff) op
   fwdEffs alg (Effs ops) = fwdEffs (alg . Effs) ops
 
 -- The `Forwards` class forwards effects through a transformer stack, assuming
 -- that for each member of the stack, all operations in `effs` can be forwarded.
-class (forall m . Monad m => Monad (HComps ts m)) => Forwards effs ts where
-  fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (HComps ts m)
+-- class (forall m . Monad m => Monad (HComps ts m)) => Forwards effs ts where
+--   fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (HComps ts m)
+-- 
+-- instance Forwards effs '[] where
+--   fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (HComps '[] m)
+--   fwds alg = HNil . alg . hmap unHNil
+-- 
+-- instance (forall m . Monad m => Monad (t (HComps ts m)), ForwardEffs effs t, Forwards effs ts)
+--   => Forwards effs (t ': ts) where
+--   fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (HComps (t ': ts) m)
+--   fwds alg x = HCons . fwdEffs (fwds alg) . hmap unHCons $ x
 
-instance Forwards effs '[] where
-  fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (HComps '[] m)
-  fwds alg = HNil . alg . hmap unHNil
 
-instance (forall m . Monad m => Monad (t (HComps ts m)), ForwardEffs effs t, Forwards effs ts)
-  => Forwards effs (t ': ts) where
-  fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (HComps (t ': ts) m)
-  fwds alg x = HCons . fwdEffs (fwds alg) . hmap unHCons $ x
+class Forwards effs t where
+  fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (t m)
+
+instance ForwardEffs effs t => Forwards effs t where
+  {-# INLINE fwds #-}
+  fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (t m)
+  fwds alg = fwdEffs alg
+
+instance {-# OVERLAPS #-} Forwards effs IdentityT where
+  {-# INLINE fwds #-}
+  fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (IdentityT m)
+  fwds alg = IdentityT . alg . hmap runIdentityT
+
+instance {-# OVERLAPS #-} (MonadTrans t1, MonadTrans t2, ForwardEffs effs t1, Forwards effs t2)
+  => Forwards effs (HCompose t1 t2) where
+  {-# INLINE fwds #-}
+  fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (HCompose t1 t2 m)
+  fwds alg x = HCompose . fwdEffs (fwds alg) . hmap getHCompose $ x
 

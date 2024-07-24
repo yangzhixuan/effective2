@@ -3,7 +3,7 @@ module Control.Monad.Trans.List where
 import Data.HFunctor ( HFunctor(..) )
 
 import Control.Applicative ( Alternative(empty, (<|>)) )
-import Control.Monad ( ap, liftM )
+import Control.Monad
 import Control.Monad.Trans.Class ( MonadTrans(..) )
 import Control.Arrow ( Arrow(second) )
 
@@ -41,3 +41,7 @@ instance Monad m => Alternative (ListT m) where
 instance MonadTrans ListT where
   lift :: Monad m => m a -> ListT m a
   lift = ListT . liftM (\x -> Just (x, empty))
+
+instance Monad m => MonadPlus (ListT m) where
+  mzero = empty
+  mplus = (<|>)

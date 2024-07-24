@@ -1,8 +1,11 @@
+{-# LANGUAGE TypeFamilies #-}
+
 module Data.HFunctor.HCompose where
 
 import Data.HFunctor
 import Control.Monad.Trans.Class
 import Data.Kind (Type)
+
 
 newtype HCompose (h :: (Type -> Type) -> (Type -> Type))
                  (k :: (Type -> Type) -> (Type -> Type))
@@ -42,3 +45,9 @@ instance (HFunctor h, HFunctor k) =>
     hmap :: (HFunctor h, HFunctor k, Functor f, Functor g) =>
       (forall x. f x -> g x) -> HCompose h k f a -> HCompose h k g a
     hmap h (HCompose x) = HCompose (hmap (hmap h) x)
+
+type family HApply
+  (h :: (Type -> Type) -> (Type -> Type))
+  (f :: Type -> Type) :: (Type -> Type)
+  where
+  HApply (HCompose h1 h2) f = h1 (h2 f)

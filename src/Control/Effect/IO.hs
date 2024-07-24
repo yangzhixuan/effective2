@@ -1,13 +1,12 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE MonoLocalBinds #-}
 
 module Control.Effect.IO where
 
-import Data.HFunctor.HComposes
 import qualified System.CPUTime
 import Control.Effect
 import Data.List.Kind
-import Data.Functor.Composes
 import Control.Family
 
 import Control.Family.Algebraic
@@ -53,16 +52,14 @@ evalIO :: Prog [GetLine, PutStrLn, GetCPUTime] a -> IO a
 evalIO = eval algIO
 
 handleIO
-  :: forall effs oeffs ts fs a xeffs
+  :: forall effs oeffs t f a xeffs
   . ( Injects oeffs xeffs
     , Injects (xeffs :\\ effs) xeffs
-    , Functors fs
-    , Forwards xeffs ts
-    , forall m . Monad m => Monad (HComps ts m)
+    , Functor f
+    , Forwards xeffs t
+    , forall m . Monad m => Monad (t m)
     , xeffs ~ '[GetLine, PutStrLn, GetCPUTime]
-    , KnownNat (Length effs)
-    , KnownNat (Length (xeffs :\\ effs)))
-  => Handler effs oeffs ts fs
-  -> Prog (effs `Union` xeffs) a -> IO (RComposes fs a)
+    , KnownNat (Length effs))
+  => Handler effs oeffs t f
+  -> Prog (effs `Union` xeffs) a -> IO (Apply f a)
 handleIO = handleM algIO
-

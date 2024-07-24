@@ -43,7 +43,7 @@ exceptAlg _ eff
 -- exceptT :: Handler [Throw, Catch] '[] '[Maybe]
 -- exceptT = handler runMaybeT exceptAlg
 
-except :: Handler [Throw, Catch] '[] '[MaybeT] '[Maybe]
+except :: Handler [Throw, Catch] '[] MaybeT Maybe
 except = handler runMaybeT exceptAlg
 
 -- exceptT
@@ -77,6 +77,6 @@ retryAlg _ eff
                                Just y  -> loop p q
                Just x  -> return (Just x)
 
-retry :: Handler [Throw, Catch] '[] '[MaybeT] '[Maybe]
+retry :: Handler [Throw, Catch] '[] MaybeT Maybe
 retry = handler runMaybeT retryAlg
 
