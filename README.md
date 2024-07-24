@@ -378,7 +378,7 @@ getLineIncrState = getLineIncr ||> (state (0 :: Int))
 ```
 This can then be executed using `handleIO`, which will deal with
 the residual `GetLine` effect:
-```haskell ignore
+```console
 ghci> handleIO getLineIncrState echo
 Hello
 Hello
@@ -403,7 +403,7 @@ getLineLength = do xs <- getLine
                    return (length xs)
 ```
 As before, this can be evaluated using `evalIO`:
-```haskell ignore
+```console
 ghci> evalIO getLineLength
 Hello
 5
@@ -446,7 +446,7 @@ handle (getLinePure ["hello", "world!"]) :: Prog '[GetLine] a -> ([String], a)
 ```
 Executing this will get the first line in the list of strings and return its length,
 and the same program can be executed either processed with IO.
-```haskell ignore
+```console
 ghci> handle (getLinePure ["Hello", "world!"]) getLineLength
 (["world!"],5)
 ```
@@ -532,7 +532,7 @@ first handler is fed into the input of the second. Any remaining output
 operations are combined and become the output of the fusion.
 
 Now the `echo` program can be executed in an entirely pure context:
-```haskell ignore
+```console
 ghci> handle (teletype ["Hello", "world!"]) echo
 (["Hello","world!"],())
 ```
@@ -561,7 +561,7 @@ teletypeTick str = getLineIncrState |> teletype str
 ```
 This can be executed using `handle`, passing in the
 list of inputs to be fed to `getLine`:
-```haskell ignore
+```console
 ghci> handle (teletypeTick ["Hello", "world!"]) echo
 (["Hello","world!"],(3,()))
 ```
@@ -592,7 +592,7 @@ retell f = interpret $
 ```
 Simply put, every `tell w` is intercepted, and retold as `tell (f w)`. Thus,
 a simple message can be made louder at the flick of a switch:
-```haskell ignore
+```console
 ghci> handle (retell (map toUpper) |> writer @String) (tell "get bigger!")
 ("GET BIGGER!",())
 ```
@@ -636,7 +636,7 @@ shout     = map (map toUpper)
 ```
 To evaluate this program, the `censors` handler is created with an initial
 cipher which is `id` so that the messages not under a `censor` are not affected:
-```haskell ignore
+```console
 ghci> handle (censors @[String] id |> writer) hoppy :: ([String], ())
 (["Hello Alfie!","esiotrot","!REGGIB TEG","Goodbye!"],())
 ```
@@ -660,7 +660,7 @@ uncensors :: forall w . Monoid w => Handler '[Censor w] IdentityT Identity '[]
 ```
 This handler removes all censorship from the program. The type promises that no other
 effects are generated, and that the result is pure.
-```haskell ignore
+```console
 ghci> handle (uncensors @[String] |> writer @[String]) hello
 (["Hello world!","tortoise","get bigger!","Goodbye!"],())
 ```
@@ -709,7 +709,7 @@ rePutStrLn f = interpret $
                                       return k
 ```
 
-```haskell ignore
+```console
 ghci> handle (rePutStrLn (map toUpper) |> teletype ["tortoise"]) echo
 (["TORTOISE"],())
 ```
@@ -751,7 +751,7 @@ censorsPutStrLn :: ([String] -> [String])
 censorsPutStrLn cipher = putStrLnTell |> censors cipher |> tellPutStrLn
 ```
 The ensuing chain of handlers seems to do the job:
-```haskell ignore
+```console
 ghci> handle (censorsPutStrLn id |> teletype ["Hello world!"])
              shoutEcho
 (["HELLO WORLD!"],())
@@ -788,7 +788,7 @@ a `putStrLn` originally, and those that are part of the program.
 
 The solution is simple: the `tell` operations to do with logging
 should be handled _before_ the teletype effects are handled:
-```haskell ignore
+```console
 ghci> handle (writer @[String] |> censorsPutStrLn id |> teletype ["Hello wor
 ld!"]) logShoutEcho
 (["HELLO WORLD!"],(["Entering shouty echo"],()))
@@ -957,7 +957,6 @@ this is used to keep track of effect signatures.
 
 ```haskell top
 {-# LANGUAGE DataKinds #-}    -- Used for the list of effects
--- {-# LANGUAGE PartialTypeSignatures #-}    -- Used for the list of effects
 ```
 <!--
 The following pragma is only needed for the testing framework.
