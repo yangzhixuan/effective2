@@ -6,7 +6,6 @@
 
 module Control.Family where
 import Data.HFunctor
-import Data.HFunctor.HComposes
 
 import Data.Kind ( Type )
 import Data.List.Kind
@@ -31,12 +30,14 @@ class ForwardEffs effs (t :: (Type -> Type) -> (Type -> Type))  where
     -> Algebra effs (t m)
 
 instance ForwardEffs '[] t where
+  {-# INLINE fwdEffs #-}
   fwdEffs :: forall m . Monad m
     => Algebra '[] (m)
     -> Algebra '[] (t m)
   fwdEffs alg = absurdEffs
 
 instance (HFunctor eff, Forward eff t, ForwardEffs effs t, KnownNat (Length effs), KnownNat (1 + Length effs)) => ForwardEffs (eff ': effs) t where
+  {-# INLINE fwdEffs #-}
   fwdEffs :: forall m . Monad m => Algebra (eff ': effs) m -> Algebra (eff ': effs) (t m)
   fwdEffs alg (Eff op)   = fwd (alg . Eff) op
   fwdEffs alg (Effs ops) = fwdEffs (alg . Effs) ops
@@ -60,15 +61,18 @@ class Forwards effs t where
   fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (t m)
 
 instance ForwardEffs effs t => Forwards effs t where
+  {-# INLINE fwds #-}
   fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (t m)
   fwds alg = fwdEffs alg
 
 instance {-# OVERLAPS #-} Forwards effs IdentityT where
+  {-# INLINE fwds #-}
   fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (IdentityT m)
   fwds alg = IdentityT . alg . hmap runIdentityT
 
-instance (MonadTrans t1, MonadTrans t2, ForwardEffs effs t1, Forwards effs t2)
+instance {-# OVERLAPS #-} (MonadTrans t1, MonadTrans t2, ForwardEffs effs t1, Forwards effs t2)
   => Forwards effs (HCompose t1 t2) where
+  {-# INLINE fwds #-}
   fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (HCompose t1 t2 m)
   fwds alg x = HCompose . fwdEffs (fwds alg) . hmap getHCompose $ x
 

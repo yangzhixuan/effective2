@@ -4,10 +4,8 @@
 module Control.Effect.Writer where
 import Control.Effect
 import Data.Tuple (swap)
-import Data.Functor.Identity
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Reader
-import Control.Monad.Trans.Identity
 import Control.Family.Algebraic
 import Control.Family.Scoped
 import qualified Control.Monad.Trans.Writer as W

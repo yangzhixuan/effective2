@@ -5,7 +5,6 @@ module Control.Effect.Reader where
 
 import Control.Family.Algebraic
 import Control.Family.Scoped
-import Data.Functor.Composes
 import Data.Functor.Identity
 
 import Control.Effect

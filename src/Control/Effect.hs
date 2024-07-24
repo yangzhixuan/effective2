@@ -32,6 +32,11 @@ module Control.Effect
   , (#)
   , identity
   , weakenProg
+  , Compose(..)
+  , Identity(..)
+  , HCompose(..)
+  , IdentityT(..)
+  , Apply
   ) where
 
 
@@ -48,12 +53,11 @@ import Control.Monad.Trans.Class
 import Data.Kind ( Type )
 import Data.List.Kind
 import Data.Functor.Identity
-import Data.Functor.Composes
 import Data.Functor.Compose
 import Data.HFunctor
 import Data.HFunctor.HCompose
-import Data.HFunctor.HComposes
 import Control.Family
+import Unsafe.Coerce
 
 import Control.Monad ( join, (>=>))
 
@@ -432,10 +436,8 @@ fuse, (|>)
     , Injects (effs2 :\\ effs1) effs2
     , Injects oeffs2 oeffs
     , Injects oeffs1 ((oeffs1 :\\ effs2) :++ effs2)
-    , KnownNat (Length (oeffs1 :\\ effs2))
     , KnownNat (Length (effs1))
     , KnownNat (Length (effs2))
-    , KnownNat (Length (effs2 :\\ effs1))
     , MonadTrans ts1
     )
   => Handler effs1 oeffs1 ts1 fs1
@@ -526,9 +528,10 @@ pipe (Handler run1 malg1)  (Handler run2 malg2) = Handler run malg where
 handle :: forall effs ts f a .
   ( Monad (ts Identity) , Functor f )
   => Handler effs '[] ts f
-  -> Prog effs a -> f a
+  -> Prog effs a -> Apply f a
 handle (Handler run malg)
-  = runIdentity
+  = unsafeCoerce @(f a) @(Apply f a)
+  . runIdentity
   . run @Identity (absurdEffs . injs)
   . eval (malg (absurdEffs . injs))
 
@@ -555,19 +558,22 @@ handle (Handler run malg)
 --                             (fwd (\x -> Call (injs x) id return)))
 
 
-handleM :: forall effs oeffs xeffs m ts fs a .
+handleM :: forall effs oeffs xeffs m t f a .
   ( Monad m
-  , forall m . Monad m => Monad (ts m)
-  , Functor fs
-  , Forwards xeffs ts
+  , forall m . Monad m => Monad (t m)
+  , Forwards xeffs t
   , Injects oeffs xeffs
   , Injects (xeffs :\\ effs) xeffs
-  , KnownNat (Length (effs))
-  , KnownNat (Length (xeffs :\\ effs))
   )
   => Algebra xeffs m
-  -> Handler effs oeffs ts fs
-  -> Prog (effs `Union` xeffs) a -> m (fs a)
+  -> Handler effs oeffs t f
+  -> Prog (effs `Union` xeffs) a -> m (Apply f a)
 handleM xalg (Handler run malg)
-  = run @m (xalg . injs)
+  = unsafeCoerce @(m (f a)) @(m (Apply f a))
+  . run @m (xalg . injs)
   . eval (hunion @effs @xeffs (malg (xalg . injs)) (fwds xalg))
+
+type family Apply f a where
+  Apply Identity a      = a
+  Apply (Compose f g) a = Apply f (Apply g a)
+  Apply f a             = f a

@@ -10,14 +10,13 @@ import Control.Family.Algebraic
 import Control.Effect.State.Type
 import qualified Control.Monad.Trans.State.Strict as Strict
 import Data.Tuple (swap)
-import Data.Functor.Identity
 
 state :: s -> Handler [Put s, Get s] '[] (Strict.StateT s) ((,) s)
 state s = handler (fmap swap . flip Strict.runStateT s) stateAlg
 
 -- | The `state_` handler deals with stateful operations and silenty
 -- discards the final state.
--- state_ :: s -> Handler [Put s, Get s] '[] '[]
+-- state_ :: s -> Handler [Put s, Get s] IdentityT Identity
 -- state_ s = Handler $ Handler (\oalg -> fmap (RCNil . fst) . flip S.runStateT s) stateAlg
 state_ :: s -> Handler [Put s, Get s] '[] (Strict.StateT s) Identity
 -- state_ s = Handler (\oalg -> fmap (RCNil . fst) . flip S.runStateT s) stateAlg

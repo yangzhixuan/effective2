@@ -15,7 +15,8 @@ module Control.Effect.Type
   , pattern Effs
   , absurdEffs
   , weakenAlg
-  , Injects (..)
+  , Injects
+  , injs
   , Member (..)
   , inj
   , prj
@@ -37,6 +38,10 @@ import GHC.TypeLits
 import GHC.Exts
 import Unsafe.Coerce
 
+import Control.Monad.ST
+import Data.Array.ST
+import Data.Array
+
 type Signature = Type -> Type
 type Effect = (Type -> Type) -> (Type -> Type)
 
@@ -52,13 +57,13 @@ pattern Eff :: (HFunctor sig, KnownNat (1 + Length sigs), KnownNat (Length sigs)
 pattern Eff op <- (openEff -> Just op) where
   Eff op = inj op
 
-pattern Effs :: KnownNat (Length sigs) => Effs sigs f a -> Effs (sig ': sigs) f a
+pattern Effs :: forall sig sigs f a . KnownNat (Length sigs) => Effs sigs f a -> Effs (sig ': sigs) f a
 pattern Effs op <- (openEffs -> Just op) where
-  Effs op = unsafeCoerce op
+  Effs op = unsafeCoerce @(Effs sigs f a) @(Effs (sig ': sigs) f a) op
 
 {-# INLINE weakenEffs #-}
-weakenEffs :: Effs sigs f a -> Effs (sig ': sigs) f a
-weakenEffs = unsafeCoerce
+weakenEffs :: forall sig sigs f a . Effs sigs f a -> Effs (sig ': sigs) f a
+weakenEffs = unsafeCoerce @(Effs sigs f a) @(Effs (sig ': sigs) f a)
 
 {-# INLINE open #-}
 open :: forall sig sigs f a . KnownNat (Length sigs) => Effs (sig ': sigs) f a -> Either (Effs sigs f a) (sig f a)
@@ -85,9 +90,11 @@ openEffs effn@(Effn n op)
     m = fromInteger (fromSNat (natSing @(Length sigs)))
 
 instance Functor f => Functor (Effs sigs f) where
+  {-# INLINE fmap #-}
   fmap f (Effn n op) = Effn n (fmap f op)
 
 instance HFunctor (Effs sigs) where
+  {-# INLINE hmap #-}
   hmap h (Effn n op) = Effn n (hmap h op)
 
 {-# INLINE absurdEffs #-}
@@ -134,13 +141,18 @@ houtr effn@(Effn n op)
 
 {-# INLINE weakenAlg #-}
 weakenAlg
-  :: forall eff eff' m x . (Injects eff eff')
-  => (Effs eff' m x -> m x)
-  -> (Effs eff  m x -> m x)
+  :: forall xeffs xyeffs m x . (Injects xeffs xyeffs)
+  => (Effs xyeffs m x -> m x)
+  -> (Effs xeffs  m x -> m x)
 weakenAlg alg = alg . injs
 
 type Member :: Effect -> [Effect] -> Constraint
 type Member sig sigs = (KnownNat (EffIndex sig sigs))
+
+type family Members (xeffs :: [Effect]) (xyeffs :: [Effect]) :: Constraint where
+  Members '[] xyeffs       = ()
+  Members (xeff ': xeffs) xyeffs = (Member xeff xyeffs, Members xeffs xyeffs)
+
 
 {-# INLINE inj #-}
 inj :: forall sig sigs f a . (HFunctor sig, Member sig sigs) => sig f a -> Effs sigs f a
@@ -157,26 +169,22 @@ prj (Effn n x)
   where
     n' = fromInteger (fromSNat (natSing @(EffIndex sig sigs)))
 
-type family Members (xs :: [Effect]) (xys :: [Effect]) :: Constraint where
-  Members '[] xys       = ()
-  Members (x ': xs) xys = (Member x xys, Members xs xys, Injects (x ': xs) xys)
-
 -- Injects xs ys means that all of xs is in xys
 -- Some other effects may be in xys, so xs <= ys
-type  Injects :: [Effect] -> [Effect] -> Constraint
-class Injects xs xys where
-  injs :: Effs xs f a -> Effs xys f a
+class KnownNat (Length xeffs) => Injects xeffs xyeffs where
+  injs :: Effs xeffs f a -> Effs xyeffs f a
+  ixs :: Array Int Int
 
-instance Injects '[] xys where
+instance (KnownNats (EffIndexes xeffs xyeffs), KnownNat (Length xeffs))
+  => Injects xeffs xyeffs where
   {-# INLINE injs #-}
-  injs :: Effs '[] f a -> Effs xys f a
-  injs = absurdEffs
+  injs (Effn n op) = Effn (ixs @xeffs @xyeffs ! n) op
 
-instance (KnownNat (Length xs), KnownNat (Length (x ': xs)), Member x xys, Injects xs xys, HFunctor x)
-  => Injects (x ': xs) xys where
-  {-# INLINE injs #-}
-  injs (Eff x)  = inj x
-  injs (Effs x) = injs x
+  ixs = runSTArray $ do arr <- newArray_ (0, m - 1)
+                        natVals (proxy# :: Proxy# (EffIndexes xeffs xyeffs)) arr
+                        return arr
+    where
+      m = fromInteger (natVal' (proxy# :: Proxy# (Length xeffs)))
 
 -- extract the effect from list of xeffs using the natural,
 -- and inject it back into yeffs if it is present there
@@ -184,11 +192,26 @@ instance (KnownNat (Length xs), KnownNat (Length (x ': xs)), Member x xys, Injec
 -- injs' (Effn n op) = undefined
 
 {-# INLINE hunion #-}
-hunion :: forall xs ys f a b
-  . ( Injects (ys :\\ xs) ys, KnownNat (Length xs), KnownNat (Length (ys :\\ xs)) )
-  => (Effs xs f a -> b) -> (Effs ys f a -> b) -> (Effs (xs `Union` ys) f a -> b)
-hunion xalg yalg = heither @xs @(ys :\\ xs) xalg (yalg . injs)
+hunion :: forall xeffs yeffs f a b . Injects (yeffs :\\ xeffs) yeffs
+  => (Effs xeffs f a -> b) -> (Effs yeffs f a -> b)
+  -> (Effs (xeffs `Union` yeffs) f a -> b)
+hunion xalg yalg = heither @xeffs @(yeffs :\\ xeffs) xalg (yalg . injs)
 
 type family EffIndex (x :: a) (xs :: [a]) :: Nat where
   EffIndex x (x ': xs) = Length xs
   EffIndex x (_ ': xs) = EffIndex x xs
+
+type family EffIndexes (xs :: [a]) (ys :: [a]) :: [Nat] where
+  EffIndexes '[] ys       = '[]
+  EffIndexes (x ': xs) ys = EffIndex x ys ': EffIndexes xs ys
+
+class KnownNat (Length ns) => KnownNats (ns :: [Nat]) where
+  natVals :: Proxy# ns -> STArray s Int Int -> ST s ()
+
+instance KnownNats '[] where
+  natVals _ _ = return ()
+
+instance (KnownNat x, KnownNats xs, KnownNat (Length (x ': xs))) => KnownNats (x ': xs) where
+  natVals _ arr = do writeArray arr (fromInteger $ natVal' (proxy# @(Length xs)))
+                                    (fromInteger $ natVal' (proxy# @x))
+                     natVals (proxy# :: Proxy# xs) arr
