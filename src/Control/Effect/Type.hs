@@ -68,15 +68,15 @@ weakenEffs = unsafeCoerce @(Effs sigs f a) @(Effs (sig ': sigs) f a)
 {-# INLINE open #-}
 open :: forall sig sigs f a . KnownNat (Length sigs) => Effs (sig ': sigs) f a -> Either (Effs sigs f a) (sig f a)
 open  eff@(Effn n op)
-  | n == fromInteger (fromSNat (natSing @(Length sigs))) = Right (unsafeCoerce op)
-  | otherwise                                            = Left (unsafeCoerce eff)
+  | n == fromInteger (fromSNat (natSing @(Length sigs))) = Right (unsafeCoerce @(_ f a) @(sig f a) op)
+  | otherwise                                            = Left (unsafeCoerce @(Effs (sig ': sigs) f a) @(Effs sigs f a) eff)
 
 
 {-# INLINE openEff #-}
 openEff :: forall sig sigs f a . Member sig sigs
   => Effs sigs f a -> Maybe (sig f a)
 openEff (Effn n op)
-  | n == n'   = Just (unsafeCoerce op)
+  | n == n'   = Just (unsafeCoerce @(_ f a) @(sig f a) op)
   | otherwise = Nothing
   where n' = fromInteger (fromSNat (natSing @(EffIndex sig sigs)))
 
@@ -85,7 +85,7 @@ openEffs :: forall sig sigs f a . KnownNat (Length sigs)
   => Effs (sig ': sigs) f a -> Maybe (Effs sigs f a)
 openEffs effn@(Effn n op)
   | n == m    = Nothing
-  | otherwise = Just (unsafeCoerce effn)
+  | otherwise = Just (unsafeCoerce @(Effs (sig ': sigs) f a) @(Effs sigs f a) effn)
   where
     m = fromInteger (fromSNat (natSing @(Length sigs)))
 
@@ -118,8 +118,8 @@ hinl (Effn n op) = Effn (m + n) op
     m = fromInteger (fromSNat (natSing @(Length ys)))
 
 {-# INLINE hinr #-}
-hinr :: Effs ys f a -> Effs (xs :++ ys) f a
-hinr = unsafeCoerce
+hinr :: forall xs ys f a . Effs ys f a -> Effs (xs :++ ys) f a
+hinr = unsafeCoerce @(Effs ys f a) @(Effs (xs :++ ys) f a)
 
 {-# INLINE houtl #-}
 houtl :: forall xs ys f a . KnownNat (Length ys)
@@ -134,7 +134,7 @@ houtl (Effn n op)
 houtr :: forall xs ys f a . KnownNat (Length ys)
   => Effs (xs :++ ys) f a -> Maybe (Effs ys f a)
 houtr effn@(Effn n op)
-  | n < m     = Just (unsafeCoerce effn)
+  | n < m     = Just (unsafeCoerce @(Effs (xs :++ ys) f a) @(Effs ys f a) effn)
   | otherwise = Nothing
   where
     m = fromInteger (fromSNat (natSing @(Length ys)))
@@ -164,7 +164,7 @@ inj = Effn n
 prj :: forall sig sigs f a . (Member sig sigs)
   => Effs sigs f a -> Maybe (sig f a)
 prj (Effn n x)
-  | n == n'   = Just (unsafeCoerce x)
+  | n == n'   = Just (unsafeCoerce @(_ f a) @(sig f a) x)
   | otherwise = Nothing
   where
     n' = fromInteger (fromSNat (natSing @(EffIndex sig sigs)))
