@@ -369,12 +369,12 @@ interpret
   :: forall effs oeffs
   .  (forall m x . Effs effs m x -> Prog oeffs x)
   -> Handler effs oeffs IdentityT Identity
-interpret alg = interpretM talg
+interpret gen = interpretM talg
   where
     talg :: forall m . Monad m
          => (forall x. Effs oeffs m x -> m x)
          -> (forall x. Effs effs m x  -> m x)
-    talg oalg op = eval oalg (alg op)
+    talg oalg op = eval oalg (gen op)
 
 interpretM
   :: forall effs oeffs .

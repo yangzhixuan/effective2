@@ -71,7 +71,6 @@ open  eff@(Effn n op)
   | n == fromInteger (fromSNat (natSing @(Length sigs))) = Right (unsafeCoerce @(_ f a) @(sig f a) op)
   | otherwise                                            = Left (unsafeCoerce @(Effs (sig ': sigs) f a) @(Effs sigs f a) eff)
 
-
 {-# INLINE openEff #-}
 openEff :: forall sig sigs f a . Member sig sigs
   => Effs sigs f a -> Maybe (sig f a)

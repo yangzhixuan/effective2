@@ -3,16 +3,22 @@ Effective
 
 The `effective` library is an effect handlers library for Haskell that is
 designed to allow users to define and interpret their own languages and
-effects. This library incorporates support for both algebraic and scoped
-effects, and is an implementation of the theory presented in [Modular Models of
-Monoids with Operations](https://dl.acm.org/doi/10.1145/3607850) by Yang and
-Wu, as well as [Effect Handlers in
-Scope](https://dl.acm.org/doi/10.1145/2633357.2633358) by Wu, Schrijvers, and
-Hinze.
+effects. This library incorporates support for:
 
-This README is a literate Haskell file and therefore can be executed. You can
-interact with its contents with `cabal repl readme` and follow the examples. The
-language extensions and imports required are at the bottom of this file.
+* Algebraic, scoped, and other higher-order effects.
+* Modular effect handlers.
+
+
+README
+------
+
+This README is a literate Haskell file and therefore can be executed:
+```console
+git clone effective
+cd effective
+cabal repl readme
+```
+This should bring you into `ghci` where you can follow the examples.[^Imports]
 
 
 Working with IO
@@ -44,7 +50,13 @@ exampleIO :: IO ()
 exampleIO = evalIO echo
 ```
 This will execute the `echo` program where input provided on the
-terminal user is immediately echoed back out to the terminal.
+terminal by the user is immediately echoed back out to the terminal.
+
+```console
+ghci> exampleIO
+Hello world!
+Hello world!
+```
 
 
 Interpreting Operations
@@ -70,7 +82,7 @@ exampleEchoTick :: IO (Int, ())
 exampleEchoTick = handleIO ticker echoTick
 ```
 When this is executed, it counts the number of lines received:
-```haskell ignore
+```console
 ghci> exampleEchoTick
 Hello
 Hello
@@ -92,6 +104,162 @@ Note that this is different to discarding the tick count by applying `fst`
 to the result of a program that counts ticks: the count is not even generated
 in the first place.
 
+
+Programs and Handlers
+---------------------
+
+The type of the `echoTick` program is `Progs '[GetLine, PutStrLn, Tick] ()`, which is in
+fact a synonym roughly equivalent to:
+```haskell ignore
+echoTick :: (Member GetLine sig, Member PutStrLn sig, Member Tick sig)
+         => Prog sig ()
+```
+The `Progs` datatype thus describes a *family* of programs which contains
+all the operations in the given signature. No order of the members is
+implied (because the constraints are not ordered), and nor is the list necessarily exhaustive (because `sig` could contain other operations).
+
+The `ticker` and `unticker` handlers have the following types:
+```haskell ignore
+ticker   :: Handler '[Tick] '[] (StateT Int) ((,) Int)
+unticker :: Handler '[Tick] '[] IdentityT    Identity
+```
+Here is what the different parameters mean for the `ticker` handler:
+```haskell ignore
+ticker   :: Handler '[Tick]        -- input effects
+                    '[]            -- output effects
+                    (StateT Int)   -- transformer
+                    ((,) Int)      -- wrapper
+```
+
+The signature of the handler tells us how it behaves:
+* **Input effects**: The input effects will be processed and removed by this handler.
+  In `ticker` the input effect is `Tick`.
+* **Output effects**: The output effects will be produced by this handler.
+  In `ticker` the output effects are empty.
+* **Transformer**: The transformer is used to provide semantics to the input effects.
+  In `ticker` the transformer is `StateT Int`.
+* **Wrapper**: The wrapper is used wrap the final computation when the handler
+  is handled.
+  When `ticker` is used to handle a program of type `Prog effs a`,
+  the output will be the wrapper `((,) s)` applied to the value of the program
+  `a`, which is simply `(s, a)`.
+
+A handler is applied to a program using a `handle` function. In `exampleEchoTick`,
+the `handleIO` function is used because `GetLine` and `PutStrLn` are operations
+that relate to `IO`.
+```haskell ignore
+handleIO :: ( forall m . Monad m => Monad (t m), Functor f , ... )
+         => Handler effs oeffs t f
+         -> Prog (effs `Union` xeffs) a -> IO (Apply f a)
+```
+The result is `IO (Apply f)`, where `f` is the functor given by the wrapper of the handler, and `Apply f` removes any stray `Identity` and `Compose` functors.
+This becomes important for handlers like `unticker`, so that the result
+of `handleIO unticker p` when `p :: Prog [Tick] a` is a value of type `IO a` .
+So far, we have been working with examples of _impure_ effects that ultimately
+rely on `IO`. Another important class of effects is the class of _pure_ effects,
+which we will look at next.
+
+
+Working with Pure Handlers
+--------------------------
+
+A pure handler can be applied when all the effects in a program are
+processed, and when none are produced:
+```haskell ignore
+handle :: ( Monad (ts Identity) , Functor f )
+       => Handler effs '[] ts f
+       -> Prog effs a -> Apply f a
+```
+
+For example, a pure state effect is provided in `Effect.Control.State`, which
+supports `get` and `put` as operations that are indicated by `Get s` and `Put s`
+in a signature.
+
+Here is a program that increments the number in a state
+and returns it:
+```haskell
+incr :: Progs [Put Int, Get Int] ()
+incr = do x <- get
+          put @Int (x + 1)
+```
+In order to keep the program modular, the effects in `effs` are given by a
+constraint on the input type, saying that `Put Int` and `Get Int` are its
+members.
+
+This program can be executed by using a `state s` handler, where the
+state is initialised to `s`:
+```haskell ignore
+state :: s -> Handler '[Put s, Get s]  -- input effects
+                      '[]              -- output effects
+                      (StateT s)       -- transformer
+                      ((,) s)          -- wrapper
+```
+
+Executing the `incr` program with this handler can be achieved as follows:
+```console
+ghci> handle (state (41 :: Int) incr
+(42,())
+```
+Since the program has type `Prog effs ()`, with a pure value of `()`,
+the result of applying the handler is `((,) Int)` applied to `()`,
+thus giving back a value of type `(Int, ())`.
+
+The type of the `state` handler promises to handle both `Put s` and `Get s`
+operations, and so it is able to work with programs that use both, or
+either one of these. Here is a program that only uses `Get String`:
+```haskell
+getStringLength :: Progs '[Get String] Int
+getStringLength = do xs <- get @String
+                     return (length xs)
+```
+It can be handled using `state`:
+```console
+ghci> handle (state "Hello!") getStringLength
+("Hello!",6)
+```
+Notice that the `state` handler returns the final state as well as the final
+return value of the program.
+
+A variation of the `state` handler is `state_`,
+which does not return the final state:
+```haskell ignore
+state_ :: s -> Handler [Put s, Get s] IdentityT Identity
+```
+Here the final output wrapper is `Identity`, and so applying this to a program
+of type `Prog sig a` will simply return a value of type `a`, since `Apply Identity a = a`.
+```console
+ghci> handle (state_ "Hello!") getStringLength
+6
+```
+
+The effect of `handle h p` is to use the handler `h` to remove _all_ the
+effects in interpreting the program `p`. This relates to both the effects
+of the program and effects output by a handler.
+Trying to apply a handler that does not fully evaluate the effects in `p` will
+result in a type error.
+For example, the `echo` program cannot be handled with a state handler:
+```console
+ghci> handle (state "Hello") echo
+
+<interactive>:2:24: error: [GHC-39999]
+    • No instance for ‘Member' GetLine '[] (ElemIndex GetLine '[])’
+        arising from a use of ‘echo’
+    • In the second argument of ‘handle’, namely ‘echo’
+      In the expression: handle (state "Hello") echo
+      In an equation for ‘it’: it = handle (state "Hello") echo
+```
+This is essentially saying that `GetLine` is not supported by the state handler.
+
+
+Creating  Operations
+--------------------
+
+One of the key features of an effect system is to allow an effect engineer
+to create new effects and interpret them in different ways. Although
+`getLine` and `putStrLn` are special, in that they are processed by `evalIO`
+and provided by the `effective` library, the `tick` operation is a
+custom operation with a semantics given as we desire.
+
 The `tick` operation is defined by providing a datastructure to hold the syntax
 as data:
 ```haskell
@@ -103,123 +271,66 @@ tick :: Member Tick sig => Prog sig ()
 tick = call (Alg (Tick (return ())))
 ```
 This uses a `Member` constraint to describe how `tick` can be used
-in any program where `Tick` is in its signature.
+in any program where `Tick` is in its signature. The `Alg` constructor
+indicates that `Tick` is an algebraic operation.
 
-The type of `echoTick` is `Progs '[GetLine, PutStrLn, Tick] ()`, which is in
-fact a synonym roughly equivalent to:
-```haskell ignore
-echoTick :: (Member GetLine sig, Member PutStrLn sig, Member Tick sig)
-         => Prog sig ()
-```
-The `Progs` datatype thus describes a family of programs which contain
-all the operations in the given signature. No order of the members is
-implied, and nor is the list necessarily exhaustive.
-
+The `unticker` and `ticker` handlers are examples of interpreters that
+will interpret `Tick` in different ways. The simplest one is `unticker`,
+which removes all instances of `Tick`:
 ```haskell
 unticker :: Handler '[Tick] '[] IdentityT Identity
-unticker = interpret alg where
-  alg :: Effs '[Tick] m x -> Prog '[] x
-  alg (Eff (Alg (Tick k))) = return k
+unticker = interpret gen where
+  gen :: Effs '[Tick] m x -> Prog '[] x
+  gen (Eff (Alg (Tick k))) = return k
+```
+The `gen` function describes how to generate a program from the operations
+it recognises. In this instance, the program is always empty, and
+simply returns `k`.
 
+The `ticker` handler is a bit more complex: it works by interpreting
+the `tick` operation into `get` and `put` operations, which interact
+with an `Int` to keep track of how many ticks have been produced.
+Notice that the `gen` function generates these operations from the given `tick`:
+```haskell
 tickState :: Handler '[Tick] '[Put Int, Get Int] IdentityT Identity
-tickState = interpret alg where
-  alg :: Effs '[Tick] m x -> Prog [Put Int, Get Int] x
-  alg (Eff (Alg (Tick k))) = do x <- get
+tickState = interpret gen where
+  gen :: Effs '[Tick] m x -> Prog [Put Int, Get Int] x
+  gen (Eff (Alg (Tick k))) = do x <- get
                                 put @Int (x + 1)
                                 return k
+```
+The `ticker` is produced by combining `tickState` with the `state` handler using
+the _pipe_ combinator, written `h1 ||> h2` to pipe the handler `h1` into the
+handler `h2`.
 
+```haskell
 ticker :: Handler '[Tick] '[] (StateT Int) ((,) Int)
 ticker = tickState ||> state (0 :: Int)
 ```
-
-Working with Handlers
-----------------------
-
-A pure state effect is provided in `Effect.Control.State`, which supports
-`get` and `put` as operations that are indicated by `Get s` and `Put s`
-in a signature.
-
-For example, here is a program that increments the number in a state
-and returns it:
-```haskell
-incr :: Progs [Put Int, Get Int] ()
-incr = do x <- get
-          put @Int (x + 1)
-```
-In order to keep the program modular, the effects in `effs` are given by a
-constraint on the input type, saying that `Put Int` and `Get Int` are its
-members.
-
-This program can be executed by using a handler. For state, the usual
-handler is given by:
+Given `h1 :: Handler eff1 oeff1 t1 f1` and `h2 :: Handler eff2 oeff2 t2 f2`, the
+result of `h1 ||> h2` is a handler that recognises all of `eff1`, the input
+effects of `h1`, and passes any effects `oeff1` produced by `h1` to be processed
+by `h2`. Here are the types involved:
 ```haskell ignore
-state :: s -> Handler '[Put s, Get s]  -- input effects
-                      '[]              -- output effects
-                      '[StateT s]      -- transformers
-                      '[((,) s)]       -- output wrapper
+(||>) :: ...
+      => Handler effs1 oeffs1 t1 f1
+      -> Handler effs2 oeffs2 t2 f2
+      -> Handler effs  oeffs  t  f
 ```
-The signature of the handler tells us how it behaves:
-* The input effects are `Put s` and `Get s`.
-* The output effects are empty
-* The output of this handler wraps the result with the functor `((,) s)`
-When `state s` is used to handle a program of type `Prog effs a`,
-the output will be the functor `((,) s)` applied to the value of the program
-`a`, which is simply `(s, a)`.
-
-Executing the `incr` program with this handler can be achieved as follows:
+The constraints on `||>` include:
 ```haskell ignore
-ghci> handle (state 41) (do x <- get; put (x + 1) :: (Int, ())
-(42,())
+  effs  ~ effs1
+  oeffs ~ (oeffs1 :\\ effs2) `Union` oeffs2
+  t     ~ HRAssoc (t1 `HCompose` t2)
+  f     ~ RAssoc (f2 `Compose` f1)
 ```
-Since the program has type `Prog effs ()`, with a pure value of `()`,
-the result of applying the handler is `((,) Int)` applied to `()`,
-thus giving back `(Int, ())`.
+More specifically, the output effects `oeffs` include all the output
+effects of `h1` that are not processed by `h2`, together with any effects
+produced by `h2`
 
-The type of the `state` handler promises to handle both `Put s` and `Get s`
-operations, and so it is able to work with programs that use both, or
-either one of these. Here is a program that only uses `Get String`:
-```haskell
-getStringLength :: Progs '[Get String] Int
-getStringLength = do xs <- get @String
-                     return (length xs)
-```
-It can be handled using `state`:
-```haskell ignore
-ghci> handle (state "Hello!") getStringLength
-("Hello!",6)
-```
-Notice that the `state` handler returns the final state as well as the final
-return value of the program. A variation of the `state` handler is `state_`,
-which does not return the final state:
-```haskell ignore
-state_ :: s -> Handler [Put s, Get s] IdentityT Identity
-```
-Here the final output wrapper is `'[]`, and so applying this to a program
-of type `Prog sig a` will simply return a value of type `a`.
-```haskell ignore
-ghci> handle (state_ "Hello!") (do xs <- get @String; return (length xs))
-6
-```
-
-The effect of `handle h p` is to use the handler `h` to remove _all_ the
-effects in interpreting the program `p`. This relates to both the effects
-of the program and effects output by a handler.
-Trying to apply a handler that does not fully evaluate the effects in `p` will
-result in a type error.
-For example, the `echo` program cannot be handled with a state handler:
-```haskell ignore
-ghci> handle (state "Hello") echo
-
-<interactive>:2:24: error: [GHC-39999]
-    • No instance for ‘Member' GetLine '[] (ElemIndex GetLine '[])’
-        arising from a use of ‘echo’
-    • In the second argument of ‘handle’, namely ‘echo’
-      In the expression: handle (state "Hello") echo
-      In an equation for ‘it’: it = handle (state "Hello") echo
-```
-This is essentially saying that `GetLine` is not supported by the state
-handler.
-
+The transformer and wrapper of the handler are essentially the compositions of
+those given by `h1` and `h2`, but the results are normalised using `HRAssoc` and
+`RAssoc` to remove any stray identities and to right associate the compositions.
 
 
 Intercepting Operations
@@ -246,8 +357,8 @@ emit it again while also incrementing a counter in the state:
 getLineIncr
   :: Handler '[GetLine]                       -- input effects
              '[GetLine, Get Int, Put Int]     -- output effects
-             IdentityT
-             Identity                         -- output wrapper
+             IdentityT                        -- transformer
+             Identity                         -- wrapper
 getLineIncr = interpret $
   \(Eff (Alg (GetLine k))) -> do xs <- getLine
                                  incr
@@ -350,7 +461,7 @@ Although the input of `echo` can be redirected using `getLinePure`, using this
 alone would not suffice, because the type of echo indicates that the program
 also uses the `PutStrLn` effect, which must also be handled.
 Trying to do so returns a type error:
-```
+```console
 ghci> :t handle (getLinePure ["hello", "world"]) echo
 
 <interactive>:8:42: error: [GHC-39999]
@@ -366,7 +477,7 @@ handler.
 
 One fix is to handle the program with `handleIO` to output to IO, while
 redirecting the input to come from a pure list:
-```haskell ignore
+```console
 ghci> handleIO (getLinePure_ ["Hello", "world!"]) echo
 Hello
 world
@@ -385,7 +496,7 @@ The signatures tell us that `tell` introduces the `Tell` effect, and
 
 The following simple example returns a list of strings, since a list of
 elements is a monoid:
-```haskell ignore
+```console
 ghci> handle writer (tell ["Hello", "World!"]) :: ([String], ())
 (["Hello","World!"],())
 ```
@@ -656,7 +767,7 @@ logShoutEcho = do tell ["Entering shouty echo"]
                   shoutEcho
 ```
 It is tempting to execute the program with the following:
-```haskell ignore
+```console
 ghci> handle (censorsPutStrLn id |> teletype ["Hello world!"]) logShoutEcho
 (["Entering shouty echo","HELLO WORLD!"],())
 ```
@@ -665,7 +776,7 @@ in exactly the same way as the pure `putStrLn` values: everything is
 accumulated into the same list of strings. The problem is exasperated
 when `handleIO` is used: the logged messages are immediately output to the
 terminal:
-```haskell ignore
+```console
 ghci> handleIO (censorsPutStrLn id) logShoutEcho
 Entering shouty echo:
 Hang on, that's a log message!
@@ -701,7 +812,7 @@ are purely produced.
 Timestamps
 ----------
 
-Timestamps are often used in conjuction with logging so that the time a message
+Timestamps are often used in conjunction with logging so that the time a message
 is logged can be recorded. The traditional way of doing this might be to make
 a bespoke `logger` that ensures that there is a timestamp integrated into each
 occurence of the log:
@@ -720,7 +831,7 @@ telltime = interpret $
                                        return k
 ```
 Now a timestamp is added to the start of messages emitted by `tell`:
-```haskell ignore
+```console
 ghci> handleIO (telltime @[String] |> censors backwards |> writer @[(Integer, [String])] |> censorsPutStrLn id |> teletype ["Hello"]) logShoutEcho
 (["Hello"],([(8073080000000,["Entering shouty echo"])],()))
 ```
@@ -808,7 +919,6 @@ getLineProfile = interpret alg where
 ```
 
 
-
 Members
 -------
 
@@ -837,17 +947,6 @@ effect handlers is that a program can be handled in different ways to create
 different semantics. Although it is reasonable for a program to insist on a
 particular order in which certain effects should be handled, the `effective`
 library leaves this choice entirely to the handler.
-
-Graded Effects
----------------
-
-There are two of defining operations using `effective`, which we will call
-_graded_ style and _member_ style. In graded style operations the signature
-parameter to `Prog` says precisely which effects are present in a program: On
-the other hand, in member style an operation is in fact a family of operations
-where there is a `Member` constraint for effect. The graded technique is
-considered more advanced and is detailed more carefully in the
-[documentation](docs/Graded.md).
 
 
 Language Extensions
@@ -912,9 +1011,16 @@ main = defaultMain $ fmap checkParallel [props]
 -->
 
 References
------------
+----------
 
 * [Effect Handlers in Scope. N. Wu, T. Schrijvers, R. Hinze. Haskell Symposium. 2014](https://dl.acm.org/doi/10.1145/2633357.2633358)
+
 * [Modular Models of Monoids with Operations. Z. Yang, N. Wu. ICFP. 2023](https://dl.acm.org/doi/10.1145/3607850)
 
-[^Gordon1992]: A. Gordon. Functional Programming and Input/Output. PhD Thesis, King's College London. 1992
+* [A Framework for Higher-Order Effects & Handlers. B. v.d. Berg, T. Schrijvers. SCP 2024](https://doi.org/10.1016/j.scico.2024.103086)
+
+* [Freer Monads, More Extensible Effects. O. Kiselyov, H. Ishii. Haskell 2015](https://doi.org/10.1145/2804302.2804319)
+
+[^Gordon1992]: [Functional Programming and Input/Output. A. Gordon. PhD Thesis, King's College London. 1992](https://www.microsoft.com/en-us/research/uploads/prod/2016/11/fpio.pdf)
+
+[^Imports]: The language extensions and imports required are at the bottom of this file.
