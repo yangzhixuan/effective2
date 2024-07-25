@@ -48,7 +48,6 @@ library
     Data.HFunctor
     Data.CutList
     Data.List.Kind
-    Data.Nat
   other-modules:
     Control.Effect.Internal.Effs
     Control.Effect.Internal.Forward
