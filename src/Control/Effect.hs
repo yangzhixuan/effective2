@@ -128,14 +128,6 @@ instance Applicative (Prog effs) where
   liftA2 f (Return x) q        = fmap (f x) q
   liftA2 f (Call opx hkx kx) q = Call opx hkx ((flip (liftA2 f) q) . kx)
 
-instance (Member Choose sigs, Member Empty sigs)
-  => Alternative (Prog sigs) where
-  {-# INLINE empty #-}
-  empty = call (Alg Empty)
-
-  {-# INLINE (<|>) #-}
-  xs <|> ys = call (Scp (Choose (fmap return xs) (fmap return ys)))
-
 instance Monad (Prog effs) where
   {-# INLINE return #-}
   return = pure
