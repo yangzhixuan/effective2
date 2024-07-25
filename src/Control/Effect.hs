@@ -34,9 +34,10 @@ module Control.Effect
   , weakenProg
   , Compose(..)
   , Identity(..)
-  , HCompose(..)
+  , ComposeT(..)
   , IdentityT(..)
   , Apply
+  , HApply
   ) where
 
 
@@ -55,7 +56,7 @@ import Data.List.Kind
 import Data.Functor.Identity
 import Data.Functor.Compose
 import Data.HFunctor
-import Data.HFunctor.HCompose
+import Control.Monad.Trans.Compose
 import Control.Family
 import Unsafe.Coerce
 
@@ -83,6 +84,8 @@ falg # galg = heither @sig1 @sig2 (falg) (galg)
 
 
 ---------------------------------------
+
+-- | `Progs sig a` desribes a family of
 type Progs sig a = forall sig' . Members sig sig' => Prog sig' a
 data Prog (sigs :: [Effect]) a where
   Return :: a -> Prog sigs a
@@ -109,9 +112,8 @@ instance Applicative (Prog effs) where
 
   {-# INLINE (<*>) #-}
   (<*>) :: Prog effs (a -> b) -> Prog effs a -> Prog effs b
-  Return f        <*> p         = fmap f p
---   p               <*> Return x  = fmap ($ x) p
-  Call opf hkf kf <*> q         = Call opf hkf ((<*> q) . kf)
+  Return f        <*> p = fmap f p
+  Call opf hkf kf <*> q = Call opf hkf ((<*> q) . kf)
 
   {-# INLINE (*>) #-}
   (*>) :: Prog effs a -> Prog effs b -> Prog effs b
@@ -124,7 +126,6 @@ instance Applicative (Prog effs) where
   {-# INLINE liftA2 #-}
   liftA2 :: (a -> b -> c) -> Prog effs a -> Prog effs b -> Prog effs c
   liftA2 f (Return x) q        = fmap (f x) q
---   liftA2 f p (Return y)        = fmap (flip f y) p
   liftA2 f (Call opx hkx kx) q = Call opx hkx ((flip (liftA2 f) q) . kx)
 
 instance (Member Choose sigs, Member Empty sigs)
@@ -147,17 +148,12 @@ weakenProg :: forall effs effs' a
   .  Injects effs effs'
   => Prog effs a -> Prog effs' a
 weakenProg (Return x) = Return x
--- weakenProg (Call op)   =
---     Call ( injs @effs @effs'
---          . hmap (weakenProg @effs @effs')
---          . fmap (weakenProg @effs @effs')
---          $ op )
 weakenProg (Call op hk k)   =
     Call (injs op) (weakenProg @effs @effs' . hk) (weakenProg @effs @effs' . k)
 
+
 -- Universal property from initial monad `Prog sig a` equipped with
 -- `sig m -> m`
-
 eval :: forall effs m a . Monad m
   => Algebra effs m
   -> Prog effs a -> m a
@@ -174,14 +170,11 @@ fold :: forall f effs a . Functor f
   -> (forall x . x -> f x)
   -> Prog effs a -> f a
 fold falg gen (Return x) = gen x
--- fold falg gen (Call op)  =
---   falg ((fmap (fold falg gen) . hmap (fold falg gen)) op)
 fold falg gen (Call op hk k) =
   falg ((fmap (fold falg gen . k) . hmap (fold falg gen . hk)) op)
 
 {-# INLINE call #-}
 call :: forall sub sup a . (Member sub sup, HFunctor sub) => sub (Prog sup) (Prog sup a) -> Prog sup a
--- call x = Call (inj x)
 call x = Call (inj x) id id
 
 {-# INLINE prjCall #-}
@@ -191,7 +184,6 @@ prjCall (Call op hk k) = prj (hmap hk . fmap k $ op)
 prjCall _              = Nothing
 
 progAlg :: Effs sig (Prog sig) a -> Prog sig a
--- progAlg = Call . fmap return
 progAlg x = Call x id return
 
 {-
@@ -309,16 +301,16 @@ handler run malg = Handler
 -- The following is a more general handler type that generalises `handler`
 -- and would be easier to use than `handlerT`.
 -- However, it has an illegal type because a type synonym family
--- appears in the instance: `Functor (HComposes ts m)` is not allowed.
+-- appears in the instance: `Functor (ComposeTs ts m)` is not allowed.
 -- We need it because of the `hmap` in the definition of `alg'`, since
 -- an `HFunctor` requires both of its parameters to be functors. It's possible
 -- that with some careful class redefinitions that this might be implementable.
 --
 -- handler'
 --   :: forall effs oeffs ts fs.
---      (Functors fs, forall m . HRecompose ts m, forall m . Functor m => Functor (HComposes ts m))
---   => (forall m a . Monad m => HComposes ts m a -> m (RComposes fs a))
---   -> (forall m . Monad m => Algebra oeffs m -> Algebra effs (HComposes ts m))
+--      (Functors fs, forall m . HRecompose ts m, forall m . Functor m => Functor (ComposeTs ts m))
+--   => (forall m a . Monad m => ComposeTs ts m a -> m (RComposes fs a))
+--   -> (forall m . Monad m => Algebra oeffs m -> Algebra effs (ComposeTs ts m))
 --   -> Handler effs oeffs ts fs
 -- handler' run alg = Handler run' alg' where
 --   run' :: Monad m => Algebra oeffs m -> forall x. HComps ts m x -> m (RComps fs x)
@@ -416,7 +408,7 @@ captured by the `Forward eff2 t1` constraint.
 
 When the effect is from `effs2`, the `malg2` handler must
 of course play a part. The problem is that the
-carrier that is targeted is `t ~ HCompose t1 t2`,
+carrier that is targeted is `t ~ ComposeT t1 t2`,
 whereas `malg` can only work for `t2` carriers.
 This makes sense, since the operations in `effs2` must operate
 only after `h1` has done its work on the syntax tree.
@@ -426,7 +418,7 @@ fuse, (|>)
   :: forall effs1 effs2 oeffs1 oeffs2 ts1 ts2 fs1 fs2 effs oeffs ts fs
   . ( effs  ~ effs1 `Union` effs2
     , oeffs ~ (oeffs1 :\\ effs2) `Union` oeffs2
-    , ts    ~ HRAssoc (ts1 `HCompose` ts2)
+    , ts    ~ HRAssoc (ts1 `ComposeT` ts2)
     , fs    ~ RAssoc (fs2 `Compose` fs1)
     , Functor fs2
     , MonadTrans ts1
@@ -471,7 +463,7 @@ pipe, (||>)
   :: forall effs1 effs2 oeffs1 oeffs2 ts1 ts2 fs1 fs2 effs oeffs ts fs
   . ( effs  ~ effs1
     , oeffs ~ (oeffs1 :\\ effs2) `Union` oeffs2
-    , ts    ~ HRAssoc (ts1 `HCompose` ts2)
+    , ts    ~ HRAssoc (ts1 `ComposeT` ts2)
     , fs    ~ RAssoc (fs2 `Compose` fs1)
     , Functor fs2
     , MonadTrans ts1
@@ -578,6 +570,12 @@ type family Apply f a where
   Apply (Compose f g) a = Apply f (Apply g a)
   Apply f a             = f a
 
+type family HApply
+  (h :: (Type -> Type) -> (Type -> Type))
+  (f :: Type -> Type) :: (Type -> Type)
+  where
+  HApply (ComposeT h1 h2) f = h1 (h2 f)
+
 -- TODO: Implement O(n) version
 type family Functors (f :: (Type -> Type)) :: [Type -> Type] where
   Functors (Compose f g) = Functors f :++ Functors g
@@ -589,9 +587,9 @@ type family RAssoc f where
 
 type family HFunctors (f :: (Type -> Type) -> (Type -> Type))
   :: [(Type -> Type) -> (Type -> Type)] where
-  HFunctors (HCompose f g) = HFunctors f :++ HFunctors g
+  HFunctors (ComposeT f g) = HFunctors f :++ HFunctors g
   HFunctors (IdentityT)    = '[]
   HFunctors f              = '[f]
 
 type family HRAssoc f where
-  HRAssoc f = Foldr0 HCompose IdentityT (HFunctors f)
+  HRAssoc f = Foldr0 ComposeT IdentityT (HFunctors f)

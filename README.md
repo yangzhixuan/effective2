@@ -321,7 +321,7 @@ The constraints on `||>` include:
 ```haskell ignore
   effs  ~ effs1
   oeffs ~ (oeffs1 :\\ effs2) `Union` oeffs2
-  t     ~ HRAssoc (t1 `HCompose` t2)
+  t     ~ HRAssoc (t1 `ComposeT` t2)
   f     ~ RAssoc (f2 `Compose` f1)
 ```
 More specifically, the output effects `oeffs` include all the output
@@ -522,7 +522,7 @@ be defined as the fusion of `putStrLnPure` and `getLinePure`.
 teletype :: [String]
          -> Handler '[GetLine, PutStrLn]
                     '[]
-                    (HCompose (StateT [String]) (WriterT [String]))
+                    (ComposeT (StateT [String]) (WriterT [String]))
                     ((,) [String])
 teletype str = getLinePure_ str |> putStrLnPure
 ```
@@ -555,7 +555,7 @@ to interpret `getLine` before passing the resulting `getLine` to `teletype`:
 teletypeTick
   :: [String]
   -> Handler '[GetLine, PutStrLn] '[]
-             (HCompose (StateT Int) (HCompose (StateT [String]) (WriterT [String])))
+             (ComposeT (StateT Int) (ComposeT (StateT [String]) (WriterT [String])))
              (Compose ((,) [String]) ((,) Int) )
 teletypeTick str = getLineIncrState |> teletype str
 ```
@@ -670,7 +670,7 @@ remove any generated `tell` operations. To prevent this handler from touching
 any `tell` operations that were in the program before censor, the `hide`
 combinator removes them from being seen:
 ```haskell
-uncensors :: forall w . Monoid w => Handler '[Censor w] '[] (HCompose (ReaderT (w -> w)) (WriterT w)) Identity
+uncensors :: forall w . Monoid w => Handler '[Censor w] '[] (ComposeT (ReaderT (w -> w)) (WriterT w)) Identity
 uncensors = hide @'[Tell w] (censors @w id |> writer_ @w)
 ```
 The key combinator here is `hide`:
@@ -979,8 +979,8 @@ import Control.Effect.IO
 
 import Control.Family.Algebraic
 import Control.Family.Scoped
-import Data.HFunctor.HCompose
 import Control.Monad.Trans.Identity
+import Control.Monad.Trans.Compose
 import Control.Monad.Trans.State.Strict (StateT)
 import Control.Monad.Trans.Reader (ReaderT)
 import Control.Monad.Trans.Writer (WriterT)

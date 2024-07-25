@@ -18,5 +18,5 @@ alternativeAlg
   => (Algebra oeffs m)
   -> (Algebra [Empty , Choose] (t m))
 alternativeAlg oalg eff
-  | (Just (Alg Empty))        <- prj eff = empty
+  | (Just (Alg Empty))          <- prj eff = empty
   | (Just (Scp (Choose xs ys))) <- prj eff = xs <|> ys

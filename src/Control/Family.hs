@@ -13,7 +13,7 @@ import Control.Effect.Type
 import GHC.TypeLits
 
 import Control.Monad.Trans.Identity
-import Data.HFunctor.HCompose
+import Control.Monad.Trans.Compose
 
 import Control.Monad.Trans.Class
 
@@ -71,8 +71,8 @@ instance {-# OVERLAPS #-} Forwards effs IdentityT where
   fwds alg = IdentityT . alg . hmap runIdentityT
 
 instance {-# OVERLAPS #-} (MonadTrans t1, MonadTrans t2, ForwardEffs effs t1, Forwards effs t2)
-  => Forwards effs (HCompose t1 t2) where
+  => Forwards effs (ComposeT t1 t2) where
   {-# INLINE fwds #-}
-  fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (HCompose t1 t2 m)
-  fwds alg x = HCompose . fwdEffs (fwds alg) . hmap getHCompose $ x
+  fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (ComposeT t1 t2 m)
+  fwds alg x = ComposeT . fwdEffs (fwds alg) . hmap getComposeT $ x
 

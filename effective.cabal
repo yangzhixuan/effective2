@@ -49,10 +49,8 @@ library
     Control.Monad.Graded
     Control.Monad.Trans.List
     Control.Monad.Trans.Tree
-    Data.Functor.Composes
     Data.HFunctor
-    Data.HFunctor.HCompose
-    Data.HFunctor.HComposes
+    Control.Monad.Trans.Compose
     Data.CutList
     Data.List.Kind
     Data.Nat

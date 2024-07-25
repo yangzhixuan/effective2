@@ -49,7 +49,7 @@ except = handler runMaybeT exceptAlg
 -- exceptT
 --   :: forall effs oeffs fs t . (MonadTrans t, ForwardT effs MaybeT)
 --   => Handler effs oeffs t fs
---   -> Handler (Throw : Catch : effs) oeffs (HCompose MaybeT t) (Maybe ': fs)
+--   -> Handler (Throw : Catch : effs) oeffs (ComposeT MaybeT t) (Maybe ': fs)
 -- exceptT = handler @'[Throw, Catch] exceptAlg runMaybeT
 
 -- multiple semantics such as retry after handling is difficult in MTL

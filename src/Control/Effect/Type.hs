@@ -27,8 +27,7 @@ module Control.Effect.Type
   , houtl, houtr
   , KnownNat
   )
-
- where
+  where
 
 import Data.Kind ( Type )
 import Data.HFunctor

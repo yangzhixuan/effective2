@@ -3,25 +3,25 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 
-module Data.HFunctor.HComposes where
+module Control.Monad.Trans.Composes where
 
 import Data.Kind ( Type )
 import Data.HFunctor ( HFunctor(..) )
 import Data.List.Kind ( type (:++) )
 import Control.Monad.Trans.Class ( MonadTrans, lift )
 
-type family HComposes
+type family ComposeTs
     (hs :: [(Type -> Type) -> (Type -> Type)])
     (f  :: Type -> Type) :: Type -> Type where
-  HComposes '[]       f = f
-  HComposes (h ': hs) f = h (HComposes hs f)
+  ComposeTs '[]       f = f
+  ComposeTs (h ': hs) f = h (ComposeTs hs f)
 
 {-
 A list of higher-order functors can be composed to make a higher-order
 functor, and this idea is implemented in the `HComps` type below.
 -}
 type HComps :: [(Type -> Type) -> (Type -> Type)] -> (Type -> Type) -> Type -> Type
-newtype HComps hs f a = HComps { unHComps :: HComposes hs f a }
+newtype HComps hs f a = HComps { unHComps :: ComposeTs hs f a }
 
 --   HNil  :: f a -> HComps '[] f a
 --   HCons :: h (HComps hs f) a -> HComps (h ': hs) f a
@@ -32,7 +32,7 @@ unHNil :: HComps '[] f a -> f a
 unHNil = unHComps
 
 {-# INLINE unHCons #-}
-unHCons :: (HFunctor h, Functor f, Functor (HComposes hs f), Functor (HComps hs f)) => HComps (h ': hs) f a -> h (HComps hs f) a
+unHCons :: (HFunctor h, Functor f, Functor (ComposeTs hs f), Functor (HComps hs f)) => HComps (h ': hs) f a -> h (HComps hs f) a
 unHCons (HComps x) = hmap HComps x
 
 {-# INLINE hdecomps #-}
@@ -50,7 +50,7 @@ instance Functor f => Functor (HComps '[] f) where
   {-# INLINE fmap #-}
   fmap f (HComps x)  = HComps (fmap f x)
 
-instance (Functor f, Functor (HComps ts f), Functor (t (HComposes ts f))) => Functor (HComps (t ': ts) f) where
+instance (Functor f, Functor (HComps ts f), Functor (t (ComposeTs ts f))) => Functor (HComps (t ': ts) f) where
   {-# INLINE fmap #-}
   fmap f (HComps x)  = HComps (fmap f x)
 
@@ -98,7 +98,7 @@ instance Applicative f =>
     {-# INLINE (<*>) #-}
     HComps mf <*> HComps mx = HComps (mf <*> mx)
 
-instance (Applicative f, Applicative (HComps hs f) , Applicative (h (HComposes hs f))) =>
+instance (Applicative f, Applicative (HComps hs f) , Applicative (h (ComposeTs hs f))) =>
   Applicative (HComps (h ': hs) f) where
     {-# INLINE pure #-}
     pure x = HComps (pure x)
@@ -135,26 +135,26 @@ instance (MonadTrans t, MonadTrans (HComps ts))
   lift x = undefined -- HComps (lift (lift x))
 
 class HRecompose hs f where
-  hrecompose :: HComps hs f a -> HComposes hs f a
-  hdecompose :: HComposes hs f a -> HComps hs f a
+  hrecompose :: HComps hs f a -> ComposeTs hs f a
+  hdecompose :: ComposeTs hs f a -> HComps hs f a
 
 instance HRecompose '[] f where
   {-# INLINE hrecompose #-}
-  hrecompose :: HComps '[] f a -> HComposes '[] f a
+  hrecompose :: HComps '[] f a -> ComposeTs '[] f a
   hrecompose (HComps x)  = x
 
   {-# INLINE hdecompose #-}
-  hdecompose :: HComposes '[] f a -> HComps '[] f a
+  hdecompose :: ComposeTs '[] f a -> HComps '[] f a
   hdecompose = HComps
 
-instance (Functor f, Functor (HComposes hs f), Functor (HComps hs f), HRecompose hs f, HFunctor h)
+instance (Functor f, Functor (ComposeTs hs f), Functor (HComps hs f), HRecompose hs f, HFunctor h)
   => HRecompose (h ': hs) f where
   {-# INLINE hrecompose #-}
-  hrecompose :: HComps (h ': hs) f a -> HComposes (h ': hs) f a
+  hrecompose :: HComps (h ': hs) f a -> ComposeTs (h ': hs) f a
   hrecompose (HComps x) = undefined -- hmap (hrecompose @hs) x
 
   {-# INLINE hdecompose #-}
-  hdecompose :: HComposes (h ': hs) f a -> HComps (h ': hs) f a
+  hdecompose :: ComposeTs (h ': hs) f a -> HComps (h ': hs) f a
   hdecompose x = undefined -- HComps (hmap hdecompose x)
 
 class HExpose hs where

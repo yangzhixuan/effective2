@@ -50,7 +50,7 @@ catchDecr' = catchDecr @[Get Int, Put Int, Throw, Catch]
 globalState
   :: s -> Handler '[Throw, Catch, Put s, Get s]
                    '[]
-                   (HCompose MaybeT (StateT s))
+                   (ComposeT MaybeT (StateT s))
                    (Compose ((,) s) Maybe)
 globalState s = except `fuse` state s
 
@@ -65,7 +65,7 @@ example_globalState = property $
 localState
   :: s -> Handler '[Put s, Get s, Throw, Catch]
                    '[]
-                   (HCompose (StateT s) MaybeT)
+                   (ComposeT (StateT s) MaybeT)
                    (Compose Maybe ((,) s))
 localState s = state s `fuse` except
 

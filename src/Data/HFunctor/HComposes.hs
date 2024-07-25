@@ -3,18 +3,18 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 
-module Data.HFunctor.HComposes where
+module Control.Monad.Trans.Composes where
 
 import Data.Kind ( Type )
 import Data.HFunctor ( HFunctor(..) )
 import Data.List.Kind ( type (:++) )
 import Control.Monad.Trans.Class ( MonadTrans, lift )
 
-type family HComposes
+type family ComposeTs
     (hs :: [(Type -> Type) -> (Type -> Type)])
     (f  :: Type -> Type) :: Type -> Type where
-  HComposes '[]       f = f
-  HComposes (h ': hs) f = h (HComposes hs f)
+  ComposeTs '[]       f = f
+  ComposeTs (h ': hs) f = h (ComposeTs hs f)
 
 {-
 A list of higher-order functors can be composed to make a higher-order
@@ -129,26 +129,26 @@ instance (MonadTrans t, MonadTrans (HComps ts))
   lift x = HCons (lift (lift x))
 
 class HRecompose hs f where
-  hrecompose :: HComps hs f a -> HComposes hs f a
-  hdecompose :: HComposes hs f a -> HComps hs f a
+  hrecompose :: HComps hs f a -> ComposeTs hs f a
+  hdecompose :: ComposeTs hs f a -> HComps hs f a
 
 instance HRecompose '[] f where
   {-# INLINE hrecompose #-}
-  hrecompose :: HComps '[] f a -> HComposes '[] f a
+  hrecompose :: HComps '[] f a -> ComposeTs '[] f a
   hrecompose (HNil x)  = x
 
   {-# INLINE hdecompose #-}
-  hdecompose :: HComposes '[] f a -> HComps '[] f a
+  hdecompose :: ComposeTs '[] f a -> HComps '[] f a
   hdecompose = HNil
 
-instance (Functor f, Functor (HComposes hs f), Functor (HComps hs f), HRecompose hs f, HFunctor h)
+instance (Functor f, Functor (ComposeTs hs f), Functor (HComps hs f), HRecompose hs f, HFunctor h)
   => HRecompose (h ': hs) f where
   {-# INLINE hrecompose #-}
-  hrecompose :: HComps (h ': hs) f a -> HComposes (h ': hs) f a
+  hrecompose :: HComps (h ': hs) f a -> ComposeTs (h ': hs) f a
   hrecompose (HCons x) = hmap hrecompose x
 
   {-# INLINE hdecompose #-}
-  hdecompose :: HComposes (h ': hs) f a -> HComps (h ': hs) f a
+  hdecompose :: ComposeTs (h ': hs) f a -> HComps (h ': hs) f a
   hdecompose x = HCons (hmap hdecompose x)
 
 class HExpose hs where
