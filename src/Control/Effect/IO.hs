@@ -4,12 +4,15 @@
 
 module Control.Effect.IO where
 
-import qualified System.CPUTime
 import Control.Effect
-import Data.List.Kind
-import Control.Family
+import Control.Effect.Algebraic
 
-import Control.Family.Algebraic
+import GHC.TypeLits
+
+import qualified System.CPUTime
+import Data.List.Kind
+
+
 
 type GetLine = Alg GetLine'
 data GetLine' k  = GetLine (String -> k) deriving Functor

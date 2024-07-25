@@ -6,8 +6,6 @@ module Data.CutList where
 import Control.Applicative ( Alternative((<|>), empty) )
 import Control.Monad ( ap, liftM )
 import Control.Monad.Trans.Class ( MonadTrans(..) )
-import Control.Family
-import Control.Family.Scoped
 
 data CutList a = a :< CutList a | Nil | Zero
   deriving Functor
@@ -82,6 +80,3 @@ instance Monad m => Monad (CutListT m) where
 instance MonadTrans CutListT where
   lift :: Monad m => m a -> CutListT m a
   lift mx = CutListT $ liftM (\x -> x :<< return NilT) mx
-
-instance Functor f => Forward (Scp f) CutListT where
-  fwd alg (Scp op) = (CutListT . alg . Scp . fmap runCutListT) op

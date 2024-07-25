@@ -4,19 +4,19 @@
 
 module Control.Effect.Nondet
   ( module Control.Effect.Nondet
-  , module Control.Effect.Alternative.Type
+  , Choose
+  , Empty
   ) where
 
 import Prelude hiding (or)
 
 import Control.Effect
+import Control.Effect.Algebraic
+import Control.Effect.Scoped
 import Control.Effect.Alternative
-import Control.Effect.Alternative.Type
+
 import Control.Applicative ( Alternative(empty, (<|>)) )
 import Control.Monad.Trans.List
-
-import Control.Family.Algebraic
-import Control.Family.Scoped
 
 stop :: Members '[Empty] sig => Prog sig a
 stop  = call (Alg Empty)
@@ -74,7 +74,6 @@ backtrackAlg oalg op
                  Nothing       -> return Nothing
                  Just (x, mxs) -> return (Just (x, empty))
 
-
 backtrackOnceAlg
   :: Monad m
   => (forall x . oeff m x -> m x)
@@ -89,9 +88,7 @@ backtrackOnceAlg oalg op
 backtrackAlg'
   :: Monad m => (forall x. Effs oeff m x -> m x)
   -> (forall x. Effs [Empty, Choose, Once] (ListT m) x -> ListT m x)
-backtrackAlg' = joinAlg alternativeAlg backtrackOnceAlg
--- TODO: The alternative with monad transformers is painful.
--- TODO: this becomes interesting when different search strategies are used
+backtrackAlg' oalg = alternativeAlg oalg # backtrackOnceAlg oalg
 
 backtrack :: Handler [Empty, Choose, Once] '[] (ListT) []
 backtrack = handler runListT' backtrackAlg'

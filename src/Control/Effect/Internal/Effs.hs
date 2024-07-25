@@ -6,28 +6,7 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ViewPatterns #-}
 
-module Control.Effect.Type
-  ( Signature
-  , Effect
-  , Algebra
-  , Effs
-  , pattern Eff
-  , pattern Effs
-  , absurdEffs
-  , weakenAlg
-  , Injects
-  , injs
-  , Member (..)
-  , inj
-  , prj
-  , Members
-  , hunion
-  , heither
-  , hinl, hinr
-  , houtl, houtr
-  , KnownNat
-  )
-  where
+module Control.Effect.Internal.Effs where
 
 import Data.Kind ( Type )
 import Data.HFunctor
@@ -41,11 +20,18 @@ import Control.Monad.ST
 import Data.Array.ST
 import Data.Array
 
-type Signature = Type -> Type
 type Effect = (Type -> Type) -> (Type -> Type)
 
 type Algebra effs f =
   forall x . Effs effs f x -> f x
+
+{-# INLINE (#) #-}
+(#) :: forall sig1 sig2 m .
+  (Monad m, KnownNat (Length sig2))
+  => (Algebra sig1 m)
+  -> (Algebra sig2 m)
+  -> (Algebra (sig1 :++ sig2) m)
+falg # galg = heither @sig1 @sig2 (falg) (galg)
 
 -- `Effn n op` places an operation `n` away from the last element of the list.
 type Effs :: [Effect] -> Effect
@@ -144,13 +130,6 @@ weakenAlg
   -> (Effs xeffs  m x -> m x)
 weakenAlg alg = alg . injs
 
-type Member :: Effect -> [Effect] -> Constraint
-type Member sig sigs = (KnownNat (EffIndex sig sigs))
-
-type family Members (xeffs :: [Effect]) (xyeffs :: [Effect]) :: Constraint where
-  Members '[] xyeffs       = ()
-  Members (xeff ': xeffs) xyeffs = (Member xeff xyeffs, Members xeffs xyeffs)
-
 
 {-# INLINE inj #-}
 inj :: forall sig sigs f a . (HFunctor sig, Member sig sigs) => sig f a -> Effs sigs f a
@@ -213,3 +192,10 @@ instance (KnownNat x, KnownNats xs, KnownNat (Length (x ': xs))) => KnownNats (x
   natVals _ arr = do writeArray arr (fromInteger $ natVal' (proxy# @(Length xs)))
                                     (fromInteger $ natVal' (proxy# @x))
                      natVals (proxy# :: Proxy# xs) arr
+
+type Member :: Effect -> [Effect] -> Constraint
+type Member sig sigs = (KnownNat (EffIndex sig sigs))
+
+type family Members (xeffs :: [Effect]) (xyeffs :: [Effect]) :: Constraint where
+  Members '[] xyeffs       = ()
+  Members (xeff ': xeffs) xyeffs = (Member xeff xyeffs, Members xeffs xyeffs)

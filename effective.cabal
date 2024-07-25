@@ -6,7 +6,7 @@ description:         Effect handlers
 license:             BSD-3-Clause
 license-file:        LICENSE
 author:              Nicolas Wu
-maintainer:          nicolas.wu@gmail.com
+maintainer:          n.wu@imperial.ac.uk
 -- copyright:
 category:            Control
 build-type:          Custom
@@ -28,8 +28,6 @@ library
   exposed-modules:
     Control.Effect
     Control.Effect.Alternative
-    Control.Effect.Alternative.Type
-    Control.Effect.Type
     Control.Effect.Cut
     Control.Effect.Except
     Control.Effect.IO
@@ -42,18 +40,20 @@ library
     Control.Effect.State.Strict
     Control.Effect.Tree
     Control.Effect.Writer
-    Control.Family
-    Control.Family.Algebraic
-    Control.Family.Scoped
-    Control.Family.Parallel
-    Control.Monad.Graded
+    Control.Effect.Algebraic
+    Control.Effect.Scoped
     Control.Monad.Trans.List
     Control.Monad.Trans.Tree
-    Data.HFunctor
     Control.Monad.Trans.Compose
+    Data.HFunctor
     Data.CutList
     Data.List.Kind
     Data.Nat
+  other-modules:
+    Control.Effect.Internal.Effs
+    Control.Effect.Internal.Forward
+    Control.Effect.Internal.Handler
+    Control.Effect.Internal.Prog
   hs-source-dirs:
     src
   build-depends:

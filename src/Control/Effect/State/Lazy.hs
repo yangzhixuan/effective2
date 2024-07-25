@@ -7,7 +7,8 @@ module Control.Effect.State.Lazy
 
 import Control.Effect
 import Control.Effect.State.Type
-import Control.Family.Algebraic
+import Control.Effect.Algebraic
+
 import qualified Control.Monad.Trans.State.Lazy as Lazy
 
 state :: s -> Handler [Put s, Get s] '[] (Lazy.StateT s) ((,) s)

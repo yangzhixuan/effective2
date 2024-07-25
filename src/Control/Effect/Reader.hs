@@ -3,12 +3,10 @@
 
 module Control.Effect.Reader where
 
-import Control.Family.Algebraic
-import Control.Family.Scoped
-import Data.Functor.Identity
-
 import Control.Effect
--- import Control.Monad.Trans.Class (lift)
+import Control.Effect.Algebraic
+import Control.Effect.Scoped
+
 import qualified Control.Monad.Trans.Reader as R
 
 type Ask r = Alg (Ask' r)

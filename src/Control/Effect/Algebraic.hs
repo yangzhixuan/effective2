@@ -1,11 +1,12 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE MonoLocalBinds #-}
 
-module Control.Family.Algebraic where
+module Control.Effect.Algebraic where
+
+import Control.Effect
 
 import Data.Kind ( Type )
 import Data.HFunctor
-import Control.Family
 import Control.Monad.Trans.Class
 
 newtype Alg (lsig :: Type -> Type)

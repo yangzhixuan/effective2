@@ -4,11 +4,12 @@
 module Control.Effect.Cut where
 
 import Control.Effect
+import Control.Effect.Algebraic
+import Control.Effect.Scoped
+import Control.Effect.Alternative
 import Control.Effect.Nondet
-import Prelude hiding (or)
 
-import Control.Family.Algebraic
-import Control.Family.Scoped
+import Prelude hiding (or)
 
 import Data.CutList ( CutListT(..), CutListT'(..), fromCutListT' )
 import Data.HFunctor ( HFunctor(..) )
@@ -46,11 +47,11 @@ cut :: (Members [Choose, CutFail] sig) => Prog sig ()
 cut = or skip cutFail
 
 cutCall :: Member CutCall sig => Prog sig a -> Prog sig a
-cutCall p = cutCall' progAlg p -- call (Scp (CutCall (fmap return p)))
+cutCall p = call (Scp (CutCall (fmap return p)))
 
-cutCall' :: (Monad m, Member CutCall sig)
+cutCallM :: (Monad m, Member CutCall sig)
   => (forall a . Effs sig m a -> m a) -> m a -> m a
-cutCall' alg p = (alg . inj) (Scp (CutCall p))
+cutCallM alg p = (alg . inj) (Scp (CutCall p))
 
 skip :: Monad m => m ()
 skip = return ()
@@ -97,10 +98,12 @@ onceCutAlg :: forall oeff m . (Monad m , Members [CutCall, CutFail, Choose] oeff
   -> (forall x. Effs '[Once] m x -> m x)
 onceCutAlg oalg op
   | Just (Scp (Once p)) <- prj op
-  = cutCall' oalg (do x <- p
+  = cutCallM oalg (do x <- p
                       eval oalg (do cut
                                     return x))
 
 onceNondet :: Handler '[Once, Empty, Choose, CutFail, CutCall] '[] CutListT []
 onceNondet = onceCut |> cutList
 
+instance Functor f => Forward (Scp f) CutListT where
+  fwd alg (Scp op) = (CutListT . alg . Scp . fmap runCutListT) op

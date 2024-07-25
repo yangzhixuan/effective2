@@ -2,12 +2,14 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Control.Effect.Writer where
+
 import Control.Effect
+import Control.Effect.Algebraic
+import Control.Effect.Scoped
+
 import Data.Tuple (swap)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Reader
-import Control.Family.Algebraic
-import Control.Family.Scoped
 import qualified Control.Monad.Trans.Writer as W
 
 type Tell w = Alg (Tell' w)

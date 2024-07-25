@@ -3,7 +3,8 @@
 module Control.Effect.Accum where
 
 import Control.Effect
-import Control.Family.Algebraic
+import Control.Effect.Algebraic
+
 import Control.Monad.Trans.Accum (AccumT)
 import qualified Control.Monad.Trans.Accum as A
 

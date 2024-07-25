@@ -5,9 +5,10 @@
 module Control.Effect.Except where
 
 import Control.Effect
+import Control.Effect.Algebraic
+import Control.Effect.Scoped
+
 import Control.Monad.Trans.Except
-import Control.Family.Algebraic
-import Control.Family.Scoped
 
 data Throw' e k where
   Throw :: e -> Throw' e k

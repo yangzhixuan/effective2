@@ -1,26 +1,24 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Control.Effect.Alternative
-  ( module Control.Effect.Alternative
-  , module Control.Effect.Alternative.Type
-  ) where
-
-import Control.Effect.Alternative.Type
+module Control.Effect.Alternative where
 
 import Control.Effect
-import Control.Family.Algebraic
-import Control.Family.Scoped
+import Control.Effect.Algebraic
+import Control.Effect.Scoped
+
 import Control.Applicative ( Alternative(empty, (<|>)) )
 import Control.Monad.Trans.Class
 
-instance (Member Choose sigs, Member Empty sigs)
-  => Alternative (Prog sigs) where
-  {-# INLINE empty #-}
-  empty = call (Alg Empty)
+data Empty' a where
+  Empty :: Empty' a
+  deriving Functor
+type Empty = Alg Empty'
 
-  {-# INLINE (<|>) #-}
-  xs <|> ys = call (Scp (Choose (fmap return xs) (fmap return ys)))
+type Choose = Scp Choose'
+data Choose' a where
+  Choose :: a -> a -> Choose' a
+  deriving Functor
 
 alternativeAlg
   :: (MonadTrans t, Alternative (t m), Monad m)
@@ -29,3 +27,11 @@ alternativeAlg
 alternativeAlg oalg eff
   | (Just (Alg Empty))          <- prj eff = empty
   | (Just (Scp (Choose xs ys))) <- prj eff = xs <|> ys
+
+instance (Member Choose sigs, Member Empty sigs)
+  => Alternative (Prog sigs) where
+  {-# INLINE empty #-}
+  empty = call (Alg Empty)
+
+  {-# INLINE (<|>) #-}
+  xs <|> ys = call (Scp (Choose (fmap return xs) (fmap return ys)))

@@ -5,11 +5,9 @@
 module Control.Effect.Maybe where
 
 import Control.Effect
-import Control.Family.Algebraic
-import Control.Family.Scoped
+import Control.Effect.Algebraic
+import Control.Effect.Scoped
 
-import Control.Family.Algebraic()
-import Control.Family.Scoped()
 import Control.Monad.Trans.Maybe
 
 type Catch = Scp Catch'
@@ -79,4 +77,3 @@ retryAlg _ eff
 
 retry :: Handler [Throw, Catch] '[] MaybeT Maybe
 retry = handler runMaybeT retryAlg
-

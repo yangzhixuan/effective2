@@ -2,12 +2,13 @@
 
 module Control.Effect.Tree where
 
-import Control.Monad.Trans.Tree
 import Control.Effect
-import Control.Family.Algebraic
-import Control.Family.Scoped
-import Control.Effect.Alternative.Type
+import Control.Effect.Algebraic
+import Control.Effect.Alternative
+import Control.Effect.Scoped
+
 import Control.Applicative
+import Control.Monad.Trans.Tree
 
 nondetTreeAlg
   :: Monad m

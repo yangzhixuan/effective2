@@ -688,10 +688,6 @@ is therefore more efficient.
 prop_uncensors :: Property
 prop_uncensors = property $ do
   handle (uncensors @[String] |> writer) hoppy === (["Hello Alfie!","tortoise","get bigger!","Goodbye!"],())
-
-prop_uncensors' :: Property
-prop_uncensors' = property $ do
-  handle (W.uncensors @[String] |> writer) hoppy === (["Hello Alfie!","tortoise","get bigger!","Goodbye!"],())
 ```
 -->
 
@@ -972,13 +968,12 @@ This file has a number of imports:
 
 ```haskell top
 import Control.Effect
+import Control.Effect.Algebraic
+import Control.Effect.Scoped
+import Control.Effect.IO
 import Control.Effect.State
 import Control.Effect.Writer hiding (uncensors)
-import qualified Control.Effect.Writer as W
-import Control.Effect.IO
 
-import Control.Family.Algebraic
-import Control.Family.Scoped
 import Control.Monad.Trans.Identity
 import Control.Monad.Trans.Compose
 import Control.Monad.Trans.State.Strict (StateT)

@@ -1,2 +1,1 @@
-packages: .
-optimization: 2
+packages: effective.cabal

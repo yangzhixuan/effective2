@@ -1,12 +1,12 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE MonoLocalBinds #-}
 
-module Control.Family.Scoped where
+module Control.Effect.Scoped where
+
+import Control.Effect
 
 import Data.Kind ( Type )
 import Data.HFunctor
-import Control.Family
-import Control.Monad.Trans.Identity
 
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Maybe

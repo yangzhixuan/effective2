@@ -2,7 +2,6 @@
 
 module Control.Monad.Trans.Compose where
 
-import Data.HFunctor
 import Control.Monad.Trans.Class
 import Data.Kind (Type)
 
@@ -37,10 +36,3 @@ instance (MonadTrans t1, MonadTrans t2) =>
     {-# INLINE lift #-}
     lift :: Monad m => m a -> ComposeT t1 t2 m a
     lift x = ComposeT (lift (lift x))
-
-instance (HFunctor h, HFunctor k) =>
-  HFunctor (ComposeT h k) where
-    {-# INLINE hmap #-}
-    hmap :: (HFunctor h, HFunctor k, Functor f, Functor g) =>
-      (forall x. f x -> g x) -> ComposeT h k f a -> ComposeT h k g a
-    hmap h (ComposeT x) = ComposeT (hmap (hmap h) x)

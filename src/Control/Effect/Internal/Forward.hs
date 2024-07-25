@@ -1,20 +1,15 @@
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE TypeFamilyDependencies #-}
-{-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Control.Family where
-import Data.HFunctor
+module Control.Effect.Internal.Forward where
+import Control.Effect.Internal.Effs
 
 import Data.Kind ( Type )
+import Data.HFunctor
 import Data.List.Kind
-import Control.Effect.Type
-import GHC.TypeLits
-
+import GHC.TypeNats
 import Control.Monad.Trans.Identity
 import Control.Monad.Trans.Compose
-
 import Control.Monad.Trans.Class
 
 class Forward (eff :: Effect) (t :: Effect) where
@@ -46,16 +41,15 @@ instance (HFunctor eff, Forward eff t, ForwardEffs effs t, KnownNat (Length effs
 -- that for each member of the stack, all operations in `effs` can be forwarded.
 -- class (forall m . Monad m => Monad (HComps ts m)) => Forwards effs ts where
 --   fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (HComps ts m)
--- 
+--
 -- instance Forwards effs '[] where
 --   fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (HComps '[] m)
 --   fwds alg = HNil . alg . hmap unHNil
--- 
+--
 -- instance (forall m . Monad m => Monad (t (HComps ts m)), ForwardEffs effs t, Forwards effs ts)
 --   => Forwards effs (t ': ts) where
 --   fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (HComps (t ': ts) m)
 --   fwds alg x = HCons . fwdEffs (fwds alg) . hmap unHCons $ x
-
 
 class Forwards effs t where
   fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (t m)
@@ -75,4 +69,3 @@ instance {-# OVERLAPS #-} (MonadTrans t1, MonadTrans t2, ForwardEffs effs t1, Fo
   {-# INLINE fwds #-}
   fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (ComposeT t1 t2 m)
   fwds alg x = ComposeT . fwdEffs (fwds alg) . hmap getComposeT $ x
-

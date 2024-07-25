@@ -3,7 +3,6 @@
 {-# LANGUAGE UndecidableInstances #-}
 module Control.Family.Latent where
 
-import Control.Family
 import Control.Effect
 import Data.HFunctor
 

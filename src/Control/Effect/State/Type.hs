@@ -3,7 +3,7 @@
 module Control.Effect.State.Type where
 
 import Control.Effect
-import Control.Family.Algebraic
+import Control.Effect.Algebraic
 
 type Put s = Alg (Put' s)
 data Put' s k where

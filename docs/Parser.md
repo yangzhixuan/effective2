@@ -4,16 +4,18 @@
 
 module Parser where
 
+import Control.Effect
+import Control.Effect.Cut
+import Control.Effect.Nondet
+import Control.Effect.State
+
 import Hedgehog
 
 import Prelude hiding (or)
 
 import Control.Applicative
 
-import Control.Effect
-import Control.Effect.Cut
-import Control.Effect.Nondet
-import Control.Effect.State
+
 
 char :: Progs '[Get [Char], Put [Char], Empty, Choose] Char
 char = do
