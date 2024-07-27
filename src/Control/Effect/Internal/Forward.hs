@@ -1,3 +1,11 @@
+{-|
+Module      : Control.Effect.Internal.Prog
+Description : Program constructors and deconstructors
+License     : BSD-3-Clause
+Maintainer  : Nicolas Wu
+Stability   : experimental
+-}
+
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -12,12 +20,15 @@ import Control.Monad.Trans.Identity
 import Control.Monad.Trans.Compose
 import Control.Monad.Trans.Class
 
+-- | The class demonstrating that an effect @eff@ can be forwarded through a transformer @t@.
 class Forward (eff :: Effect) (t :: Effect) where
+  -- | @fwd alg@ is a higher-order @eff@ algebra with carrier @m@ that will
+  -- create an @eff@ algebra with carrier @t m@.
   fwd :: forall m . (Monad m)
        => (forall x . eff m x  -> m x)
        -> (forall x . eff (t m) x -> t m x)
 
--- This class builds a forwarder for an `Effs` by recursion over `effs`,
+-- | This class builds a forwarder for an `Effs` by recursion over `effs`,
 -- by ensuring that each effect can be forwarded through a given `t`.
 class ForwardEffs effs (t :: (Type -> Type) -> (Type -> Type))  where
   fwdEffs :: forall m . Monad m
@@ -51,6 +62,8 @@ instance (HFunctor eff, Forward eff t, ForwardEffs effs t, KnownNat (Length effs
 --   fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (HComps (t ': ts) m)
 --   fwds alg x = HCons . fwdEffs (fwds alg) . hmap unHCons $ x
 
+-- | This provides the `fwds` function, which forwards an algebra with carrier
+-- @m@ into an algebra with carrier @t m@.
 class Forwards effs t where
   fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (t m)
 

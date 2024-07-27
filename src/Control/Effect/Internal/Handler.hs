@@ -1,3 +1,11 @@
+{-|
+Module      : Control.Effect.Internal.Handler
+Description : Handlers and handler combinators
+License     : BSD-3-Clause
+Maintainer  : Nicolas Wu
+Stability   : experimental
+-}
+
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -107,27 +115,40 @@ for algebraic effects, it is not possible for all scoped effects.
 
 -}
 
+-- | A t'Handler' will process input effects @effs@ and produce output effects
+-- @oeffs@, while working with the monad transformer @t@. The final value
+-- will be wrapped with @f@.
+--
+-- > type Handler
+-- >   :: [Effect]                             -- effs  : input effects
+-- >   -> [Effect]                             -- oeffs : output effects
+-- >   -> ((Type -> Type) -> (Type -> Type))   -- t     : semantics transformer
+-- >   -> (Type -> Type)                       -- f     : carrier wrapper
+-- >   -> Type
+--
 type Handler
-  :: [Effect]                             -- effs  : input effects
-  -> [Effect]                             -- oeffs : output effects
-  -> ((Type -> Type) -> (Type -> Type))   -- ts    : monad transformer
-  -> (Type -> Type)                       -- fs    : carrier type
+  :: [Effect]                             -- ^ effs  : input effects
+  -> [Effect]                             -- ^ oeffs : output effects
+  -> ((Type -> Type) -> (Type -> Type))   -- ^ t     : semantics transformer
+  -> (Type -> Type)                       -- ^ f     : carrier wrapper
   -> Type
 data Handler effs oeffs ts fs =
   Handler
-  { run  :: forall m . Monad m
-         => Algebra oeffs m
-         -> (forall x . ts m x -> m (fs x))
+  { -- | Modular monad transformer runner into carrier wrapper
+    mrun
+      :: forall m . Monad m
+      => Algebra oeffs m                  -- ^ output algebra
+      -> (forall x . ts m x -> m (fs x))  -- ^ transformer to wrapper
 
+    -- | Modular algebra into @ts m@
   , malg :: forall m . Monad m
-         => Algebra oeffs m
+         => Algebra oeffs m               -- ^ output algebra
          -> Algebra effs (ts m)
   }
 
--- The definition of `handler` motivates the need for a snoc list
--- in the functor carrier. Without this, we need to expose the functors
--- using `Exposes fs '[f']`, and this becomes very burdensome for the
--- end user.
+-- | Given @run@ and @malg@ will construct a @Handler effs oeffs t fs@. This
+-- is a simplified version of the @Handler@ constructor where @run@ does
+-- not need to be a modular runner.
 handler
   :: (Functor fs, forall f . Functor f => Functor (t f))
   => (forall m a . Monad m => t m a -> m (fs a))
@@ -135,92 +156,72 @@ handler
   -> Handler effs oeffs t fs
 handler run malg = Handler
   (\oalg -> run)
-  -- (\oalg -> HCons . malg (HNil . oalg . hmap unHNil) . hmap unHCons)
   (\oalg -> malg oalg)
 
--- TODO:
--- The following is a more general handler type that generalises `handler`
--- and would be easier to use than `handlerT`.
--- However, it has an illegal type because a type synonym family
--- appears in the instance: `Functor (ComposeTs ts m)` is not allowed.
--- We need it because of the `hmap` in the definition of `alg'`, since
--- an `HFunctor` requires both of its parameters to be functors. It's possible
--- that with some careful class redefinitions that this might be implementable.
---
--- handler'
---   :: forall effs oeffs ts fs.
---      (Functors fs, forall m . HRecompose ts m, forall m . Functor m => Functor (ComposeTs ts m))
---   => (forall m a . Monad m => ComposeTs ts m a -> m (RComposes fs a))
---   -> (forall m . Monad m => Algebra oeffs m -> Algebra effs (ComposeTs ts m))
---   -> Handler effs oeffs ts fs
--- handler' run alg = Handler run' alg' where
---   run' :: Monad m => Algebra oeffs m -> forall x. HComps ts m x -> m (RComps fs x)
---   run' oalg = fmap dercompose . run . hrecompose
---
---   alg' :: Monad m => Algebra oeffs m -> Algebra effs (HComps ts m)
---   alg' oalg = hdecompose . alg oalg . hmap hrecompose
-
--- handlerT
---   :: forall effs oeffs ts fs
---   .  (Functors fs)
---   => (forall m a . Monad m => HComps ts m a -> m (RComposes fs a))
---   -> (forall m . Monad m => Algebra oeffs m -> Algebra effs (HComps ts m))
---   -> Handler effs oeffs ts fs
--- handlerT run malg = Handler (const (fmap RComps . run)) malg
-
+-- | The identity handler.
 identity :: Handler '[] '[] IdentityT Identity
-identity = Handler run malg where
+identity = Handler mrun malg where
 
-  run :: Monad m => Algebra '[] m -> forall x. IdentityT m x -> m (Identity x)
-  run _ (IdentityT x) = fmap Identity x
+  mrun :: Monad m => Algebra '[] m -> forall x. IdentityT m x -> m (Identity x)
+  mrun _ (IdentityT x) = fmap Identity x
 
   malg :: Algebra '[] m -> Algebra '[] (IdentityT m)
   malg _ = absurdEffs
 
+-- | Weakens a handler from @Handler effs oeffs t f@ to @Handler effs' oeffs' t f@,
+-- when @effs'@ injects into @effs@ and @oeffs@ injects into @oeffs'@.
+{-# INLINE weaken #-}
 weaken
-  :: forall effs effs' oeffs oeffs' ts fs
-  . ( Injects effs effs'
+  :: forall effs effs' oeffs oeffs' t f
+  . ( Injects effs' effs
     , Injects oeffs oeffs'
     )
-  => Handler effs' oeffs ts fs
-  -> Handler effs oeffs' ts fs
+  => Handler effs  oeffs  t f
+  -> Handler effs' oeffs' t f
 weaken (Handler run malg)
   = (Handler (\oalg -> run (oalg . injs)) (\oalg -> malg (oalg . injs) . injs))
 
+-- | Hides the effects in @heffs@ from the handler.
+{-# INLINE hide #-}
 hide
-  :: forall sigs effs oeffs ts fs
-  .  (Injects (effs :\\ sigs) effs, Injects oeffs oeffs)
+  :: forall heffs effs oeffs ts fs
+  .  (Injects (effs :\\ heffs) effs, Injects oeffs oeffs)
   => Handler effs oeffs ts fs
-  -> Handler (effs :\\ sigs) oeffs ts fs
+  -> Handler (effs :\\ heffs) oeffs ts fs
 hide h = weaken h
 
-type AlgebraT effs oeffs t = forall m.  Monad m
-  => (forall x. Effs oeffs m x -> m x)
-  -> (forall x. Effs effs (t m) x -> t m x)
-
+-- | The result of @interpret rephrase@ is a new @Handler effs oeffs IdentityT Identity@.
+-- This is created by using the supplied @rephrase :: Effs effs m x -> Prog oeffs x@
+-- parameter to translate @effs@ into a program that uses @oeffs@.
 interpret
   :: forall effs oeffs
-  .  (forall m x . Effs effs m x -> Prog oeffs x)
+  .  (forall m x . Effs effs m x -> Prog oeffs x)   -- ^ @rephrase@
   -> Handler effs oeffs IdentityT Identity
-interpret gen = interpretM talg
+interpret rephrase = interpretM talg
   where
     talg :: forall m . Monad m
          => (forall x. Effs oeffs m x -> m x)
          -> (forall x. Effs effs m x  -> m x)
-    talg oalg op = eval oalg (gen op)
+    talg oalg op = eval oalg (rephrase op)
 
+-- | The result of @interpretM mrephrase@ is a new @Handler effs oeffs IdentityT Identity@.
+-- This is created by using the supplied @mrephrase :: (forall x . Effs oeffs m x -> m x) -> Effs effs m x -> m x@ parameter.
+-- to rephrase @effs@ into an arbitrary monad @m@.
+-- When @mrephrase@ is used, it is given an @oalg :: Effs oeffs m x -> m x@
+-- parameter that makes it possible to create a value in @m@.
 interpretM
   :: forall effs oeffs .
     (forall m . Monad m =>
-      (forall x . Effs oeffs m x -> m x) -> (forall x . Effs effs m x -> m x))
+      (forall x . Effs oeffs m x -> m x)
+    -> (forall x . Effs effs m x -> m x))   -- ^ @mrephrase@
   -> Handler effs oeffs IdentityT Identity
-interpretM alg
+interpretM mrephrase
   = Handler @effs @oeffs @IdentityT
       (const (fmap Identity . runIdentityT))
-      (\oalg -> IdentityT . alg oalg . hmap runIdentityT)
+      (\oalg -> IdentityT . mrephrase oalg . hmap runIdentityT)
 
+-- HERE BE DRAGONS
 {-
-
 Fusing handlers `h1 :: Handler effs1 oeffs1 t1 fs1` and `h2 :: Handler effs2
 oeffs2 t2 fs2` results in a handler that can deal with the effects of `eff1` and
 those of `eff2`, as well as appropriately deal with effects `oeff1` that get
@@ -273,10 +274,28 @@ fuse, (|>)
     , KnownNat (Length effs1)
     , KnownNat (Length effs2)
     )
-  => Handler effs1 oeffs1 ts1 fs1
-  -> Handler effs2 oeffs2 ts2 fs2
+  => Handler effs1 oeffs1 ts1 fs1   -- ^ @h1@
+  -> Handler effs2 oeffs2 ts2 fs2   -- ^ @h2@
   -> Handler effs  oeffs  ts  fs
+
+-- | A synonym for `fuse`.
 (|>) = fuse
+
+-- | Fuses two handlers @h1 :: Handler effs1 oeffs1 t1 f1@ and @h2 :: Handler effs2 oeffs2 t2 f2@ together.
+-- The result is @Handler effs oeffs t f@ where:
+--
+-- > effs  ~ effs1 `Union` effs2                 -- input effects
+-- > oeffs ~ (oeffs1 :\\ effs2) `Union` oeffs2   -- output effects
+-- > t     ~ HRAssoc (t1 `ComposeT` t2)          -- semantics transformer
+-- > f     ~ RAssoc  (f2 `Compose` f1)           -- carrier wrapper
+--
+-- The resulting handler consumes all the effects recognised by either @h1@ or
+-- @h2@, with priority for @h1@. Any effects output by @h1@ will be consumed by
+-- @h2@. Any effects not recognised are forwarded into @oeffs@.
+--
+-- The semantics transformer @t@ and the carrier wrapper @f@ are normalised
+-- using 'HRAssoc' and 'RAssoc' respectively, which removes any identities
+-- and reassociates all compositions to the right.
 fuse (Handler run1 malg1) (Handler run2 malg2) = Handler run malg where
   run :: forall m . Monad m => Algebra oeffs m -> forall x. ts m x -> m (fs x)
   run oalg
@@ -317,10 +336,28 @@ pipe, (||>)
     , Injects oeffs1 ((oeffs1 :\\ effs2) :++ effs2)
     , KnownNat (Length effs2)
     )
-  => Handler effs1 oeffs1 ts1 fs1
-  -> Handler effs2 oeffs2 ts2 fs2
+  => Handler effs1 oeffs1 ts1 fs1    -- ^ Handler @h1@
+  -> Handler effs2 oeffs2 ts2 fs2    -- ^ Handler @h2@
   -> Handler effs  oeffs  ts  fs
+
+-- | A synonym for 'pipe'
 (||>) = pipe
+
+-- | Pipe results of handler @h1 :: Handler effs1 oeffs1 t1 f1@ into @h2 :: Handler effs2 oeffs2 t2 f2@.
+-- The result is @Handler effs oeffs t f@ where:
+--
+-- > effs  ~ effs1                               -- input effects
+-- > oeffs ~ (oeffs1 :\\ effs2) `Union` oeffs2   -- output effects
+-- > ts    ~ HRAssoc (ts1 `ComposeT` ts2)        -- semantics transformer
+-- > fs    ~ RAssoc (fs2 `Compose` fs1)          -- carrier wrapper
+--
+-- The resulting handler consumes all the effects recognised by @h1@.
+-- Any effects output by @h1@ will be consumed by
+-- @h2@. Any effects not recognised are forwarded into @oeffs@.
+--
+-- The semantics transformer @t@ and the carrier wrapper @f@ are normalised
+-- using 'HRAssoc' and 'RAssoc' respectively, which removes any identities
+-- and reassociates all compositions to the right.
 pipe (Handler run1 malg1)  (Handler run2 malg2) = Handler run malg where
   run :: forall m . Monad m => Algebra oeffs m -> forall x. ts m x -> m (fs x)
   run oalg
@@ -357,11 +394,15 @@ pipe (Handler run1 malg1)  (Handler run2 malg2) = Handler run malg where
 -- pass h = fuse h (forward @sig)
 --      (\alg  -> IdentityT . alg . hmap runIdentityT)
 
-
+-- | @handle h p@ uses the handler @h@ to evaluate the program @p@. All of the
+-- effects @effs@ in the program must be recognised by the handler,
+-- and the handler must produce no effects.
+-- The result is normalised with 'Apply' so that any 'Identity' functors are removed.
 handle :: forall effs ts f a .
   ( Monad (ts Identity) , Functor f )
-  => Handler effs '[] ts f
-  -> Prog effs a -> Apply f a
+  => Handler effs '[] ts f        -- ^ Handler @h@ with no output effects
+  -> Prog effs a                  -- ^ Program @p@ with effects @effs@
+  -> Apply f a
 handle (Handler run malg)
   = unsafeCoerce @(f a) @(Apply f a)
   . runIdentity
@@ -391,6 +432,9 @@ handle (Handler run malg)
 --                             (fwd (\x -> Call (injs x) id return)))
 
 
+-- | @handleM xalg h p@ uses the handler @h@ to evaluate the program @p@. Any
+-- residual effects in @xeffs@ not recognised by @h@ must be consumed by the
+-- algebra @xalg@.
 handleM :: forall effs oeffs xeffs m t f a .
   ( Monad m
   , forall m . Monad m => Monad (t m)
@@ -398,19 +442,24 @@ handleM :: forall effs oeffs xeffs m t f a .
   , Injects oeffs xeffs
   , Injects (xeffs :\\ effs) xeffs
   )
-  => Algebra xeffs m
-  -> Handler effs oeffs t f
-  -> Prog (effs `Union` xeffs) a -> m (Apply f a)
+  => Algebra xeffs m               -- ^ Algebra @xalg@ for external effects @xeffs@
+  -> Handler effs oeffs t f        -- ^ Handler @h@
+  -> Prog (effs `Union` xeffs) a   -- ^ Program @p@ that contains @xeffs@
+  -> m (Apply f a)
 handleM xalg (Handler run malg)
   = unsafeCoerce @(m (f a)) @(m (Apply f a))
   . run @m (xalg . injs)
   . eval (hunion @effs @xeffs (malg (xalg . injs)) (fwds xalg))
 
+-- | @Apply f a@ normalises a functor @f@ so that when it is applied to
+-- @a@, any 'Identity' or 'Compose' functors are removed.
 type family Apply f a where
   Apply Identity a      = a
   Apply (Compose f g) a = Apply f (Apply g a)
   Apply f a             = f a
 
+-- | @HApply@ normalises a higher-order functor @h@ so that when it is applied to
+-- @f@, any 'IdentityT' or 'ComposeT' higher-order functors are removed.
 type family HApply
   (h :: (Type -> Type) -> (Type -> Type))
   (f :: Type -> Type) :: (Type -> Type)
@@ -418,19 +467,29 @@ type family HApply
   HApply (ComposeT h1 h2) f = h1 (h2 f)
 
 -- TODO: Implement O(n) version
+-- | @Functors f@ builds a list of all the functors composed using 'Compose' to make @f@,
+-- while removing any instances of 'Identity'.
 type family Functors (f :: (Type -> Type)) :: [Type -> Type] where
   Functors (Compose f g) = Functors f :++ Functors g
   Functors (Identity)    = '[]
   Functors f             = '[f]
 
+-- | @HFunctors h@ builds a list of all the functors composed using 'ComposeT' to make @h@,
+-- while removing any instances of 'IdentityT'.
+type family HFunctors (h :: (Type -> Type) -> (Type -> Type))
+  :: [(Type -> Type) -> (Type -> Type)] where
+  HFunctors (ComposeT h k) = HFunctors h :++ HFunctors k
+  HFunctors (IdentityT)    = '[]
+  HFunctors h              = '[h]
+
+-- | @RAssoc f@ reassociates any 'Compose' functors in @f@ to the right,
+-- and removes any 'Identity' functors. If @f@ is the 'Identity' functor,
+-- then @f@ is returned.
 type family RAssoc f where
   RAssoc f = Foldr0 Compose Identity (Functors f)
 
-type family HFunctors (f :: (Type -> Type) -> (Type -> Type))
-  :: [(Type -> Type) -> (Type -> Type)] where
-  HFunctors (ComposeT f g) = HFunctors f :++ HFunctors g
-  HFunctors (IdentityT)    = '[]
-  HFunctors f              = '[f]
-
+-- | @HRAssoc h@ reassociates any 'ComposeT' functors in @h@ to the right,
+-- and removes any 'IdentityT' functors. If @h@ is the 'IdentityT' higher-order
+-- functor, then @h@ is returned.
 type family HRAssoc f where
   HRAssoc f = Foldr0 ComposeT IdentityT (HFunctors f)
