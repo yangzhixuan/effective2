@@ -1,6 +1,11 @@
+{-# LANGUAGE CPP #-}
+
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE MonoLocalBinds #-}
+#if __GLASGOW_HASKELL__ <= 902
+{-# LANGUAGE TypeFamilies #-}
+#endif
 
 module Control.Effect.IO where
 

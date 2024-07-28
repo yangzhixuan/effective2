@@ -21,7 +21,9 @@ ppMarkdownUnlit  :: BuildInfo -> LocalBuildInfo -> ComponentLocalBuildInfo -> Pr
 ppMarkdownUnlit _bi lbi clbi =
   PreProcessor {
     platformIndependent = False,
+#if __GLASGOW_HASKELL__ > 902
     ppOrdering = unsorted,
+#endif
     runPreProcessor = mkSimplePreProcessor $ \inFile outFile verbosity -> do
       do info verbosity $ "Running markdown-unlit on " ++ inFile ++ " to create " ++ outFile
       (prog, _) <- requireProgram verbosity markdownUnlitProgram (withPrograms lbi)
