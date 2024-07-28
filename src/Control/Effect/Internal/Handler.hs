@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 {-|
 Module      : Control.Effect.Internal.Handler
 Description : Handlers and handler combinators
@@ -265,6 +267,9 @@ fuse, (|>)
     , Functor fs2
     , MonadTrans ts1
     , forall m . Monad m => Monad (ts2 m)
+#if __GLASGOW_HASKELL__ <= 904
+    , forall m . Monad m => Monad (ts1 (ts2 m))
+#endif
     , Forwards (oeffs1 :\\ effs2) ts2
     , Forwards effs2 ts1
     , Injects (oeffs1 :\\ effs2) oeffs
@@ -328,6 +333,9 @@ pipe, (||>)
     , Functor fs2
     , MonadTrans ts1
     , MonadTrans ts2
+#if __GLASGOW_HASKELL__ <= 904
+    , forall m . Monad m => Monad (ts2 m)
+#endif
     , Forwards (oeffs1 :\\ effs2) ts2
     , Forwards effs2 ts1
     , Injects (oeffs1 :\\ effs2) oeffs

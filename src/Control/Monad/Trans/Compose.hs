@@ -1,4 +1,9 @@
+{-# LANGUAGE CPP #-}
+
 {-# LANGUAGE TypeFamilies #-}
+#if __GLASGOW_HASKELL__ <= 904
+{-# LANGUAGE QuantifiedConstraints #-}
+#endif
 
 module Control.Monad.Trans.Compose where
 
@@ -25,13 +30,21 @@ instance (Applicative (h (k f)), Applicative f) =>
     (<*>) :: ComposeT h k f (a -> b) -> ComposeT h k f a -> ComposeT h k f b
     ComposeT mf <*> ComposeT mx = ComposeT (mf <*> mx)
 
+#if __GLASGOW_HASKELL__ <= 904
+instance (MonadTrans t1, MonadTrans t2, Monad m, Monad (t1(t2 m))) =>
+#else
 instance (MonadTrans t1, MonadTrans t2, Monad m) =>
+#endif
   Monad (ComposeT t1 t2 m) where
     {-# INLINE (>>=) #-}
     (>>=) :: ComposeT t1 t2 m a -> (a -> ComposeT t1 t2 m b) -> ComposeT t1 t2 m b
     ComposeT mx >>= f = ComposeT (mx >>= getComposeT . f)
 
+#if __GLASGOW_HASKELL__ <= 904
+instance (MonadTrans t1, MonadTrans t2, forall m . Monad m => Monad (t2 m)) =>
+#else
 instance (MonadTrans t1, MonadTrans t2) =>
+#endif
   MonadTrans (ComposeT t1 t2) where
     {-# INLINE lift #-}
     lift :: Monad m => m a -> ComposeT t1 t2 m a

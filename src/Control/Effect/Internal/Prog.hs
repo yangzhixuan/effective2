@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 {-|
 Module      : Control.Effect.Internal.Prog
 Description : Program constructors and deconstructors
@@ -13,6 +15,10 @@ module Control.Effect.Internal.Prog where
 import Control.Effect.Internal.Effs
 
 import Data.HFunctor
+#if MIN_VERSION_base(4,18,0)
+#else
+import Control.Applicative
+#endif
 import Control.Monad
 
 -- | A family of programs that may contain at least the effects in @effs@ in any

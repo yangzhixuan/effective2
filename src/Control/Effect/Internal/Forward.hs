@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 {-|
 Module      : Control.Effect.Internal.Prog
 Description : Program constructors and deconstructors
@@ -8,6 +10,7 @@ Stability   : experimental
 
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE QuantifiedConstraints #-}
 
 module Control.Effect.Internal.Forward where
 import Control.Effect.Internal.Effs
@@ -77,7 +80,15 @@ instance {-# OVERLAPS #-} Forwards effs IdentityT where
   fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (IdentityT m)
   fwds alg = IdentityT . alg . hmap runIdentityT
 
+
+#if MIN_VERSION_base(4,18,0)
 instance {-# OVERLAPS #-} (MonadTrans t1, MonadTrans t2, ForwardEffs effs t1, Forwards effs t2)
+#else
+instance {-# OVERLAPS #-} (MonadTrans t1, MonadTrans t2, ForwardEffs effs t1, Forwards effs t2
+  , forall m . Monad m => Monad (t2 m)
+  , forall m . Monad m => Monad (t1 (t2 m))
+  )
+#endif
   => Forwards effs (ComposeT t1 t2) where
   {-# INLINE fwds #-}
   fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (ComposeT t1 t2 m)
