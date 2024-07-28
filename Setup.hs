@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 import Distribution.Simple
 import Distribution.Simple.LocalBuildInfo
 import Distribution.Simple.PreProcess
@@ -8,7 +10,11 @@ import Distribution.PackageDescription
 main = defaultMainWithHooks hooks
   where
     hooks = simpleUserHooks {
+#if __GLASGOW_HASKELL__ >= 910
       hookedPreProcessors = [(Suffix "md", ppMarkdownUnlit)]
+#else
+      hookedPreProcessors = [("md", ppMarkdownUnlit)]
+#endif
     }
 
 ppMarkdownUnlit  :: BuildInfo -> LocalBuildInfo -> ComponentLocalBuildInfo -> PreProcessor
