@@ -29,6 +29,7 @@ module Control.Effect
   , (#)
   , Forward (..)
   , Forwards (..)
+  , absurdEffs
 
   -- * Handlers
   , Handler (..)
