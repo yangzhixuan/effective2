@@ -65,7 +65,7 @@ local :: Member (Local r) sig
   => (r -> r)    -- ^ Function to transform the environment
   -> Prog sig a  -- ^ Computation to run in the transformed environment
   -> Prog sig a
-local f p = call (Scp (Local f (fmap return p)))
+local f p = call (Scp (Local f (p)) id return)
 
 -- | The `reader` handler supplies a static environment @r@ to the program
 -- that can be accessed with `ask`, and locally transformed with `local`.
@@ -81,5 +81,5 @@ readerAlg oalg eff
   | Just (Alg (Ask p)) <- prj eff =
       do r <- R.ask
          return (p r)
-  | Just (Scp (Local (f :: r -> r) (p))) <- prj eff =
-      R.local f p
+  | Just (Scp (Local (f :: r -> r) (p)) h k) <- prj eff =
+      R.local f (fmap k (h p))

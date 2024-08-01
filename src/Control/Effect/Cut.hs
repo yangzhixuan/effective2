@@ -53,31 +53,24 @@ cut :: (Members [Choose, CutFail] sig) => Prog sig ()
 cut = or skip cutFail
 
 cutCall :: Member CutCall sig => Prog sig a -> Prog sig a
-cutCall p = call (Scp (CutCall (fmap return p)))
+cutCall p = call (Scp (CutCall p) id return)
 
 cutCallM :: (Monad m, Member CutCall sig)
   => (forall a . Effs sig m a -> m a) -> m a -> m a
-cutCallM alg p = (alg . inj) (Scp (CutCall p))
+cutCallM alg p = (alg . inj) (Scp (CutCall p) id id)
 
 skip :: Monad m => m ()
 skip = return ()
 
-callAlg :: Monad m => CutListT m a -> CutListT m a
-callAlg (CutListT mxs) = CutListT $
-  do xs <- mxs
-     case xs of
-       x :<< mys -> return (x :<< runCutListT (callAlg (CutListT mys)))
-       NilT      -> return NilT
-       ZeroT     -> return NilT   -- clear the cut flag at the boundary of call
-
+-- | The `cutListAlg` will clear the `cut` at the boundary of a `cutCall`.
 cutListAlg
   :: Monad m => (forall x. oeff m x -> m x)
   -> forall x. Effs [Empty, Choose, CutFail, CutCall] (CutListT m) x -> CutListT m x
 cutListAlg oalg op
-  | Just (Alg Empty)          <- prj op = empty
-  | Just (Scp (Choose xs ys)) <- prj op = xs <|> ys
-  | Just (Alg CutFail)        <- prj op = CutListT (return ZeroT)
-  | Just (Scp (CutCall x))    <- prj op = callAlg x
+  | Just (Alg Empty)               <- prj op = empty
+  | Just (Scp (Choose xs ys) h k)  <- prj op = fmap k (h xs <|> h ys)
+  | Just (Alg CutFail)             <- prj op = CutListT (\cons nil zero -> zero)
+  | Just (Scp (CutCall xs) h k)    <- prj op = CutListT (\cons nil zero -> runCutListT (h xs) (cons . k) nil nil)
 
 cutList :: Handler [Empty, Choose, CutFail, CutCall] '[] CutListT []
 cutList = handler fromCutListT cutListAlg
@@ -85,12 +78,8 @@ cutList = handler fromCutListT cutListAlg
 instance HFunctor CutListT where
   hmap :: (Functor f, Functor g) =>
     (forall x. f x -> g x) -> CutListT f a -> CutListT g a
-  hmap h (CutListT x) = CutListT (fmap (hmap h) (h x))
-
-instance HFunctor CutListT' where
-  hmap _ ZeroT      = ZeroT
-  hmap _ NilT       = NilT
-  hmap h (x :<< xs) = x :<< fmap (hmap h) (h xs)
+  -- hmap h (CutListT xs) = CutListT (fmap (hmap h) (h x))
+  hmap h (CutListT xs) = CutListT (undefined)
 
 onceCut :: Handler '[Once] '[CutCall, CutFail, Choose] IdentityT Identity
 onceCut = interpretM onceCutAlg
@@ -99,8 +88,8 @@ onceCutAlg :: forall oeff m . (Monad m , Members [CutCall, CutFail, Choose] oeff
   => (forall x. Effs oeff m x -> m x)
   -> (forall x. Effs '[Once] m x -> m x)
 onceCutAlg oalg op
-  | Just (Scp (Once p)) <- prj op
-  = cutCallM oalg (do x <- p
+  | Just (Scp (Once p) h k) <- prj op
+  = cutCallM oalg (do x <- fmap k (h p)
                       eval oalg (do cut
                                     return x))
 
@@ -108,4 +97,4 @@ onceNondet :: Handler '[Once, Empty, Choose, CutFail, CutCall] '[] CutListT []
 onceNondet = onceCut |> cutList
 
 instance Functor f => Forward (Scp f) CutListT where
-  fwd alg (Scp op) = (CutListT . alg . Scp . fmap runCutListT) op
+  fwd alg (Scp op h k) = undefined -- (CutListT . alg . Scp . fmap runCutListT) op
