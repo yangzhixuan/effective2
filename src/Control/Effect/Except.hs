@@ -58,7 +58,7 @@ data Catch_ e k where
 
 -- | Syntax for catching exceptions of type @e@. This operation is scoped.
 catch :: forall e sig a . Member (Catch e) sig => Prog sig a -> (e -> Prog sig a) -> Prog sig a
-catch p q = call @(Catch e) (Scp (Catch (p) (q)) id return)
+catch p q = call @(Catch e) (Scp (Catch p q) return)
 
 -- | The 'except' handler will interpret @catch p q@ by first trying @p@.
 -- If it fails, then @q@ is executed.
@@ -72,11 +72,11 @@ exceptAlg :: Monad m
 exceptAlg _ eff
   | Just (Alg (Throw e)) <- prj eff
       = ExceptT (return (Left e))
-  | Just (Scp (Catch p q) h k) <- prj eff
+  | Just (Scp (Catch p q) k) <- prj eff
       = ExceptT $
-                  do mx <- runExceptT (fmap k (h p))
+                  do mx <- runExceptT (fmap k p)
                      case mx of
-                       Left e  -> runExceptT (fmap k (h (q e)))
+                       Left e  -> runExceptT (fmap k (q e))
                        Right x -> return (Right x)
 
 -- | The 'retry' handler will interpet @catch p q@  by first trying @p@.
@@ -93,7 +93,7 @@ retryAlg :: Monad m
 retryAlg _ eff
   | Just (Alg (Throw e)) <- prj eff
       = ExceptT (return (Left e))
-  | Just (Scp (Catch p q) h k) <- prj eff = ExceptT $ loop (fmap k (h p)) (h . q)
+  | Just (Scp (Catch p q) k) <- prj eff = ExceptT $ loop (fmap k p) q
       where
         loop p q =
           do mx <- runExceptT p

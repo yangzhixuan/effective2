@@ -23,47 +23,57 @@ import Control.Monad.Trans.State.Strict
 import Control.Monad.Trans.Writer
 import Control.Monad.Trans.Reader
 
+-- A scoped operation has the following type:
+--
+-- > newtype Scp (sig :: Type -> Type)
+-- >             (f :: Type -> Type)
+-- >             a
+-- >             = Scp (sig (f a))
+--
+-- We can optimise the constructor by using a Coyoneda representation so that
+-- instead the constructor becomes:
+--
+-- > forall x y . Scp !(sig x) !(x -> f y) !(y -> a)
+--
+-- But this creates 2 additional fields, and `hmap` is not often used.
+-- Benchmarks reveal that applying coyoneda only to the data yields
+-- marginally less allocation and time.
+
 -- | The family of scoped operations. Forwarding scoped operations through a
 -- transformer must be given explicitly using the `Forward` class.
--- newtype Scp (lsig :: Type -> Type)
---             (f :: Type -> Type)
---             x
---             = Scp (lsig (f x))
+data Scp (sig :: Type -> Type)
+         (f :: Type -> Type)
+         a
+         = forall x . Scp !(sig (f x)) !(x -> a)
 
-data Scp (lsig :: Type -> Type)
-          (f :: Type -> Type)
-          x
-          = forall y z . Scp !(lsig y) !(y -> f z) !(z -> x) -- Too much Coyoneda
-          -- = forall y z . Scp !(lsig (f z)) !(z -> x)
-
-instance (Functor lsig, Functor f) => Functor (Scp lsig f) where
+instance Functor (Scp sig f) where
   {-# INLINE fmap #-}
-  fmap f (Scp x h k) = Scp x h (f . k)
+  fmap f (Scp x k) = Scp x (f . k)
 
-instance Functor lsig => HFunctor (Scp lsig) where
+instance Functor sig => HFunctor (Scp sig) where
   {-# INLINE hmap #-}
-  hmap f (Scp x h k) = Scp x (f . h) k
+  hmap h (Scp x k) = Scp (fmap h x) k
 
-instance Functor f => Forward (Scp f) IdentityT where
+instance Functor sig => Forward (Scp sig) IdentityT where
   {-# INLINE fwd #-}
-  fwd alg (Scp op h k) = IdentityT (alg (Scp op (runIdentityT . h) k))
+  fwd alg (Scp op k) = IdentityT (alg (Scp (fmap runIdentityT op) k))
 
-instance Functor f => Forward (Scp f) (ExceptT e) where
+instance Functor sig => Forward (Scp sig) (ExceptT e) where
   {-# INLINE fwd #-}
-  fwd alg (Scp op h k) = ExceptT (alg (Scp op (runExceptT . h) (fmap k)))
+  fwd alg (Scp op k) = ExceptT (alg (Scp (fmap runExceptT op) (fmap k)))
 
-instance Functor f => Forward (Scp f) MaybeT where
+instance Functor sig => Forward (Scp sig) MaybeT where
   {-# INLINE fwd #-}
-  fwd alg (Scp op h k) = MaybeT (alg (Scp op  (runMaybeT . h) (fmap k)))
+  fwd alg (Scp op k) = MaybeT (alg (Scp (fmap runMaybeT op) (fmap k)))
 
-instance Functor f => Forward (Scp f) (StateT s) where
+instance Functor sig => Forward (Scp sig) (StateT s) where
   {-# INLINE fwd #-}
-  fwd alg (Scp op h k) = StateT (\s -> (alg (Scp op (flip runStateT s . h) (\(z, s) -> (k z, s)))))
+  fwd alg (Scp op k) = StateT (\s -> (alg (Scp (fmap (flip runStateT s) $ op) (\(z, s) -> (k z, s)))))
 
-instance Functor f => Forward (Scp f) (WriterT s) where
+instance Functor sig => Forward (Scp sig) (WriterT s) where
   {-# INLINE fwd #-}
-  fwd alg (Scp op h k) = WriterT (alg (Scp op (runWriterT . h) (\(z, s) -> (k z, s))))
+  fwd alg (Scp op k) = WriterT (alg (Scp (fmap runWriterT op) (\(z, s) -> (k z, s))))
 
-instance Functor f => Forward (Scp f) (ReaderT w) where
+instance Functor sig => Forward (Scp sig) (ReaderT w) where
   {-# INLINE fwd #-}
-  fwd alg (Scp op h k) = ReaderT (\r -> alg (Scp op (flip runReaderT r . h) k))
+  fwd alg (Scp op k) = ReaderT (\r -> alg (Scp (fmap (flip runReaderT r) op) k))

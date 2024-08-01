@@ -53,11 +53,11 @@ cut :: (Members [Choose, CutFail] sig) => Prog sig ()
 cut = or skip cutFail
 
 cutCall :: Member CutCall sig => Prog sig a -> Prog sig a
-cutCall p = call (Scp (CutCall p) id return)
+cutCall p = call (Scp (CutCall p) return)
 
 cutCallM :: (Monad m, Member CutCall sig)
   => (forall a . Effs sig m a -> m a) -> m a -> m a
-cutCallM alg p = (alg . inj) (Scp (CutCall p) id id)
+cutCallM alg p = (alg . inj) (Scp (CutCall p) id)
 
 skip :: Monad m => m ()
 skip = return ()
@@ -67,10 +67,10 @@ cutListAlg
   :: Monad m => (forall x. oeff m x -> m x)
   -> forall x. Effs [Empty, Choose, CutFail, CutCall] (CutListT m) x -> CutListT m x
 cutListAlg oalg op
-  | Just (Alg Empty)               <- prj op = empty
-  | Just (Scp (Choose xs ys) h k)  <- prj op = fmap k (h xs <|> h ys)
-  | Just (Alg CutFail)             <- prj op = CutListT (\cons nil zero -> zero)
-  | Just (Scp (CutCall xs) h k)    <- prj op = CutListT (\cons nil zero -> runCutListT (h xs) (cons . k) nil nil)
+  | Just (Alg Empty)             <- prj op = empty
+  | Just (Scp (Choose xs ys) k)  <- prj op = fmap k (xs <|> ys)
+  | Just (Alg CutFail)           <- prj op = CutListT (\cons nil zero -> zero)
+  | Just (Scp (CutCall xs) k)    <- prj op = CutListT (\cons nil zero -> runCutListT xs (cons . k) nil nil)
 
 cutList :: Handler [Empty, Choose, CutFail, CutCall] '[] CutListT []
 cutList = handler fromCutListT cutListAlg
@@ -88,8 +88,8 @@ onceCutAlg :: forall oeff m . (Monad m , Members [CutCall, CutFail, Choose] oeff
   => (forall x. Effs oeff m x -> m x)
   -> (forall x. Effs '[Once] m x -> m x)
 onceCutAlg oalg op
-  | Just (Scp (Once p) h k) <- prj op
-  = cutCallM oalg (do x <- fmap k (h p)
+  | Just (Scp (Once p) k) <- prj op
+  = cutCallM oalg (do x <- fmap k p
                       eval oalg (do cut
                                     return x))
 
@@ -97,4 +97,4 @@ onceNondet :: Handler '[Once, Empty, Choose, CutFail, CutCall] '[] CutListT []
 onceNondet = onceCut |> cutList
 
 instance Functor f => Forward (Scp f) CutListT where
-  fwd alg (Scp op h k) = undefined -- (CutListT . alg . Scp . fmap runCutListT) op
+  fwd alg (Scp op k) = undefined -- (CutListT . alg . Scp . fmap runCutListT) op

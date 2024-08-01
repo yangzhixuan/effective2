@@ -9,7 +9,6 @@ Stability   : experimental
 module Control.Monad.Trans.CutList.CPS where
 
 import Control.Applicative
-import Control.Monad
 import Control.Monad.Trans.Class
 
 -- | The `CutListT` transformer builds a cut list, which is similar to a

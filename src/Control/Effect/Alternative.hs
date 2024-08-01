@@ -76,8 +76,8 @@ alternativeAlg
   => (Algebra oeffs m)
   -> (Algebra [Empty , Choose] (t m))
 alternativeAlg oalg eff
-  | (Just (Alg Empty))              <- prj eff = empty
-  | (Just (Scp (Choose xs ys) h k)) <- prj eff = fmap k (h xs <|> h ys) -- xs <|> ys
+  | (Just (Alg Empty))            <- prj eff = empty
+  | (Just (Scp (Choose xs ys) k)) <- prj eff = fmap k (xs <|> ys) -- xs <|> ys
 
 -- | Instance for 'Alternative' that uses 'Choose_ and 'Empty_.
 instance (Member Choose sigs, Member Empty sigs)
@@ -88,4 +88,4 @@ instance (Member Choose sigs, Member Empty sigs)
 
   {-# INLINE (<|>) #-}
 -- | Syntax for a choice of alternatives. This is a scoped operation.
-  xs <|> ys = call (Scp (Choose xs ys) id return)
+  xs <|> ys = call (Scp (Choose xs ys) return)

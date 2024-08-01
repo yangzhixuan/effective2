@@ -21,7 +21,7 @@ stop :: Members '[Empty] sig => Prog sig a
 stop  = call (Alg Empty)
 
 or :: Members '[Choose] sig => Prog sig a -> Prog sig a -> Prog sig a
-or x y = call (Scp (Choose (x) (y)) id return)
+or x y = call (Scp (Choose x y) return)
 
 select :: Members [Choose, Empty] sig => [a] -> Prog sig a
 select = foldr (or . return) stop
@@ -48,7 +48,7 @@ data Once' a where
 
 once
   :: Member Once sig => Prog sig a -> Prog sig a
-once p = call (Scp (Once (p)) id return)
+once p = call (Scp (Once p) return)
 
 -- Everything can be handled together. Here is the non-modular way
 -- list :: (Member (Choose) sig, Member (Empty) sig, Member (Once) sig) => Prog sig a -> [a]
@@ -57,8 +57,8 @@ list = eval halg where
   halg :: Effs [Empty, Choose, Once] [] a -> [a]
   halg op
     | Just (Alg Empty)              <- prj op = []
-    | Just (Scp (Choose xs ys) h k) <- prj op = fmap k (h xs ++ h ys)
-    | Just (Scp (Once xs) h k)      <- prj op = case h xs of
+    | Just (Scp (Choose xs ys) k) <- prj op = fmap k (xs ++ ys)
+    | Just (Scp (Once xs) k)      <- prj op = case xs of
                                                   []     -> []
                                                   (x:xs) -> [k x]
 
@@ -67,9 +67,9 @@ backtrackAlg
   -> (forall x. Effs [Empty, Choose, Once] (ListT m) x -> ListT m x)
 backtrackAlg oalg op
   | Just (Alg Empty)              <- prj op = empty
-  | Just (Scp (Choose xs ys) h k) <- prj op = fmap k (h xs <|> h ys)
-  | Just (Scp (Once p) h k)       <- prj op =
-    ListT $ do mx <- runListT (fmap k (h p))
+  | Just (Scp (Choose xs ys) k)   <- prj op = fmap k (xs <|> ys)
+  | Just (Scp (Once p) k)         <- prj op =
+    ListT $ do mx <- runListT (fmap k p)
                case mx of
                  Nothing       -> return Nothing
                  Just (x, mxs) -> return (Just (x, empty))
@@ -79,8 +79,8 @@ backtrackOnceAlg
   => (forall x . oeff m x -> m x)
   -> (forall x . Effs '[Once] (ListT m) x -> ListT m x)
 backtrackOnceAlg oalg op
-  | Just (Scp (Once p) h k) <- prj op =
-    ListT $ do mx <- runListT (fmap k (h p))
+  | Just (Scp (Once p) k) <- prj op =
+    ListT $ do mx <- runListT (fmap k p)
                case mx of
                  Nothing       -> return Nothing
                  Just (x, mxs) -> return (Just (x, empty))

@@ -59,7 +59,7 @@ data Catch_ k where
 
 -- | Syntax for catching exceptions. This operation is scoped.
 catch :: Member Catch sig => Prog sig a -> Prog sig a -> Prog sig a
-catch p q = call (Scp (Catch (p) (q)) id return)
+catch p q = call (Scp (Catch p q) return)
 
 
 -- | The 'except' handler will interpret @catch p q@ by first trying @p@.
@@ -74,10 +74,10 @@ exceptAlg :: Monad m
 exceptAlg _ eff
   | Just (Alg Throw) <- prj eff
       = MaybeT (return Nothing)
-  | Just (Scp (Catch p q) h k) <- prj eff
-      = MaybeT $ do mx <- runMaybeT (fmap k (h p))
+  | Just (Scp (Catch p q) k) <- prj eff
+      = MaybeT $ do mx <- runMaybeT (fmap k p)
                     case mx of
-                      Nothing -> runMaybeT (fmap k (h q))
+                      Nothing -> runMaybeT (fmap k q)
                       Just x  -> return (Just x)
 
 -- | The 'retry' handler will interpet @catch p q@  by first trying @p@.
@@ -94,7 +94,7 @@ retryAlg :: Monad m
 retryAlg _ eff
   | Just (Alg Throw) <- prj eff
       = MaybeT (return Nothing)
-  | Just (Scp (Catch p q) h k) <- prj eff = MaybeT $ loop (fmap k (h p)) (fmap k (h q))
+  | Just (Scp (Catch p q) k) <- prj eff = MaybeT $ loop (fmap k p) (fmap k q)
       where
         loop p q =
           do mx <- runMaybeT p

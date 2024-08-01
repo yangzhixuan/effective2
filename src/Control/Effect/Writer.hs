@@ -80,7 +80,7 @@ data Censor_ w k where
 -- | The @`censor` f p@ operation executes program @p@ with output censored
 -- by @f@.
 censor :: Member (Censor w) sig => (w -> w) -> Prog sig a -> Prog sig a
-censor cipher p = call (Scp (Censor cipher p) id return)
+censor cipher p = call (Scp (Censor cipher p) return)
 
 -- | The @`censors` f@ handler applies an initial function @f@ to the
 -- any output produced by `tell`. If a @`censor` f' p@ operation is encountered,
@@ -98,9 +98,9 @@ censors cipher = handler run alg where
     | Just (Alg (Tell w k)) <- prj eff =
         do cipher <- ask
            lift (oalg (Eff (Alg (Tell (cipher w) k))))
-    | Just (Scp (Censor (cipher' :: w -> w) k) h k') <- prj eff =
+    | Just (Scp (Censor (cipher' :: w -> w) k) k') <- prj eff =
         do cipher <- ask
-           lift (runReaderT (fmap k' (h k)) (cipher . cipher'))
+           lift (runReaderT (fmap k' k) (cipher . cipher'))
 
 -- | The `uncensors` handler removes any occurrences of `censor`.
 uncensors :: forall w . Monoid w => Handler '[Censor w] '[] IdentityT Identity
@@ -111,4 +111,4 @@ uncensors = handler run alg where
   alg :: Monad m
       => (forall x. Effs '[] m x -> m x)
       -> (forall x. Effs '[Censor w] (IdentityT m) x -> IdentityT m x)
-  alg oalg (Eff (Scp (Censor (_ :: w -> w) k) h k')) = fmap k' (h k)
+  alg oalg (Eff (Scp (Censor (_ :: w -> w) k) k')) = fmap k' k
