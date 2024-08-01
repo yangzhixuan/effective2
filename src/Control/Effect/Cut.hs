@@ -18,7 +18,7 @@ import Control.Effect.Algebraic
 import Control.Effect.Scoped
 import Control.Effect.Alternative
 import Control.Effect.Nondet
-import Control.Monad.Trans.CutList
+import Control.Monad.Trans.CutList.CPS
 import Data.HFunctor ( HFunctor(..) )
 
 {-

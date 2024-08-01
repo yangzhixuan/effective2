@@ -10,6 +10,10 @@ import Control.Arrow ( Arrow(second) )
 newtype ListT m a = ListT { runListT :: m (Maybe (a, ListT m a)) }
   deriving Functor
 
+-- newtype ListT' m a = forall y . ListT' (m y) (y -> Maybe (a, ListT m a))
+--   deriving Functor
+
+
 runListT' :: Monad m => ListT m a -> m [a]
 runListT' (ListT mmxs) =
   do mxs <- mmxs

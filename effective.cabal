@@ -41,7 +41,8 @@ library
     Control.Effect.Writer
     Control.Effect.Algebraic
     Control.Effect.Scoped
-    Control.Monad.Trans.CutList
+    Control.Monad.Trans.CutList.CPS
+    Control.Monad.Trans.List
     Control.Monad.Trans.Compose
     Data.CutList
     Data.HFunctor

@@ -841,7 +841,7 @@ data Profile' k where
   deriving Functor
 
 profile :: Member Profile sig => String -> Prog sig a -> Prog sig a
-profile name p = call (Scp (Profile name (fmap return p)))
+profile name p = call (Scp (Profile name p) id return)
 ```
 
 For example, to profile some code `p`, we need to mark it as a code of interest
@@ -863,9 +863,9 @@ timerAlg :: forall effs oeffs m
   . (Monad m, Members '[Tell [(String, Integer)],GetCPUTime] oeffs)
   => (forall x . Effs oeffs m x -> m x)
   -> (forall x . Effs '[Profile] m x -> m x)
-timerAlg oalg (Eff (Scp (Profile name p))) =
+timerAlg oalg (Eff (Scp (Profile name p) h k')) =
   do t  <- eval oalg getCPUTime
-     k  <- p
+     k  <- fmap k' (h p)
      eval oalg $ do
         t' <- getCPUTime
         tell [(name, t' - t)]
@@ -896,9 +896,9 @@ profilerAlg :: forall instr effs oeffs m a b
   -> (Prog '[instr] a)
   -> (forall x . Effs oeffs m x -> m x)
   -> (forall x . Effs '[Profile] m x -> m x)
-profilerAlg f instrument oalg (Eff (Scp (Profile name p))) =
+profilerAlg f instrument oalg (Eff (Scp (Profile name p) h k')) =
   do t  <- eval oalg (weakenProg instrument)
-     k  <- p
+     k  <- fmap k' (h p)
      eval oalg $ do
         t' <- (weakenProg instrument)
         tell [(name, f t t')]

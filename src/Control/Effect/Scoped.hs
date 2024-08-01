@@ -33,7 +33,8 @@ import Control.Monad.Trans.Reader
 data Scp (lsig :: Type -> Type)
           (f :: Type -> Type)
           x
-          = forall y z . Scp (lsig y) (y -> f z) (z -> x)
+          = forall y z . Scp !(lsig y) !(y -> f z) !(z -> x) -- Too much Coyoneda
+          -- = forall y z . Scp !(lsig (f z)) !(z -> x)
 
 instance (Functor lsig, Functor f) => Functor (Scp lsig f) where
   {-# INLINE fmap #-}

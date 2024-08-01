@@ -116,6 +116,9 @@ fold falg gen (Call op hk k) =
 call :: forall eff effs a . (Member eff effs, HFunctor eff) => eff (Prog effs) (Prog effs a) -> Prog effs a
 call x = Call (inj x) id id
 
+-- call' :: forall eff effs a . (ProgMonad prog, Member eff effs, HFunctor eff) => eff (prog effs) (prog effs a) -> prog effs a
+-- call' x = Call (inj x) id id
+
 -- | Attempt to project an operation of type @eff (Prog effs) (Prog effs a)@.
 {-# INLINE prjCall #-}
 prjCall :: forall eff effs a . Member eff effs => Prog effs a -> Maybe (eff (Prog effs) (Prog effs a))
