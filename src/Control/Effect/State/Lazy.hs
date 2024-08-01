@@ -1,8 +1,29 @@
+{-|
+Module      : Control.Effect.State.Lazy
+Description : Effects for the lazy state monad
+License     : BSD-3-Clause
+Maintainer  : Nicolas Wu
+Stability   : experimental
+-}
+
 {-# LANGUAGE DataKinds #-}
 
 module Control.Effect.State.Lazy
-  ( module Control.Effect.State.Lazy
-  , module Control.Effect.State.Type
+  ( -- * Syntax
+    -- ** Operations
+    put,
+    get,
+
+    -- ** Signatures
+    Put, Put_ (..),
+    Get, Get_ (..),
+
+    -- * Semantics
+    -- ** Handlers
+    state, state_,
+
+    -- ** Algebras
+    stateAlg,
   ) where
 
 import Control.Effect
@@ -11,17 +32,17 @@ import Control.Effect.Algebraic
 
 import qualified Control.Monad.Trans.State.Lazy as Lazy
 
+-- | The `state` handler deals with stateful operations and
+-- returns the final state @s@.
 state :: s -> Handler [Put s, Get s] '[] (Lazy.StateT s) ((,) s)
 state s = handler (fmap (\ ~(x, y) -> (y, x)) . flip Lazy.runStateT s) stateAlg
 
 -- | The `state_` handler deals with stateful operations and silenty
 -- discards the final state.
--- state_ :: s -> Handler [Put s, Get s] IdentityT Identity
--- state_ s = Handler $ Handler (\oalg -> fmap (RCNil . fst) . flip S.runStateT s) stateAlg
 state_ :: s -> Handler [Put s, Get s] '[] (Lazy.StateT s) Identity
--- state_ s = Handler (\oalg -> fmap (RCNil . fst) . flip S.runStateT s) stateAlg
 state_ s = handler (fmap Identity . flip Lazy.evalStateT s) stateAlg
 
+-- | An algebra that interprets t'Get' and t'Put' using the lazy t'Lazy.StateT'.
 stateAlg
   :: Monad m
   => (forall x. oeff m x -> m x)

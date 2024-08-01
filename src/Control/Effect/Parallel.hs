@@ -1,8 +1,14 @@
--- Parallel effects
+{-|
+Module      : Control.Effect.Parallel
+Description : The parallel effect family
+License     : BSD-3-Clause
+Maintainer  : Nicolas Wu
+Stability   : experimental
 
--- First developed in:
--- A framework for higher-order effects & handlers by
--- Birthe van den Berg and Tom Schrijvers
+Parallel effects were first developed as a higher-order effect in
+"A framework for higher-order effects & handlers" by
+Birthe van den Berg and Tom Schrijvers.
+-}
 
 module Control.Family.Parallel where
 

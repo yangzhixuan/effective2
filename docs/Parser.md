@@ -15,8 +15,6 @@ import Prelude hiding (or)
 
 import Control.Applicative
 
-
-
 char :: Progs '[Get [Char], Put [Char], Empty, Choose] Char
 char = do
   xxs <- get

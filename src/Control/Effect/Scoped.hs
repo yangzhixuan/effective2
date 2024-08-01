@@ -1,3 +1,12 @@
+{-|
+Module      : Control.Effect.Scoped
+Description : The scoped effect family
+License     : BSD-3-Clause
+Maintainer  : Nicolas Wu
+Stability   : experimental
+-}
+
+
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE MonoLocalBinds #-}
 
@@ -10,11 +19,12 @@ import Data.HFunctor
 
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Maybe
-import Control.Monad.Trans.List
 import Control.Monad.Trans.State.Strict
 import Control.Monad.Trans.Writer
 import Control.Monad.Trans.Reader
 
+-- | The family of scoped operations. Forwarding scoped operations through a
+-- transformer must be given explicitly using the `Forward` class.
 newtype Scp (lsig :: Type -> Type)
             (f :: Type -> Type)
             x
@@ -39,10 +49,6 @@ instance Functor f => Forward (Scp f) (ExceptT e) where
 instance Functor f => Forward (Scp f) MaybeT where
   {-# INLINE fwd #-}
   fwd alg (Scp op) = (MaybeT . alg . Scp . fmap runMaybeT) op
-
-instance Functor f => Forward (Scp f) ListT where
-  {-# INLINE fwd #-}
-  fwd alg (Scp op) = (ListT . alg . Scp . fmap runListT) op
 
 instance Functor f => Forward (Scp f) (StateT s) where
   {-# INLINE fwd #-}

@@ -15,7 +15,6 @@ import Control.Effect.Algebraic
 import Control.Effect.Scoped
 import Control.Effect.Alternative
 
-import Control.Applicative ( Alternative(empty, (<|>)) )
 import Control.Monad.Trans.List
 
 stop :: Members '[Empty] sig => Prog sig a

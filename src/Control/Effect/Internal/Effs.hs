@@ -28,6 +28,7 @@ import Control.Monad.ST
 import Data.Array.ST
 import Data.Array
 
+-- | The type of higher-order effects.
 type Effect = (Type -> Type) -> (Type -> Type)
 
 -- | A higher-order algebra for the union of effects @effs@ with
@@ -47,7 +48,7 @@ falg # galg = heither @eff1 @eff2 (falg) (galg)
 -- | @Effs effs f a@ creates a union of the effect signatures in the list @effs@.
 type Effs :: [Effect] -> Effect
 data Effs effs f a where
-  -- | `Effn n op` places an operation `n` away from the last element of the list.
+  -- | @`Effn` n op@ places an operation @n@ away from the last element of the list.
   Effn :: HFunctor eff => {-# UNPACK #-} !Int -> !(eff f a) -> Effs effs f a
 
 -- | Matches an effect @eff@ at the head of a signature @eff ': effs@.
@@ -166,7 +167,6 @@ weakenAlg
   -> (Effs xeffs  m x -> m x)
 weakenAlg alg = alg . injs
 
-
 -- | Constructs an operation in the union @Effs effs f a@ from a single
 -- operation @eff f a@, when @eff@ is in @effs@.
 {-# INLINE inj #-}
@@ -211,17 +211,22 @@ hunion :: forall xeffs yeffs f a b . Injects (yeffs :\\ xeffs) yeffs
   -> (Effs (xeffs `Union` yeffs) f a -> b)
 hunion xalg yalg = heither @xeffs @(yeffs :\\ xeffs) xalg (yalg . injs)
 
-type family EffIndex (eff :: a) (xeffs :: [a]) :: Nat where
-  EffIndex eff (eff ': xeffs) = Length xeffs
-  EffIndex eff (_ ': xeffs) = EffIndex eff xeffs
+-- | @`EffIndex` eff effs@ finds the index of @eff@ in @effs@, where
+-- the last element has index @0@, and the head element has index @Length effs - 1@.
+type family EffIndex (eff :: a) (effs :: [a]) :: Nat where
+  EffIndex eff (eff ': effs) = Length effs
+  EffIndex eff (_ ': effs) = EffIndex eff effs
 
+-- | Given @xeffs@ which is a subset of effects in @yeffs@, @`EffIndexes` xeffs
+-- yeffs@ finds the index @`EffIndex` eff yeffs@ for each @eff@ in @xeffs@, and
+-- returns this as a list of indices.
 type family EffIndexes (xeffs :: [a]) (yeffs :: [a]) :: [Nat] where
   EffIndexes '[] yeffs       = '[]
   EffIndexes (eff ': xeffs) yeffs = EffIndex eff yeffs ': EffIndexes xeffs yeffs
 
 -- | A class that witnesses that all the type level nats @ns@ can be reflected
--- into a value level list. This list is indexed from @0@ at the last element
--- of the list.
+-- into a value level list. Indexing starts from the end of the list, so that
+-- the last element always has index @0@.
 class KnownNat (Length ns) => KnownNats (ns :: [Nat]) where
   natVals :: Proxy# ns -> STArray s Int Int -> ST s ()
 

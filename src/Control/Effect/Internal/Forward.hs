@@ -1,13 +1,12 @@
-{-# LANGUAGE CPP #-}
-
 {-|
-Module      : Control.Effect.Internal.Prog
-Description : Program constructors and deconstructors
+Module      : Control.Effect.Internal.Forward
+Description : Forwarding algebras
 License     : BSD-3-Clause
 Maintainer  : Nicolas Wu
 Stability   : experimental
 -}
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE QuantifiedConstraints #-}
@@ -31,8 +30,8 @@ class Forward (eff :: Effect) (t :: Effect) where
        => (forall x . eff m x  -> m x)
        -> (forall x . eff (t m) x -> t m x)
 
--- | This class builds a forwarder for an `Effs` by recursion over `effs`,
--- by ensuring that each effect can be forwarded through a given `t`.
+-- | This class builds a forwarder for an t`Effs` by recursion over @effs@,
+-- by ensuring that each effect can be forwarded through a given @t@.
 class ForwardEffs effs (t :: (Type -> Type) -> (Type -> Type))  where
   fwdEffs :: forall m . Monad m
     => Algebra effs m

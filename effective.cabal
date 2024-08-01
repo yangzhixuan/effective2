@@ -38,17 +38,15 @@ library
     Control.Effect.State.Type
     Control.Effect.State.Lazy
     Control.Effect.State.Strict
-    Control.Effect.Tree
     Control.Effect.Writer
     Control.Effect.Algebraic
     Control.Effect.Scoped
-    Control.Monad.Trans.List
-    Control.Monad.Trans.Tree
+    Control.Monad.Trans.CutList
     Control.Monad.Trans.Compose
-    Data.HFunctor
     Data.CutList
+    Data.HFunctor
     Data.List.Kind
-  other-modules:
+
     Control.Effect.Internal.Effs
     Control.Effect.Internal.Forward
     Control.Effect.Internal.Handler
@@ -68,9 +66,9 @@ test-suite docs
   default-language: GHC2021
   other-modules:
     Error,
---     Graded,
+--  Graded,
     Nondet,
-    Parser,
+--  Parser,
     State,
 
 test-suite readme

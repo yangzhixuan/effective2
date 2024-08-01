@@ -1,5 +1,3 @@
-{-# LANGUAGE CPP #-}
-
 {-|
 Module      : Control.Effect.Internal.Prog
 Description : Program constructors and deconstructors
@@ -8,6 +6,7 @@ Maintainer  : Nicolas Wu
 Stability   : experimental
 -}
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE MonoLocalBinds #-}
 

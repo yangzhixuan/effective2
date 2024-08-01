@@ -1,5 +1,12 @@
-{-# LANGUAGE CPP #-}
+{-|
+Module      : Control.Monad.Trans.Compose
+Description : Higher-order functor composition
+License     : BSD-3-Clause
+Maintainer  : Nicolas Wu
+Stability   : experimental
+-}
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE TypeFamilies #-}
 #if __GLASGOW_HASKELL__ <= 904
 {-# LANGUAGE QuantifiedConstraints #-}
@@ -10,6 +17,9 @@ module Control.Monad.Trans.Compose where
 import Control.Monad.Trans.Class
 import Data.Kind (Type)
 
+
+-- | Right-to-left composition of higher-order functors. A higher-order version
+-- of 'Data.Functor.Compose'.
 newtype ComposeT (h :: (Type -> Type) -> (Type -> Type))
                  (k :: (Type -> Type) -> (Type -> Type))
                  (f :: (Type -> Type)) (a :: Type)

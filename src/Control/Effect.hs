@@ -16,6 +16,7 @@ module Control.Effect
   , Effs (Eff, Effs)
   , call
   , weakenProg
+  , Effect
 
   -- * Operations
   , Member(..)
@@ -50,7 +51,7 @@ module Control.Effect
   -- * Type families
   -- | The types of handlers are normalised when they are fused together, as are
   -- any results when a handler is applied. This normalisation removes unnecessary
-  -- `Identity`, `Compose`, `IdentityT`, and `ComposeT` functors.
+  -- t`Identity`, t`Compose`, t`IdentityT`, and t`ComposeT` functors.
   , Apply
   , HApply
   , RAssoc

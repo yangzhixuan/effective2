@@ -1,19 +1,25 @@
+{-|
+Module      : Control.Effect.Cut
+Description : Nondeterminism with a cut operation
+License     : BSD-3-Clause
+Maintainer  : Nicolas Wu
+Stability   : experimental
+-}
+
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Control.Effect.Cut where
+
+import Prelude hiding (or)
 
 import Control.Effect
 import Control.Effect.Algebraic
 import Control.Effect.Scoped
 import Control.Effect.Alternative
 import Control.Effect.Nondet
-
-import Prelude hiding (or)
-
-import Data.CutList ( CutListT(..), CutListT'(..), fromCutListT' )
+import Control.Monad.Trans.CutList
 import Data.HFunctor ( HFunctor(..) )
-import Control.Applicative ( Alternative((<|>), empty) )
 
 {-
 Idea:
@@ -30,17 +36,17 @@ An alternative is to interpet `once` into `cutFail` and `cutCall`,
 which can then be interpreted using a `CutList`.
 -}
 
-type CutFail = Alg CutFail'
-data CutFail' a where
-  CutFail :: CutFail' a
+type CutFail = Alg CutFail_
+data CutFail_ a where
+  CutFail :: CutFail_ a
   deriving Functor
 
 cutFail :: Member CutFail sig => Prog sig a
 cutFail = call (Alg CutFail)
 
-type CutCall = Scp CutCall'
-data CutCall' a where
-  CutCall :: a -> CutCall' a
+type CutCall = Scp CutCall_
+data CutCall_ a where
+  CutCall :: a -> CutCall_ a
   deriving Functor
 
 cut :: (Members [Choose, CutFail] sig) => Prog sig ()
@@ -73,12 +79,8 @@ cutListAlg oalg op
   | Just (Alg CutFail)        <- prj op = CutListT (return ZeroT)
   | Just (Scp (CutCall x))    <- prj op = callAlg x
 
--- cutList :: Handler [Empty, Choose, CutFail, CutCall] '[] '[[]]
--- cutList = handler fromCutListT' cutListAlg
-
 cutList :: Handler [Empty, Choose, CutFail, CutCall] '[] CutListT []
-cutList = handler fromCutListT' cutListAlg
-
+cutList = handler fromCutListT cutListAlg
 
 instance HFunctor CutListT where
   hmap :: (Functor f, Functor g) =>

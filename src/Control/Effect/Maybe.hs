@@ -1,8 +1,35 @@
+{-|
+Module      : Control.Effect.Maybe
+Description : Exception throwing without a value
+License     : BSD-3-Clause
+Maintainer  : Nicolas Wu
+Stability   : experimental
+-}
+
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ImpredicativeTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Control.Effect.Maybe where
+module Control.Effect.Maybe (
+  -- * Syntax
+  -- ** Operations
+  throw,
+  catch,
+
+  -- ** Signatures
+  Throw, Throw_(..),
+  Catch, Catch_(..),
+
+  -- * Semantics
+  -- ** Handlers
+  except,
+  retry,
+
+  -- ** Algebras
+  exceptAlg,
+  retryAlg,
+
+) where
 
 import Control.Effect
 import Control.Effect.Algebraic
@@ -10,22 +37,37 @@ import Control.Effect.Scoped
 
 import Control.Monad.Trans.Maybe
 
-type Catch = Scp Catch'
-data Catch' k where
-  Catch :: k -> k -> Catch' k
+-- | Signature for throwing exceptions.
+type Throw = Alg Throw_
+-- | Underlying signature for throwing exceptions.
+data Throw_ k where
+  Throw :: Throw_ k
   deriving Functor
 
-catch :: Member Catch sig => Prog sig a -> Prog sig a -> Prog sig a
-catch p q = call (Scp (Catch (fmap return p) (fmap return q)))
-
-type Throw = Alg Throw'
-data Throw' k where
-  Throw :: Throw' k
-  deriving Functor
-
+-- | Syntax for throwing exceptions. This operation is algebraic:
+--
+-- > throw >>= k = throw
 throw :: Member Throw sig => Prog sig a
 throw = call (Alg Throw)
 
+-- | Internal signature for catching exceptions of type @e@.
+type Catch = Scp Catch_
+-- | Underlying signature for catching exceptions of type @e@.
+data Catch_ k where
+  Catch :: k -> k -> Catch_ k
+  deriving Functor
+
+-- | Syntax for catching exceptions. This operation is scoped.
+catch :: Member Catch sig => Prog sig a -> Prog sig a -> Prog sig a
+catch p q = call (Scp (Catch (fmap return p) (fmap return q)))
+
+
+-- | The 'except' handler will interpret @catch p q@ by first trying @p@.
+-- If it fails, then @q@ is executed.
+except :: Handler [Throw, Catch] '[] MaybeT Maybe
+except = handler runMaybeT exceptAlg
+
+-- | The algebra for the 'except' handler.
 exceptAlg :: Monad m
   => (forall x. oeff m x -> m x)
   -> (forall x. Effs [Throw, Catch] (MaybeT m) x -> MaybeT m x)
@@ -38,26 +80,14 @@ exceptAlg _ eff
                       Nothing -> runMaybeT q
                       Just x  -> return (Just x)
 
--- exceptT :: Handler [Throw, Catch] '[] '[Maybe]
--- exceptT = handler runMaybeT exceptAlg
-
-except :: Handler [Throw, Catch] '[] MaybeT Maybe
-except = handler runMaybeT exceptAlg
-
--- exceptT
---   :: forall effs oeffs fs t . (MonadTrans t, ForwardT effs MaybeT)
---   => Handler effs oeffs t fs
---   -> Handler (Throw : Catch : effs) oeffs (ComposeT MaybeT t) (Maybe ': fs)
--- exceptT = handler @'[Throw, Catch] exceptAlg runMaybeT
-
--- multiple semantics such as retry after handling is difficult in MTL
--- without resorting to entirely different newtype wrapping through
--- the whole program.
---
--- The result of `retryAlg` on `catch p q` is to first try `p`.
--- If it fails, then `q` is executed as a recovering clause.
+-- | The 'retry' handler will interpet @catch p q@  by first trying @p@.
+-- If it fails, then @q@ is executed as a recovering clause.
 -- If the recovery fails then the computation is failed overall.
--- If the recovery succeeds, then `catch p q` is attempted again.
+-- If the recovery succeeds, then @catch p q@ is attempted again.
+retry :: Handler [Throw, Catch] '[] MaybeT Maybe
+retry = handler runMaybeT retryAlg
+
+-- | The algebra for the 'retry' handler.
 retryAlg :: Monad m
   => (forall x. Effs oeff m x -> m x)
   -> (forall x. Effs [Throw, Catch] (MaybeT m) x -> MaybeT m x)
@@ -74,6 +104,3 @@ retryAlg _ eff
                                Nothing -> return Nothing
                                Just y  -> loop p q
                Just x  -> return (Just x)
-
-retry :: Handler [Throw, Catch] '[] MaybeT Maybe
-retry = handler runMaybeT retryAlg
