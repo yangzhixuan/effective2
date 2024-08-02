@@ -197,6 +197,7 @@ instance (KnownNats (EffIndexes xeffs xyeffs), KnownNat (Length xeffs))
   {-# INLINE injs #-}
   injs (Effn n op) = Effn (ixs @xeffs @xyeffs ! n) op
 
+  {-# INLINE ixs #-}
   ixs = runSTArray $ do arr <- newArray_ (0, m - 1)
                         natVals (proxy# :: Proxy# (EffIndexes xeffs xyeffs)) arr
                         return arr
@@ -231,9 +232,11 @@ class KnownNat (Length ns) => KnownNats (ns :: [Nat]) where
   natVals :: Proxy# ns -> STArray s Int Int -> ST s ()
 
 instance KnownNats '[] where
+  {-# INLINE natVals #-}
   natVals _ _ = return ()
 
 instance (KnownNat x, KnownNats xs, KnownNat (Length (x ': xs))) => KnownNats (x ': xs) where
+  {-# INLINE natVals #-}
   natVals _ arr = do writeArray arr (fromInteger $ natVal' (proxy# @(Length xs)))
                                     (fromInteger $ natVal' (proxy# @x))
                      natVals (proxy# :: Proxy# xs) arr
