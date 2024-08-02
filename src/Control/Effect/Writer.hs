@@ -48,7 +48,7 @@ data Tell_ w k where
 
 -- | @`tell` w@ produces the output @w@.
 tell :: (Member (Tell w) sig, Monoid w) => w -> Prog sig ()
-tell w = call (Alg (Tell w (return ())))
+tell w = call (Alg (Tell w ()) return)
 
 -- | The algebra for the `writer` handler.
 writerAlg
@@ -56,9 +56,9 @@ writerAlg
   => (forall x. oeff m x -> m x)
   -> (forall x.  Effs '[Tell w] (W.WriterT w m) x -> W.WriterT w m x)
 writerAlg _ eff
-  | Just (Alg (Tell w k)) <- prj eff =
+  | Just (Alg (Tell w x) k) <- prj eff =
       do W.tell w
-         return k
+         return (k x)
 
 -- | The `writer` handler consumes `tell` operations, and
 -- returns the final state @w@.
@@ -95,12 +95,12 @@ censors cipher = handler run alg where
       => (forall x. Effs '[Tell w] m x -> m x)
       -> (forall x. Effs '[Tell w, Censor w] (ReaderT (w -> w) m) x -> ReaderT (w -> w) m x)
   alg oalg eff
-    | Just (Alg (Tell w k)) <- prj eff =
+    | Just (Alg (Tell w x) k) <- prj eff =
         do cipher <- ask
-           lift (oalg (Eff (Alg (Tell (cipher w) k))))
-    | Just (Scp (Censor (cipher' :: w -> w) k) k') <- prj eff =
+           lift (oalg (Eff (Alg (Tell (cipher w) x) k)))
+    | Just (Scp (Censor (cipher' :: w -> w) x) k) <- prj eff =
         do cipher <- ask
-           lift (runReaderT (fmap k' k) (cipher . cipher'))
+           lift (runReaderT (fmap k x) (cipher . cipher'))
 
 -- | The `uncensors` handler removes any occurrences of `censor`.
 uncensors :: forall w . Monoid w => Handler '[Censor w] '[] IdentityT Identity

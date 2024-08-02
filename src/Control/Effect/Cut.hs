@@ -42,7 +42,7 @@ data CutFail_ a where
   deriving Functor
 
 cutFail :: Member CutFail sig => Prog sig a
-cutFail = call (Alg CutFail)
+cutFail = call (Alg CutFail return)
 
 type CutCall = Scp CutCall_
 data CutCall_ a where
@@ -67,9 +67,9 @@ cutListAlg
   :: Monad m => (forall x. oeff m x -> m x)
   -> forall x. Effs [Empty, Choose, CutFail, CutCall] (CutListT m) x -> CutListT m x
 cutListAlg oalg op
-  | Just (Alg Empty)             <- prj op = empty
+  | Just (Alg Empty k)           <- prj op = empty
   | Just (Scp (Choose xs ys) k)  <- prj op = fmap k (xs <|> ys)
-  | Just (Alg CutFail)           <- prj op = CutListT (\cons nil zero -> zero)
+  | Just (Alg CutFail k)         <- prj op = CutListT (\cons nil zero -> zero)
   | Just (Scp (CutCall xs) k)    <- prj op = CutListT (\cons nil zero -> runCutListT xs (cons . k) nil nil)
 
 cutList :: Handler [Empty, Choose, CutFail, CutCall] '[] CutListT []

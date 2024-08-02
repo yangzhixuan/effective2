@@ -27,16 +27,21 @@ import Control.Monad.Trans.Class
 --
 -- The @sig@ parameter is the signature type, @f@ corresponds to the semantics
 -- carrier, and @k@ is the continuation parameter.
-newtype Alg (sig :: Type -> Type)
-            (f :: Type -> Type)
-            k
-            = Alg (sig k)
+-- newtype Alg (sig :: Type -> Type)
+--             (f :: Type -> Type)
+--             k
+--             = Alg (sig k)
+--
+data Alg (sig :: Type -> Type)
+         (f :: Type -> Type)
+         k
+         = forall x . Alg !(sig x) !(x -> k)
 
-instance Functor sig => Functor (Alg sig f) where
-  fmap f (Alg x) = Alg (fmap f x)
+instance Functor (Alg sig f) where
+  fmap f (Alg op k) = Alg op (f . k)
 
-instance Functor sig => HFunctor (Alg sig) where
-  hmap f (Alg x) = Alg x
+instance HFunctor (Alg sig) where
+  hmap f (Alg op k) = Alg op k
 
-instance (Functor f, MonadTrans t) => Forward (Alg f) t where
-  fwd alg (Alg op) = lift (alg (Alg op))
+instance (MonadTrans t) => Forward (Alg f) t where
+  fwd alg (Alg op k) = lift (alg (Alg op k))

@@ -47,7 +47,7 @@ newtype Throw_ e k where
 --
 -- > throw e >>= k = throw e
 throw :: forall e sig a . (Member (Throw e) sig) => e -> Prog sig a
-throw e = call @(Throw e) (Alg (Throw e))
+throw e = call @(Throw e) (Alg (Throw e) return)
 
 -- | Internal signature for catching exceptions of type @e@.
 type Catch e = Scp (Catch_ e)
@@ -70,7 +70,7 @@ exceptAlg :: Monad m
   => (forall x. oeff m x -> m x)
   -> (forall x. Effs [Throw e, Catch e] (ExceptT e m) x -> ExceptT e m x)
 exceptAlg _ eff
-  | Just (Alg (Throw e)) <- prj eff
+  | Just (Alg (Throw e) k) <- prj eff
       = ExceptT (return (Left e))
   | Just (Scp (Catch p q) k) <- prj eff
       = ExceptT $
@@ -91,7 +91,7 @@ retryAlg :: Monad m
   => (forall x. Effs oeff m x -> m x)
   -> (forall x. Effs [Throw e, Catch e] (ExceptT e m) x -> ExceptT e m x)
 retryAlg _ eff
-  | Just (Alg (Throw e)) <- prj eff
+  | Just (Alg (Throw e) k) <- prj eff
       = ExceptT (return (Left e))
   | Just (Scp (Catch p q) k) <- prj eff = ExceptT $ loop (fmap k p) q
       where

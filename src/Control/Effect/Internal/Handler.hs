@@ -151,8 +151,7 @@ data Handler effs oeffs ts fs =
 -- is a simplified version of the @Handler@ constructor where @run@ does
 -- not need to be a modular runner.
 handler
-  :: (Functor f, forall f . Functor f => Functor (t f))
-  => (forall m a . Monad m => t m a -> m (f a))
+  :: (forall m a . Monad m => t m a -> m (f a))
   -> (forall m . Monad m => Algebra oeffs m -> Algebra effs (t m))
   -> Handler effs oeffs t f
 handler run malg = Handler
@@ -263,8 +262,6 @@ fuse, (|>)
     , oeffs ~ (oeffs1 :\\ effs2) `Union` oeffs2
     , ts    ~ HRAssoc (ts1 `ComposeT` ts2)
     , fs    ~ RAssoc (fs2 `Compose` fs1)
-    , Functor fs2
-    , MonadTrans ts1
     , forall m . Monad m => Monad (ts2 m)
 #if __GLASGOW_HASKELL__ <= 904
     , forall m . Monad m => Monad (ts1 (ts2 m))
@@ -329,7 +326,6 @@ pipe, (||>)
     , oeffs ~ (oeffs1 :\\ effs2) `Union` oeffs2
     , ts    ~ HRAssoc (ts1 `ComposeT` ts2)
     , fs    ~ RAssoc (fs2 `Compose` fs1)
-    , Functor fs2
     , MonadTrans ts1
     , MonadTrans ts2
 #if __GLASGOW_HASKELL__ <= 904

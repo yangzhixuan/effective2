@@ -49,9 +49,9 @@ stateAlg
   => (forall x. oeff m x -> m x)
   -> (forall x.  Effs [Put s, Get s] (Strict.StateT s m) x -> Strict.StateT s m x)
 stateAlg _ op
-  | Just (Alg (Put s p)) <- prj op =
+  | Just (Alg (Put s p) k) <- prj op =
       do Strict.put s
-         return p
-  | Just (Alg (Get p)) <- prj op =
+         return (k p)
+  | Just (Alg (Get p) k) <- prj op =
       do s <- Strict.get
-         return (p s)
+         return (k (p s))

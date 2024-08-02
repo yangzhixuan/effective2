@@ -48,7 +48,7 @@ data Throw_ k where
 --
 -- > throw >>= k = throw
 throw :: Member Throw sig => Prog sig a
-throw = call (Alg Throw)
+throw = call (Alg Throw return)
 
 -- | Internal signature for catching exceptions of type @e@.
 type Catch = Scp Catch_
@@ -72,7 +72,7 @@ exceptAlg :: Monad m
   => (forall x. oeff m x -> m x)
   -> (forall x. Effs [Throw, Catch] (MaybeT m) x -> MaybeT m x)
 exceptAlg _ eff
-  | Just (Alg Throw) <- prj eff
+  | Just (Alg Throw k) <- prj eff
       = MaybeT (return Nothing)
   | Just (Scp (Catch p q) k) <- prj eff
       = MaybeT $ do mx <- runMaybeT (fmap k p)
@@ -92,7 +92,7 @@ retryAlg :: Monad m
   => (forall x. Effs oeff m x -> m x)
   -> (forall x. Effs [Throw, Catch] (MaybeT m) x -> MaybeT m x)
 retryAlg _ eff
-  | Just (Alg Throw) <- prj eff
+  | Just (Alg Throw k) <- prj eff
       = MaybeT (return Nothing)
   | Just (Scp (Catch p q) k) <- prj eff = MaybeT $ loop (fmap k p) (fmap k q)
       where

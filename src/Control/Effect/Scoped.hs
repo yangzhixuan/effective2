@@ -27,13 +27,13 @@ import Control.Monad.Trans.Reader
 --
 -- > newtype Scp (sig :: Type -> Type)
 -- >             (f :: Type -> Type)
--- >             a
--- >             = Scp (sig (f a))
+-- >             k
+-- >             = Scp (sig (f k))
 --
 -- We can optimise the constructor by using a Coyoneda representation so that
 -- instead the constructor becomes:
 --
--- > forall x y . Scp !(sig x) !(x -> f y) !(y -> a)
+-- > forall x y . Scp !(sig x) !(x -> f y) !(y -> k)
 --
 -- But this creates 2 additional fields, and `hmap` is not often used.
 -- Benchmarks reveal that applying coyoneda only to the data yields
@@ -43,8 +43,8 @@ import Control.Monad.Trans.Reader
 -- transformer must be given explicitly using the `Forward` class.
 data Scp (sig :: Type -> Type)
          (f :: Type -> Type)
-         a
-         = forall x . Scp !(sig (f x)) !(x -> a)
+         k
+         = forall x . Scp !(sig (f x)) !(x -> k)
 
 instance Functor (Scp sig f) where
   {-# INLINE fmap #-}

@@ -265,10 +265,9 @@ as data:
 ```haskell
 type Tick = Alg Tick'
 data Tick' k = Tick k
-  deriving Functor
 
 tick :: Member Tick sig => Prog sig ()
-tick = call (Alg (Tick (return ())))
+tick = call (Alg (Tick ()) return)
 ```
 This uses a `Member` constraint to describe how `tick` can be used
 in any program where `Tick` is in its signature. The `Alg` constructor
@@ -281,7 +280,7 @@ which removes all instances of `Tick`:
 unticker :: Handler '[Tick] '[] IdentityT Identity
 unticker = interpret gen where
   gen :: Effs '[Tick] m x -> Prog '[] x
-  gen (Eff (Alg (Tick k))) = return k
+  gen (Eff (Alg (Tick x) k)) = return (k x)
 ```
 The `gen` function describes how to generate a program from the operations
 it recognises. In this instance, the program is always empty, and
@@ -295,9 +294,9 @@ Notice that the `gen` function generates these operations from the given `tick`:
 tickState :: Handler '[Tick] '[Put Int, Get Int] IdentityT Identity
 tickState = interpret gen where
   gen :: Effs '[Tick] m x -> Prog [Put Int, Get Int] x
-  gen (Eff (Alg (Tick k))) = do x <- get
-                                put @Int (x + 1)
-                                return k
+  gen (Eff (Alg (Tick x) k)) = do n <- get
+                                  put @Int (n + 1)
+                                  return (k x)
 ```
 The `ticker` is produced by combining `tickState` with the `state` handler using
 the _pipe_ combinator, written `h1 ||> h2` to pipe the handler `h1` into the
@@ -360,9 +359,9 @@ getLineIncr
              IdentityT                        -- transformer
              Identity                         -- wrapper
 getLineIncr = interpret $
-  \(Eff (Alg (GetLine k))) -> do xs <- getLine
-                                 incr
-                                 return (k xs)
+  \(Eff (Alg (GetLine k) k')) -> do xs <- getLine
+                                    incr
+                                    return (k' (k xs))
 ```
 The handler says that it will deal with `[GetLine]` as an input effect,
 and will output the effects `[GetLine, Get Int, Put Int]`.
@@ -415,12 +414,13 @@ operations `get` and `put` from a state containing a list of strings:
 getLineState
   :: Handler '[GetLine] '[Get [String], Put [String]] IdentityT Identity
 getLineState = interpret $
-  \(Eff (Alg (GetLine k))) -> do xss <- get
-                                 case xss of
-                                   []        -> return (k "")
-                                   (xs:xss') -> do put xss'
-                                                   return (k xs)
+  \(Eff (Alg (GetLine k) k')) -> do xss <- get
+                                    case xss of
+                                      []        -> return (k' (k ""))
+                                      (xs:xss') -> do put xss'
+                                                      return (k' (k xs))
 ```
+
 The signature of `getLineState` says that it is a handler that recognizes
 `GetLine` operations and interprets them in terms of some output effects in
 `oeff`, which consist of `Get [String]` and `Put [String]`. Interpreting
@@ -507,8 +507,8 @@ Now the task is to interpret all `putStrLn` operations in terms of the
 ```haskell
 putStrLnTell :: Handler '[PutStrLn] '[Tell [String]] IdentityT Identity
 putStrLnTell = interpret $
-  \(Eff (Alg (PutStrLn str k))) -> do tell [str]
-                                      return k
+  \(Eff (Alg (PutStrLn str k) k')) -> do tell [str]
+                                         return (k' k)
 ```
 This can in turn be piped into the `writer` handler to make
 a pure version of `putStrLn`:
@@ -587,8 +587,8 @@ to modify output:
 ```haskell
 retell :: forall w w' . (Monoid w, Monoid w') => (w -> w') -> Handler '[Tell w] '[Tell w'] IdentityT Identity
 retell f = interpret $
-  \(Eff (Alg (Tell w k ))) -> do tell (f w)
-                                 return k
+  \(Eff (Alg (Tell w k) k')) -> do tell (f w)
+                                   return (k' k)
 ```
 Simply put, every `tell w` is intercepted, and retold as `tell (f w)`. Thus,
 a simple message can be made louder at the flick of a switch:
@@ -701,8 +701,8 @@ by interpreting `PutStrLn` operations:
 ```haskell
 rePutStrLn :: (String -> String) -> Handler '[PutStrLn] '[PutStrLn] IdentityT Identity
 rePutStrLn f = interpret $
-  \(Eff (Alg (PutStrLn str k))) -> do putStrLn (f str)
-                                      return k
+  \(Eff (Alg (PutStrLn str k) k')) -> do putStrLn (f str)
+                                         return (k' k)
 ```
 
 ```console
@@ -737,8 +737,8 @@ turn any `tell` back into `putStrLn` with using `tellPutStrLn`:
 ```haskell
 tellPutStrLn :: Handler '[Tell [String]] '[PutStrLn] IdentityT Identity
 tellPutStrLn = interpret $
-  \(Eff (Alg (Tell strs k))) -> do putStrLn (unwords strs)
-                                   return k
+  \(Eff (Alg (Tell strs k) k')) -> do putStrLn (unwords strs)
+                                      return (k' k)
 ```
 This chain of handlers might be called `censorsPutStrLn`:
 ```haskell
@@ -822,9 +822,9 @@ instances of `tell` are augmented with the appropriate timestamp.
 ```haskell
 telltime :: forall w . Monoid w => Handler '[Tell w] '[Tell [(Integer, w)], GetCPUTime] IdentityT Identity
 telltime = interpret $
-  \(Eff (Alg (Tell (w :: w) k))) -> do time <- getCPUTime
-                                       tell [(time, w)]
-                                       return k
+  \(Eff (Alg (Tell (w :: w) k) k')) -> do time <- getCPUTime
+                                          tell [(time, w)]
+                                          return (k' k)
 ```
 Now a timestamp is added to the start of messages emitted by `tell`:
 ```console
@@ -841,7 +841,7 @@ data Profile' k where
   deriving Functor
 
 profile :: Member Profile sig => String -> Prog sig a -> Prog sig a
-profile name p = call (Scp (Profile name p) id return)
+profile name p = call (Scp (Profile name p) return)
 ```
 
 For example, to profile some code `p`, we need to mark it as a code of interest
@@ -863,9 +863,9 @@ timerAlg :: forall effs oeffs m
   . (Monad m, Members '[Tell [(String, Integer)],GetCPUTime] oeffs)
   => (forall x . Effs oeffs m x -> m x)
   -> (forall x . Effs '[Profile] m x -> m x)
-timerAlg oalg (Eff (Scp (Profile name p) h k')) =
+timerAlg oalg (Eff (Scp (Profile name p) k')) =
   do t  <- eval oalg getCPUTime
-     k  <- fmap k' (h p)
+     k  <- fmap k' p
      eval oalg $ do
         t' <- getCPUTime
         tell [(name, t' - t)]
@@ -896,9 +896,9 @@ profilerAlg :: forall instr effs oeffs m a b
   -> (Prog '[instr] a)
   -> (forall x . Effs oeffs m x -> m x)
   -> (forall x . Effs '[Profile] m x -> m x)
-profilerAlg f instrument oalg (Eff (Scp (Profile name p) h k')) =
+profilerAlg f instrument oalg (Eff (Scp (Profile name p) k')) =
   do t  <- eval oalg (weakenProg instrument)
-     k  <- fmap k' (h p)
+     k  <- fmap k' p
      eval oalg $ do
         t' <- (weakenProg instrument)
         tell [(name, f t t')]
@@ -906,12 +906,12 @@ profilerAlg f instrument oalg (Eff (Scp (Profile name p) h k')) =
 ```
 
 For our teletype example, we can instrument all of the `getLine` operations
-with a profileer as follows:
+with a profiler as follows:
 ```haskell
 getLineProfile :: Handler '[GetLine] '[Profile, GetLine] IdentityT Identity
 getLineProfile = interpret alg where
   alg :: Effs '[GetLine] m x -> Prog [Profile, GetLine] x
-  alg (Eff (Alg (GetLine k))) = profile "getLine" (getLine >>= return . k)
+  alg (Eff (Alg (GetLine k) k')) = profile "getLine" (getLine >>= return . k' . k)
 ```
 
 

@@ -18,7 +18,7 @@ import Control.Effect.Alternative
 import Control.Monad.Trans.List
 
 stop :: Members '[Empty] sig => Prog sig a
-stop  = call (Alg Empty)
+stop  = call (Alg Empty return)
 
 or :: Members '[Choose] sig => Prog sig a -> Prog sig a -> Prog sig a
 or x y = call (Scp (Choose x y) return)
@@ -56,7 +56,7 @@ list :: Prog [Empty, Choose, Once] a -> [a]
 list = eval halg where
   halg :: Effs [Empty, Choose, Once] [] a -> [a]
   halg op
-    | Just (Alg Empty)              <- prj op = []
+    | Just (Alg Empty k)          <- prj op = []
     | Just (Scp (Choose xs ys) k) <- prj op = fmap k (xs ++ ys)
     | Just (Scp (Once xs) k)      <- prj op = case xs of
                                                   []     -> []
@@ -66,7 +66,7 @@ backtrackAlg
   :: Monad m => (forall x. oeff m x -> m x)
   -> (forall x. Effs [Empty, Choose, Once] (ListT m) x -> ListT m x)
 backtrackAlg oalg op
-  | Just (Alg Empty)              <- prj op = empty
+  | Just (Alg Empty k)            <- prj op = empty
   | Just (Scp (Choose xs ys) k)   <- prj op = fmap k (xs <|> ys)
   | Just (Scp (Once p) k)         <- prj op =
     ListT $ do mx <- runListT (fmap k p)
