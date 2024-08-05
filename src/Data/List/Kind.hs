@@ -24,6 +24,12 @@ type family (xs :: [k]) :++ (ys :: [k]) :: [k] where
   '[]       :++ ys = ys
   (x ': xs) :++ ys = x ': (xs :++ ys)
 
+type family Head (xs :: [k]) :: k where
+  Head (x ': xs) = x
+
+type family Tail (xs :: [k]) :: [k] where
+  Tail xs = xs
+
 -- | @`Insert` x ys@ inserts a type @x@ into a type list @ys@.
 type family Insert (x :: k) (ys :: [k]) :: [k] where
   Insert x '[]       = '[x]
@@ -92,7 +98,6 @@ type family Lookup (n :: Nat) (xs :: [a]) :: a where
 type family Foldr (f :: a -> b -> b) (k :: b) (xs :: [a]) :: b where
   Foldr f k '[]       = k
   Foldr f k (x ': xs) = f x (Foldr f k xs)
-
 
 -- | @`Foldr0 f k xs` returns @k@ when the list is empty, and peforms
 -- @Foldr1 f xs@ otherwise.
