@@ -409,8 +409,8 @@ handle :: forall effs ts f a .
 handle (Handler run malg)
   = unsafeCoerce @(f a) @(Apply f a)
   . runIdentity
-  . run @Identity (absurdEffs . injs)
-  . eval (malg (absurdEffs . injs))
+  . run @Identity absurdEffs
+  . eval (malg absurdEffs)
 
 -- handle'
 --   :: forall effs oeffs ts fs a . (Monad (HComps ts (Prog oeffs)), Functors fs)
