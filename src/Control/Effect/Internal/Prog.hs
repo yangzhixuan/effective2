@@ -26,6 +26,7 @@ type Progs effs -- ^ A list of effects the program may use
            a    -- ^ The return value of the program
   = forall effs' . Members effs effs' => Prog effs' a
 
+-- TODO: Remove the `Functor` constraint
 -- | A program that contains at most the effects in @effs@,
 -- to be processed by a handler in the exact order given in @effs@.
 data Prog (effs :: [Effect]) a where
@@ -91,15 +92,28 @@ weakenProg (Call op hk k)   =
 -- | Evaluate a program using the supplied algebra. This is the
 -- universal property from initial monad @Prog sig a@ equipped with
 -- the algebra @Eff effs m -> m@.
+{-# INLINABLE eval #-}
 eval :: forall effs m a . Monad m
   => Algebra effs m
   -> Prog effs a -> m a
 eval halg (Return x) = return x
 eval halg (Call op hk k)  =
     join . halg . fmap (eval halg . k) . hmap (eval halg . hk) $ op
-
     -- This version is marginally slower:
     -- join . halg . hmap (eval halg . hk) . fmap (eval halg . k) $ op
+
+{-
+-- Static argument transform:
+-- This degrades performance a bit.
+eval halg p =
+  let eval' :: forall x . Prog effs x -> m x
+      eval' p' = case p' of
+                   Return x     -> return x
+                   Call op hk k ->
+                     join . halg . fmap (eval' . k)
+                                 . hmap (eval' . hk) $ op
+  in eval' p
+-}
 
 -- | Fold a program using the supplied generator and algebra. This is the
 -- universal property from the underlying GADT.
