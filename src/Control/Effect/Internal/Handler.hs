@@ -136,37 +136,35 @@ type Handler
 data Handler effs oeffs ts fs =
   Handler
   { -- | Modular monad transformer runner into carrier wrapper
-    mrun
+    hrun
       :: forall m . Monad m
       => Algebra oeffs m                  -- ^ output algebra
       -> (forall x . ts m x -> m (fs x))  -- ^ transformer to wrapper
 
     -- | Modular algebra into @ts m@
-  , malg :: forall m . Monad m
+  , halg :: forall m . Monad m
          => Algebra oeffs m               -- ^ output algebra
          -> Algebra effs (ts m)
   }
 
--- | Given @run@ and @malg@ will construct a @Handler effs oeffs t fs@. This
+-- | Given @hrun@ and @halg@ will construct a @Handler effs oeffs t fs@. This
 -- is a simplified version of the @Handler@ constructor where @run@ does
 -- not need to be a modular runner.
 handler
   :: (forall m a . Monad m => t m a -> m (f a))
   -> (forall m . Monad m => Algebra oeffs m -> Algebra effs (t m))
   -> Handler effs oeffs t f
-handler run malg = Handler
-  (\oalg -> run)
-  (\oalg -> malg oalg)
+handler run alg = Handler (\oalg -> run) (\oalg -> alg oalg)
 
 -- | The identity handler.
 identity :: Handler '[] '[] IdentityT Identity
-identity = Handler mrun malg where
+identity = Handler hrun halg where
 
-  mrun :: Monad m => Algebra '[] m -> forall x. IdentityT m x -> m (Identity x)
-  mrun _ (IdentityT x) = fmap Identity x
+  hrun :: Monad m => Algebra '[] m -> forall x. IdentityT m x -> m (Identity x)
+  hrun _ (IdentityT x) = fmap Identity x
 
-  malg :: Algebra '[] m -> Algebra '[] (IdentityT m)
-  malg _ = absurdEffs
+  halg :: Algebra '[] m -> Algebra '[] (IdentityT m)
+  halg _ = absurdEffs
 
 -- | Weakens a handler from @Handler effs oeffs t f@ to @Handler effs' oeffs' t f@,
 -- when @effs'@ injects into @effs@ and @oeffs@ injects into @oeffs'@.
@@ -178,8 +176,8 @@ weaken
     )
   => Handler effs  oeffs  t f
   -> Handler effs' oeffs' t f
-weaken (Handler run malg)
-  = (Handler (\oalg -> run (oalg . injs)) (\oalg -> malg (oalg . injs) . injs))
+weaken (Handler run halg)
+  = (Handler (\oalg -> run (oalg . injs)) (\oalg -> halg (oalg . injs) . injs))
 
 -- | Hides the effects in @heffs@ from the handler.
 {-# INLINE hide #-}
@@ -297,7 +295,7 @@ fuse, (|>)
 -- The semantics transformer @t@ and the carrier wrapper @f@ are normalised
 -- using 'HRAssoc' and 'RAssoc' respectively, which removes any identities
 -- and reassociates all compositions to the right.
-fuse (Handler run1 malg1) (Handler run2 malg2) = Handler run malg where
+fuse (Handler run1 malg1) (Handler run2 malg2) = Handler run halg where
   run :: forall m . Monad m => Algebra oeffs m -> forall x. ts m x -> m (fs x)
   run oalg
     = unsafeCoerce @(m (fs2 (fs1 _x))) @(m (fs _x))
@@ -309,8 +307,8 @@ fuse (Handler run1 malg1) (Handler run2 malg2) = Handler run malg where
           (malg2 (weakenAlg @oeffs2 @oeffs oalg)))
     . unsafeCoerce @(ts m _) @(ts1 (ts2 m) _)
 
-  malg :: forall m . Monad m => Algebra oeffs m -> Algebra effs (ts m)
-  malg oalg
+  halg :: forall m . Monad m => Algebra oeffs m -> Algebra effs (ts m)
+  halg oalg
     = unsafeCoerce @(ts1 (ts2 m) _) @(ts m _)
     . hunion @effs1 @effs2
         (malg1 (weakenAlg $
@@ -361,7 +359,7 @@ pipe, (||>)
 -- The semantics transformer @t@ and the carrier wrapper @f@ are normalised
 -- using 'HRAssoc' and 'RAssoc' respectively, which removes any identities
 -- and reassociates all compositions to the right.
-pipe (Handler run1 malg1)  (Handler run2 malg2) = Handler run malg where
+pipe (Handler run1 malg1)  (Handler run2 malg2) = Handler run halg where
   run :: forall m . Monad m => Algebra oeffs m -> forall x. ts m x -> m (fs x)
   run oalg
     = unsafeCoerce @(m (fs2 (fs1 _x))) @(m (fs _x))
@@ -371,10 +369,10 @@ pipe (Handler run1 malg1)  (Handler run2 malg2) = Handler run malg where
         (malg2 (weakenAlg oalg)))
     . unsafeCoerce @(ts m _x) @(ts1 (ts2 m) _x)
 
-  malg :: forall m . Monad m =>
+  halg :: forall m . Monad m =>
     Algebra oeffs m ->
     Algebra effs (ts m)
-  malg oalg
+  halg oalg
     = unsafeCoerce @(ts1 (ts2 m) _x) @(ts m _x)
     . malg1 (weakenAlg $ heither @(oeffs1 :\\ effs2) @effs2
         (fwds @(oeffs1 :\\ effs2) @ts2 (weakenAlg oalg))
@@ -406,17 +404,17 @@ handle :: forall effs ts f a .
   => Handler effs '[] ts f        -- ^ Handler @h@ with no output effects
   -> Prog effs a                  -- ^ Program @p@ with effects @effs@
   -> Apply f a
-handle (Handler run malg)
+handle (Handler run halg)
   = unsafeCoerce @(f a) @(Apply f a)
   . runIdentity
   . run @Identity absurdEffs
-  . eval (malg absurdEffs)
+  . eval (halg absurdEffs)
 
 -- handle'
 --   :: forall effs oeffs ts fs a . (Monad (HComps ts (Prog oeffs)), Functors fs)
 --   => Handler effs oeffs ts fs -> Prog effs a -> Prog oeffs (RComposes fs a)
--- handle' (Handler run malg)
---   = fmap unRComps . run (\x -> Call x id return) . eval (malg (\x -> Call x id return))
+-- handle' (Handler run halg)
+--   = fmap unRComps . run (\x -> Call x id return) . eval (halg (\x -> Call x id return))
 
 -- handle''
 --   :: forall sig eff oeffs ts fs a
@@ -428,10 +426,10 @@ handle (Handler run malg)
 --   , Forward (Effs sig)  (HComps ts)
 --   )
 --   => Handler eff oeffs ts fs -> Prog (eff :++ sig) a -> Prog (oeffs :++ sig) (RComposes fs a)
--- handle'' (Handler run malg)
+-- handle'' (Handler run halg)
 --   = fmap unRComps
 --   . run (\x -> Call (injs x) id return)
---   . eval (heither @eff @sig (malg @(Prog (oeffs :++ sig)) (\x -> Call (injs x) id return))
+--   . eval (heither @eff @sig (halg @(Prog (oeffs :++ sig)) (\x -> Call (injs x) id return))
 --                             (fwd (\x -> Call (injs x) id return)))
 
 
@@ -449,10 +447,12 @@ handleM :: forall effs oeffs xeffs m t f a .
   -> Handler effs oeffs t f        -- ^ Handler @h@
   -> Prog (effs `Union` xeffs) a   -- ^ Program @p@ that contains @xeffs@
   -> m (Apply f a)
-handleM xalg (Handler run malg)
+handleM xalg (Handler run halg)
   = unsafeCoerce @(m (f a)) @(m (Apply f a))
   . run @m (xalg . injs)
-  . eval (hunion @effs @xeffs (malg (xalg . injs)) (fwds xalg))
+  . eval (hunion @effs @xeffs (halg (xalg . injs)) (fwds xalg))
+
+
 
 -- | @Apply f a@ normalises a functor @f@ so that when it is applied to
 -- @a@, any t`Identity` or t`Compose` functors are removed.
