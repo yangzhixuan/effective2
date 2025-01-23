@@ -6,6 +6,8 @@ Maintainer  : Nicolas Wu
 Stability   : experimental
 -}
 
+{-# LANGUAGE CPP #-}
+
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ViewPatterns #-}
@@ -31,5 +33,8 @@ module Control.Effect.Internal.Effs
   )
   where
 
--- import Control.Effect.Internal.Effs.Sum
+#ifdef INDEXED
 import Control.Effect.Internal.Effs.Indexed
+#else
+import Control.Effect.Internal.Effs.Sum
+#endif
