@@ -197,7 +197,7 @@ state :: s -> Handler '[Put s, Get s]  -- input effects
 
 Executing the `incr` program with this handler can be achieved as follows:
 ```console
-ghci> handle (state (41 :: Int) incr
+ghci> handle (state (41 :: Int)) incr
 (42,())
 ```
 Since the program has type `Prog effs ()`, with a pure value of `()`,
@@ -954,6 +954,7 @@ this is used to keep track of effect signatures.
 
 ```haskell top
 {-# LANGUAGE DataKinds #-}    -- Used for the list of effects
+{-# LANGUAGE GADTs     #-}    -- Used for syntax
 ```
 <!--
 The following pragma is only needed for the testing framework.

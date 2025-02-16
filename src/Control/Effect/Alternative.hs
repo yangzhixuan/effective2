@@ -70,7 +70,7 @@ alternative
 alternative run = Handler (\_ -> run) alternativeAlg
 
 -- | The algebra that corresponds to the 'alternative' handler. This uses an
--- underlying 'Alternative' isntance for @t m@ given by a transformer @t@.
+-- underlying 'Alternative' instance for @t m@ given by a transformer @t@.
 alternativeAlg
   :: forall oeffs t m . (Alternative (t m), Functor m)
   => (Algebra oeffs m)

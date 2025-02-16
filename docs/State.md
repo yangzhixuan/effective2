@@ -2,6 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE QualifiedDo #-}
+{-# LANGUAGE GADTs #-}
 
 module State where
 
