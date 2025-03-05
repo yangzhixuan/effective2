@@ -22,12 +22,14 @@ import Control.Applicative
 import Control.Monad
 
 -- | A family of programs that may contain at least the effects in @effs@ in any
--- order.
+-- order, and that returns an @a@
+type a ! effs = Progs effs a
+
+-- | A family of programs that may contain at least the effects in @effs@ in any
+-- order, and that returns an @a@
 type Progs effs -- ^ A list of effects the program may use
            a    -- ^ The return value of the program
   = forall effs' . Members effs effs' => Prog effs' a
-
--- TODO: Remove the `Functor` constraint
 -- | A program that contains at most the effects in @effs@,
 -- to be processed by a handler in the exact order given in @effs@.
 data Prog (effs :: [Effect]) a where

@@ -20,7 +20,7 @@ import Control.Monad.Trans.Maybe
 
 import Control.Effect.Reader
 
-incr :: Progs '[Get Int, Put Int] ()
+incr :: () ! [Get Int, Put Int]
 incr = do
   x <- get
   put @Int (x + 1)
@@ -30,14 +30,14 @@ example_incr = property $ do
   n <- forAll $ Gen.int $ Range.linear 1 1000
   handle (state n) incr === (n+1,())
 
-decr :: Progs '[Get Int, Put Int, Throw] ()
+decr :: () ! [Get Int, Put Int, Throw]
 decr = do
   x <- get
   if x > 0
     then put @Int (x - 1)
     else throw
 
-catchDecr :: Progs [Get Int, Put Int, Throw, Catch] ()
+catchDecr :: () ! [Get Int, Put Int, Throw, Catch]
 catchDecr = do
   decr
   catch
@@ -112,7 +112,7 @@ example_incrDecr' = property $ do
     then handle (globalState n) (do incr; decr) === (n, Just ())
     else handle (globalState n) (do incr; decr) === (n+1, Nothing)
 
-catchDecr44 :: Progs '[Get Int, Put Int, Throw, Catch] ()
+catchDecr44 :: () ! [Get Int, Put Int, Throw, Catch]
 catchDecr44 = do
   decr
   catch
@@ -128,7 +128,7 @@ example_Retry1 = property $
   ===
     (42,Just ())
 
-getAsk :: Progs '[Get Int, Local Int, Ask Int] (Int, Int)
+getAsk :: (Int, Int) ! [Get Int, Local Int, Ask Int]
 getAsk = local (+ (100 :: Int)) (do x <- get ; y <- ask ; return (x , y) )
 
 getToAsk :: Handler '[Get Int] '[Ask Int] IdentityT Identity

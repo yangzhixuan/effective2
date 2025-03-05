@@ -31,7 +31,7 @@ simple program that will continue to echo the input obtained by `getLine` is
 output to the terminal using `putStrLn` until a blank line is received by
 `getLine`:
 ```haskell
-echo :: Progs [GetLine, PutStrLn] ()
+echo :: () ! [GetLine, PutStrLn]
 echo = do str <- getLine
           case str of
             [] -> return ()
@@ -67,7 +67,7 @@ when the `echo` program is executed. One approach is to change the `echo`
 program, and write something like `echoTick`, where a `tick` has been added
 after each `getLine`:
 ```haskell
-echoTick :: Progs '[GetLine, PutStrLn, Tick] ()
+echoTick :: () ! '[GetLine, PutStrLn, Tick]
 echoTick =
   do str <- getLine ; tick
      case str of
@@ -108,14 +108,14 @@ in the first place.
 Programs and Handlers
 ---------------------
 
-The type of the `echoTick` program is `Progs '[GetLine, PutStrLn, Tick] ()`, which is in
+The type of the `echoTick` program is `() ! '[GetLine, PutStrLn, Tick]`, which is in
 fact a synonym roughly equivalent to:
 ```haskell ignore
 echoTick :: (Member GetLine sig, Member PutStrLn sig, Member Tick sig)
          => Prog sig ()
 ```
-The `Progs` datatype thus describes a *family* of programs which contains
-all the operations in the given signature. No order of the members is
+The `a ! sig` datatype thus describes a *family* of programs which contains
+all the operations given in `sig`. No order of the members is
 implied (because the constraints are not ordered), and nor is the list necessarily exhaustive (because `sig` could contain other operations).
 
 The `ticker` and `unticker` handlers have the following types:
@@ -178,7 +178,7 @@ in a signature.
 Here is a program that increments the number in a state
 and returns it:
 ```haskell
-incr :: Progs [Put Int, Get Int] ()
+incr :: () ! [Put Int, Get Int]
 incr = do x <- get
           put @Int (x + 1)
 ```
@@ -208,7 +208,7 @@ The type of the `state` handler promises to handle both `Put s` and `Get s`
 operations, and so it is able to work with programs that use both, or
 either one of these. Here is a program that only uses `Get String`:
 ```haskell
-getStringLength :: Progs '[Get String] Int
+getStringLength :: Int ! '[Get String]
 getStringLength = do xs <- get @String
                      return (length xs)
 ```
@@ -398,7 +398,7 @@ Another issue is trying to test the behaviour of a program that demands input
 from the terminal. For instance, suppose the task is to get a line and return
 its length. This is achieved by the `getLineLength` program:
 ```haskell
-getLineLength :: Progs '[GetLine] Int
+getLineLength :: Int ! '[GetLine]
 getLineLength = do xs <- getLine
                    return (length xs)
 ```
@@ -490,7 +490,7 @@ Outputting pure values is managed by the `writer` handler, in combination
 with the `tell` operation:
 ```haskell ignore
 writer :: Monoid w => Handler '[Tell w] '[] '[WriterT w] '[(,) w]
-tell   :: Monoid w => w -> Progs '[Tell w] ()
+tell   :: Monoid w => w -> () ! '[Tell w]
 ```
 The signatures tell us that `tell` introduces the `Tell` effect, and
 `writer` handles this effect.
@@ -623,7 +623,7 @@ particular points of the program, to help
 [Mr Hoppy](https://en.wikipedia.org/wiki/Esio_Trot) to tell a tortoise
 called Alfie to get bigger:
 ```haskell
-hoppy :: Progs '[Tell [String], Censor [String]] ()
+hoppy :: () ! [Tell [String], Censor [String]]
 hoppy = do tell ["Hello Alfie!"]
            censor @[String] backwards $
              do tell ["tortoise"]
@@ -724,7 +724,7 @@ prop_rePutStrLn = property $ do
 A more localized approach is to use the `censor` operation so
 that a censored echo can be used:
 ```haskell
-shoutEcho :: Progs [Censor [String], GetLine, PutStrLn] ()
+shoutEcho :: () ! [Censor [String], GetLine, PutStrLn]
 shoutEcho = censor shout echo
 ```
 The censoring in this program cannot be handled with the `censors` handler by
@@ -759,7 +759,7 @@ of `tell` and `putStrLn` operations.
 For example, here is a program that uses `tell` to log the fact
 that the shouty echo program is being entered before doing so:
 ```haskell
-logShoutEcho :: Progs '[PutStrLn, GetLine, Censor [String], Tell [String]] ()
+logShoutEcho :: () ! [PutStrLn, GetLine, Censor [String], Tell [String]]
 logShoutEcho = do tell ["Entering shouty echo"]
                   shoutEcho
 ```
@@ -814,7 +814,7 @@ is logged can be recorded. The traditional way of doing this might be to make
 a bespoke `logger` that ensures that there is a timestamp integrated into each
 occurence of the log:
 ```haskell
-logger :: String -> Progs [Tell [(Integer, String)], GetCPUTime] ()
+logger :: String -> () ! [Tell [(Integer, String)], GetCPUTime]
 logger str = do time <- getCPUTime
                 tell [(time, str)]
 ```

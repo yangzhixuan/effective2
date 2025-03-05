@@ -16,7 +16,7 @@ import Control.Monad (guard)
 import Hedgehog
 
 knapsack
-  :: Int -> [Int] -> Progs '[Empty, Choose] [Int]
+  :: Int -> [Int] -> [Int] ! [Empty, Choose]
 knapsack w vs
   | w <  0    = stop
   | w == 0    = return []
@@ -75,12 +75,12 @@ example_Once''' = property $ handle onceNondet p === [1, 2] where
 
 -- queens n = [c_1, c_2, ... , c_n] where
 --   (i, c_i) is the (row, column) of a queen
-queens :: Int -> Progs '[Empty, Choose] [Int]
+queens :: Int -> [Int] ! [Empty, Choose]
 queens n = go [1 .. n] []
   where
     -- `go cs qs` searches the rows `cs` for queens that do
     -- not threaten the queens in `qs`
-    go :: [Int] -> [Int] -> Progs [Empty, Choose] [Int]
+    go :: [Int] -> [Int] -> [Int] ! [Empty, Choose]
     go [] qs =  return qs
     go cs qs =  do (c, cs') <- selects cs
                    guard (noThreat qs c 1)

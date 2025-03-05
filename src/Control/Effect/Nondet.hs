@@ -28,7 +28,7 @@ or x y = call (Scp (Choose (fmap return x) (fmap return y)))
 select :: Members [Choose, Empty] sig => [a] -> Prog sig a
 select = foldr (or . return) stop
 
-selects :: [a] -> Progs [Choose, Empty] (a, [a])
+selects :: [a] -> (a, [a]) ! [Choose, Empty]
 selects []      =  empty
 selects (x:xs)  =  return (x, xs)  <|>  do  (y, ys) <- selects xs
                                             return (y, x:ys)

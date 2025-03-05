@@ -15,7 +15,7 @@ import Prelude hiding (or)
 
 import Control.Applicative
 
-char :: Progs '[Get [Char], Put [Char], Empty, Choose] Char
+char :: Char ! [Get [Char], Put [Char], Empty, Choose]
 char = do
   xxs <- get
   case xxs of

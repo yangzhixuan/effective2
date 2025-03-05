@@ -1,3 +1,4 @@
+{-# LANGUAGE ExplicitNamespaces #-}
 {-|
 Module      : Control.Effect
 Description : Main module for the effective library
@@ -11,7 +12,8 @@ The README file contains a tutorial on how to use this library.
 
 module Control.Effect
   ( -- * Programs
-    Progs
+    type (!)
+  , Progs
   , Prog
   , Effs (Eff, Effs)
   , call

@@ -11,7 +11,7 @@ import qualified Hedgehog.Range as Range
 import Control.Effect
 import Control.Effect.Maybe
 
-monus :: Int -> Int -> Progs '[Throw] Int
+monus :: Int -> Int -> Int ! '[Throw]
 monus x y = do if x < y then throw else return (x - y)
 
 safeMonus :: Int -> Int -> Prog '[Throw, Catch] Int
