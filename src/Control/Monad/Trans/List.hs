@@ -20,7 +20,7 @@ runListT' (ListT mmxs) =
 
 instance HFunctor ListT where
   {-# INLINE hmap #-}
-  hmap :: (Functor f, Functor g) => (forall x1. f x1 -> g x1) -> ListT f x -> ListT g x
+  hmap :: (Functor f, Functor g) => (forall x. f x -> g x) -> ListT f x -> ListT g x
   hmap h (ListT mx) = ListT (fmap (fmap (fmap (hmap h))) (h mx))
 
 {-# INLINE foldListT #-}

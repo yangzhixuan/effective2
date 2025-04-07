@@ -11,7 +11,7 @@ module Control.Monad.Trans.CutList.CPS where
 import Control.Applicative
 import Control.Monad.Trans.Class
 
--- | The `CutListT` transformer builds a cut list, which is similar to a
+-- | The t`CutListT` transformer builds a cut list, which is similar to a
 -- list, but where a @cut@ operation from logic programming is included.
 -- The Church encoding is used for efficiency.
 newtype CutListT m a = CutListT

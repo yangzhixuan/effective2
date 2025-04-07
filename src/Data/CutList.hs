@@ -7,6 +7,10 @@ import Control.Applicative ( Alternative((<|>), empty) )
 import Control.Monad ( ap, liftM )
 import Control.Monad.Trans.Class ( MonadTrans(..) )
 
+
+-- | Lists that terminate with either a `Nil`, which
+-- can have further values appended to them, or `Zero`,
+-- which cannot have further values appended.
 data CutList a = a :< CutList a | Nil | Zero
   deriving Functor
 
