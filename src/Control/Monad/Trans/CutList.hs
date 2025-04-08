@@ -6,7 +6,7 @@ Maintainer  : Nicolas Wu
 Stability   : experimental
 -}
 
-module Control.Monad.Trans.CutList.CPS where
+module Control.Monad.Trans.CutList where
 
 import Control.Applicative
 import Control.Monad.Trans.Class
