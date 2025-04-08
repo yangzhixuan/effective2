@@ -13,7 +13,6 @@ import Data.HFunctor ( HFunctor(..) )
 import Control.Applicative ( Alternative(empty, (<|>)) )
 import Control.Monad ( MonadPlus(..), ap, liftM )
 import Control.Monad.Trans.Class ( MonadTrans(..) )
-import Control.Arrow ( Arrow(second) )
 
 -- | The t`ListT` transformer builds a list where elements and the empty
 -- list are produced by a computation in @m@.

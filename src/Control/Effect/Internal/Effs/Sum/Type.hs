@@ -23,10 +23,7 @@ module Control.Effect.Internal.Effs.Sum.Type
 import Data.Kind ( Type )
 import Data.HFunctor
 import Data.List.Kind
-import Control.Monad
-
 import GHC.TypeLits
-import GHC.Exts
 
 -- | The type of higher-order effects.
 type Effect = (Type -> Type) -> (Type -> Type)

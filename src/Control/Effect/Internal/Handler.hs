@@ -19,7 +19,6 @@ import Control.Effect.Internal.Prog
 import Control.Effect.Internal.Effs
 import Control.Effect.Internal.Forward
 
-import GHC.TypeLits
 import GHC.Base
 import Unsafe.Coerce
 
@@ -28,7 +27,6 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.Identity
 import Control.Monad.Trans.Compose
 
-import Data.Kind ( Type )
 import Data.List.Kind
 
 
