@@ -4,6 +4,9 @@ Description : Nondeterminism with a cut operation
 License     : BSD-3-Clause
 Maintainer  : Nicolas Wu
 Stability   : experimental
+
+This module provides an effect for nondeterminism with a cut operation.
+The cut operation allows for pruning the search space in nondeterministic computations.
 -}
 
 {-# LANGUAGE DataKinds #-}
@@ -18,8 +21,7 @@ import Control.Effect.Algebraic
 import Control.Effect.Scoped
 import Control.Effect.Alternative
 import Control.Effect.Nondet
-import Control.Monad.Trans.CutList.CPS
-import Data.HFunctor ( HFunctor(..) )
+import Control.Monad.Trans.CutList
 
 {-
 Idea:
@@ -36,33 +38,44 @@ An alternative is to interpet `once` into `cutFail` and `cutCall`,
 which can then be interpreted using a `CutList`.
 -}
 
+-- | Signature for t`CutFail`, which fails and cuts all following nondeterministic
+-- siblings.
 type CutFail = Alg CutFail_
+-- | Underlying signature for t`CutFail`.
 data CutFail_ a where
   CutFail :: CutFail_ a
   deriving Functor
 
+-- | Fail the computation using the t`CutFail` effect.
 cutFail :: Member CutFail sig => Prog sig a
 cutFail = call (Alg CutFail)
 
+-- | The t`CutCall` effect represents a scoped computation with a cut boundary.
 type CutCall = Scp CutCall_
+-- | Underyling signature for t`CutCall`.
 data CutCall_ a where
   CutCall :: a -> CutCall_ a
   deriving Functor
 
+-- | Perform a cut operation, pruning the search space.
 cut :: (Members [Choose, CutFail] sig) => Prog sig ()
 cut = or skip cutFail
 
+-- | Execute a computation within a t`CutCall` scope.
 cutCall :: Member CutCall sig => Prog sig a -> Prog sig a
 cutCall p = call (Scp (CutCall (fmap return p)))
 
+-- | Execute a computation within a t`CutCall` scope using a monadic handler.
 cutCallM :: (Monad m, Member CutCall sig)
   => (forall a . Effs sig m a -> m a) -> m a -> m a
 cutCallM alg p = (alg . inj) (Scp (CutCall p))
 
+-- | A no-op computation that does nothing.
 skip :: Monad m => m ()
 skip = return ()
 
--- | The `cutListAlg` will clear the `cut` at the boundary of a `cutCall`.
+-- | The `cutListAlg` function defines the algebra for handling the t`CutListT` monad transformer.
+-- It clears the `cut` at the boundary of a `cutCall`.
 cutListAlg
   :: Monad m => (forall x. oeff m x -> m x)
   -> forall x. Effs [Empty, Choose, CutFail, CutCall] (CutListT m) x -> CutListT m x
@@ -72,18 +85,16 @@ cutListAlg oalg op
   | Just (Alg CutFail)         <- prj op = CutListT (\cons nil zero -> zero)
   | Just (Scp (CutCall xs))    <- prj op = CutListT (\cons nil zero -> runCutListT xs cons nil nil)
 
+-- | A handler for the t`CutListT` monad transformer.
 cutList :: Handler [Empty, Choose, CutFail, CutCall] '[] CutListT []
 cutList = handler fromCutListT cutListAlg
 
-instance HFunctor CutListT where
-  hmap :: (Functor f, Functor g) =>
-    (forall x. f x -> g x) -> CutListT f a -> CutListT g a
-  -- hmap h (CutListT xs) = CutListT (fmap (hmap h) (h x))
-  hmap h (CutListT xs) = CutListT (undefined)
 
+-- | A handler for the t`Once` effect using t`CutCall` and t`CutFail`.
 onceCut :: Handler '[Once] '[CutCall, CutFail, Choose] IdentityT Identity
 onceCut = interpretM onceCutAlg
 
+-- | The algebra for handling the t`Once` effect with t`CutCall` and t`CutFail`.
 onceCutAlg :: forall oeff m . (Monad m , Members [CutCall, CutFail, Choose] oeff)
   => (forall x. Effs oeff m x -> m x)
   -> (forall x. Effs '[Once] m x -> m x)
@@ -93,5 +104,6 @@ onceCutAlg oalg op
                       eval oalg (do cut
                                     return x))
 
+-- | A combined handler for t`Once`, t`Empty`, t`Choose`, t`CutFail`, and t`CutCall` effects.
 onceNondet :: Handler '[Once, Empty, Choose, CutFail, CutCall] '[] CutListT []
 onceNondet = onceCut |> cutList

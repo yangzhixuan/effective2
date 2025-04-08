@@ -1,12 +1,18 @@
+{-|
+Module      : Data.CutList
+Description : CutList
+License     : BSD-3-Clause
+Maintainer  : Nicolas Wu
+Stability   : experimental
+-}
+
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE MonoLocalBinds #-}
 
 module Data.CutList where
 
 import Control.Applicative ( Alternative((<|>), empty) )
-import Control.Monad ( ap, liftM )
-import Control.Monad.Trans.Class ( MonadTrans(..) )
-
+import Control.Monad ( ap )
 
 -- | Lists that terminate with either a `Nil`, which
 -- can have further values appended to them, or `Zero`,
@@ -14,10 +20,12 @@ import Control.Monad.Trans.Class ( MonadTrans(..) )
 data CutList a = a :< CutList a | Nil | Zero
   deriving Functor
 
+-- | Converts a list into a `CutList`.
 toCutList :: [a] -> CutList a
 toCutList (x : xs) = x :< toCutList xs
 toCutList []       = Nil
 
+-- | Converts a `CutList` into a list.
 fromCutList :: CutList a -> [a]
 fromCutList (x :< xs) = x : fromCutList xs
 fromCutList _         = []
@@ -48,39 +56,3 @@ instance Alternative CutList where
   Zero      <|> _  = Nil
   Nil       <|> ys = ys
   (x :< xs) <|> ys = x :< (xs <|> ys)
-
-newtype CutListT m a = CutListT { runCutListT :: m (CutListT' m a) }
-  deriving Functor
-
-data CutListT' m a = a :<< (m (CutListT' m a)) | NilT | ZeroT
-  deriving Functor
-
-fromCutListT' :: Monad m => CutListT m a -> m [a]
-fromCutListT' (CutListT mxs) =
-  do xs <- mxs
-     case xs of
-       x :<< mys -> (x :) <$> fromCutListT' (CutListT mys)
-       NilT      -> return []
-       ZeroT     -> return []
-
-instance Monad m => Applicative (CutListT m) where
-  pure x = CutListT (return (x :<< return NilT))
-  (<*>) = ap
-
-instance Monad m => Alternative (CutListT m) where
-  empty = CutListT $ return NilT
-  CutListT mxs <|> CutListT mys = CutListT $ mxs >>= k
-   where
-    k (x :<< mxs') = return $ x :<< (mxs' >>= k)
-    k NilT         = mys
-    k ZeroT        = return ZeroT -- k ZeroT = return NilT
-
-instance Monad m => Monad (CutListT m) where
-  CutListT mxs >>= k = CutListT $ mxs >>= \xxs -> case xxs of
-    x :<< mxs' -> runCutListT $ k x <|> (CutListT mxs' >>= k)
-    NilT       -> return NilT
-    ZeroT      -> return ZeroT
-
-instance MonadTrans CutListT where
-  lift :: Monad m => m a -> CutListT m a
-  lift mx = CutListT $ liftM (\x -> x :<< return NilT) mx

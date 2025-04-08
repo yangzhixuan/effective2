@@ -15,8 +15,23 @@ Stability   : experimental
 
 module Control.Effect.Internal.Effs.Indexed
   ( module Control.Effect.Internal.Effs.Indexed.Type
-  , module Control.Effect.Internal.Effs.Indexed
   , module Control.Effect.Internal.Effs.Indexed.Class
+  , pattern Eff
+  , pattern Effs
+  , open
+  , openEff
+  , openEffs
+  , inj
+  , prj
+  , (#)
+  , weakenEffs
+  , hinl
+  , hinr
+  , houtl
+  , houtr
+  , weakenAlg
+  , hunion
+  , heither
   )
   where
 
@@ -188,4 +203,5 @@ heither xalg yalg (Effn n op)
     -- m = fromInteger (fromSNat (natSing @(Length yeffs)))
     m = fromInteger (natVal' (proxy#@(Length yeffs)))
 
+-- | This type witnesses that two effect lists can be appended together.
 type Append xs ys = (KnownNat (Length ys))

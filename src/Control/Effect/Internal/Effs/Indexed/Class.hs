@@ -20,6 +20,7 @@ import Data.List.Kind
 import GHC.TypeLits
 import GHC.Exts
 
+-- | Provides an injection when all effects in @xeffs@ are contained in @xyeffs@.
 class KnownNat (Length xeffs) => Injects xeffs xyeffs where
   injs :: forall f a . Effs xeffs f a -> Effs xyeffs f a
 

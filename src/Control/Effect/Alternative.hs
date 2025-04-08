@@ -39,6 +39,7 @@ module Control.Effect.Alternative (
 ) where
 
 import Control.Effect
+    ( Algebra, Member, prj, Prog, call, Handler(Handler) )
 import Control.Effect.Algebraic
 import Control.Effect.Scoped
 
@@ -79,7 +80,7 @@ alternativeAlg oalg eff
   | (Just (Alg Empty))          <- prj eff = empty
   | (Just (Scp (Choose xs ys))) <- prj eff = xs <|> ys
 
--- | Instance for 'Alternative' that uses 'Choose_ and 'Empty_.
+-- | Instance for 'Alternative' that uses 'Choose_' and 'Empty_'.
 instance (Member Choose sigs, Member Empty sigs)
   => Alternative (Prog sigs) where
   {-# INLINE empty #-}

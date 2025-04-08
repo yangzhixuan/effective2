@@ -16,7 +16,18 @@ Stability   : experimental
 
 module Control.Effect.Internal.Effs.Sum
   ( module Control.Effect.Internal.Effs.Sum.Type
-  , module Control.Effect.Internal.Effs.Sum
+  , inj
+  , prj
+  , (#)
+  , Append (..)
+  , weakenAlg
+  , hunion
+  , Injects (..)
+  , Member' (..)
+  , Member
+  , Members
+  , PElemIndex
+  , Peano (..)
   )
   where
 
@@ -29,8 +40,8 @@ import GHC.Exts
 import Unsafe.Coerce
 
 
--- | Constructs an operation in the union @Effs effs f a@ from a single
--- operation @eff f a@, when @eff@ is in @effs@.
+-- | Constructs an operation in the union @Effs sigs f a@ from a single
+-- operation @sig f a@, when @sig@ is in @sigs@.
 {-# INLINE inj #-}
 inj :: forall sig sigs f a . Member sig sigs => sig f a -> Effs sigs f a
 inj = inj' (proxy# @(PElemIndex sig sigs))
@@ -51,6 +62,8 @@ prj = prj' (proxy# @(PElemIndex sig sigs))
 falg # galg = heither @eff1 @eff2 (falg) (galg)
 
 
+-- | This type class provides operations that support appending
+-- two effect lists together.
 type  Append :: [Effect] -> [Effect] -> Constraint
 class Append xs ys where
   -- | Creates an alebra that can work with either signatures in @xeffs@
@@ -115,9 +128,6 @@ instance Append xs ys => Append (x ': xs) ys where
   houtr (Eff x)  = Nothing
   houtr (Effs x) = houtr @xs @ys x
 
-
-
-
 -- | Weakens an algera that works on @xyeffs@ to work on @xeffs@ when
 -- every effect in @xeffs@ is in @xyeffs@.
 {-# INLINE weakenAlg #-}
@@ -136,8 +146,8 @@ hunion :: forall xeffs yeffs f a b
   -> (Effs (xeffs `Union` yeffs) f a -> b)
 hunion xalg yalg = heither @xeffs @(yeffs :\\ xeffs) xalg (yalg . injs)
 
--- Injects xs ys means that all of xs is in xys
--- Some other effects may be in xys, so xs <= ys
+-- | @Injects xs ys@ means that all of @xs@ is in @xys@.
+-- Some other effects may be in @xys@, so @xs <= xys@.
 type  Injects :: [Effect] -> [Effect] -> Constraint
 class Injects xs xys where
   injs :: Effs xs f a -> Effs xys f a
@@ -153,6 +163,7 @@ instance (Member x xys, Injects xs xys)
   injs (Eff x)  = inj x
   injs (Effs x) = injs x
 
+-- | @Member' sig sigs n@ holds when @sig@ is contained in @sigs@ at index @n@.
 class (HFunctor sig, HFunctor (Effs sigs)) => Member' sig sigs (n :: Peano) where
   inj' :: Proxy# n -> sig f a -> Effs sigs f a
   prj' :: Proxy# n -> Effs sigs f a -> Maybe (sig f a)
@@ -176,15 +187,15 @@ instance (sigs' ~ (sig' ': sigs), HFunctor sig, HFunctor sig', Member' sig sigs 
   prj' _ (Eff _)  = Nothing
   prj' _ (Effs x) = prj' (proxy# @n) x
 
--- | @Member eff effs@ holds when @eff@ is contained in @effs@.
+-- | @Member sig sigs@ holds when @sig@ is contained in @sigs@.
 type Member :: Effect -> [Effect] -> Constraint
 type Member sig sigs = Member' sig sigs (PElemIndex sig sigs)
 
--- | @Member effs effs'@ holds when every @eff@ which is a 'Member' of in @effs@
--- is also a 'Member' of @effs'@.
-type family Members (xeffs :: [Effect]) (xyeffs :: [Effect]) :: Constraint where
-  Members '[] xyeffs       = ()
-  Members (xeff ': xeffs) xyeffs = (Member xeff xyeffs, Members xeffs xyeffs)
+-- | @Member sigs sigs'@ holds when every @sig@ which is a 'Member' of in @sigs@
+-- is also a 'Member' of @sigs'@.
+type family Members (xsigs :: [Effect]) (xysigs :: [Effect]) :: Constraint where
+  Members '[] xysigs       = ()
+  Members (xsig ': xsigs) xysigs = (Member xsig xysigs, Members xsigs xysigs)
 
 -- | @`ElemIndex x xs@ finds the index of an element @x@ in the type
 -- level list @xs@. Indexing starts at @0@ at the head of the list.
@@ -192,10 +203,9 @@ type family PElemIndex (x :: a) (xs :: [a]) :: Peano where
   PElemIndex x (x ': xs) = Zero
   PElemIndex x (_ ': xs) = Succ (PElemIndex x xs)
 
+-- | The type of Peano numbers.
 data Peano where
+  -- | @Zero@, the first Peano number
   Zero :: Peano
+  -- | @Succ n@, is the Peano number after @n@
   Succ :: Peano -> Peano
-
-
-
-

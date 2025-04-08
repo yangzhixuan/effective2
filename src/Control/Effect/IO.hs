@@ -41,8 +41,6 @@ module Control.Effect.IO (
 import Control.Effect
 import Control.Effect.Algebraic
 
-import GHC.TypeLits
-
 import qualified System.CPUTime
 import Data.List.Kind
 import Data.HFunctor

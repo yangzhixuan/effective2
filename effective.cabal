@@ -44,7 +44,7 @@ library
     Control.Effect.Writer
     Control.Effect.Algebraic
     Control.Effect.Scoped
-    Control.Monad.Trans.CutList.CPS
+    Control.Monad.Trans.CutList
     Control.Monad.Trans.List
     Control.Monad.Trans.Compose
     Data.CutList
@@ -64,7 +64,7 @@ library
   hs-source-dirs:
     src
   build-depends:
-    base, transformers, ghc, array
+    base, transformers, array
 
 test-suite docs
   type:          exitcode-stdio-1.0

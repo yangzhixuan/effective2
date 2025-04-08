@@ -1,15 +1,26 @@
+{-|
+Module      : Control.Monad.Trans.List
+Description : List monad transformer
+License     : BSD-3-Clause
+Maintainer  : Nicolas Wu
+Stability   : experimental
+-}
+
 module Control.Monad.Trans.List where
 
 import Data.HFunctor ( HFunctor(..) )
 
 import Control.Applicative ( Alternative(empty, (<|>)) )
-import Control.Monad
+import Control.Monad ( MonadPlus(..), ap, liftM )
 import Control.Monad.Trans.Class ( MonadTrans(..) )
 import Control.Arrow ( Arrow(second) )
 
+-- | The t`ListT` transformer builds a list where elements and the empty
+-- list are produced by a computation in @m@.
 newtype ListT m a = ListT { runListT :: m (Maybe (a, ListT m a)) }
   deriving Functor
 
+-- | The `runListT'` produces a list from a t`ListT`
 {-# INLINE runListT' #-}
 runListT' :: Monad m => ListT m a -> m [a]
 runListT' (ListT mmxs) =
@@ -23,6 +34,7 @@ instance HFunctor ListT where
   hmap :: (Functor f, Functor g) => (forall x. f x -> g x) -> ListT f x -> ListT g x
   hmap h (ListT mx) = ListT (fmap (fmap (fmap (hmap h))) (h mx))
 
+-- | @foldListT f k xs@ folds the list using @f@ for elements and @k@ for the empty list.
 {-# INLINE foldListT #-}
 foldListT :: Monad m => (a -> m b -> m b) -> m b -> ListT m a -> m b
 foldListT f k tmxs = go tmxs where

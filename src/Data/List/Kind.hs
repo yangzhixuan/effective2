@@ -24,9 +24,11 @@ type family (xs :: [k]) :++ (ys :: [k]) :: [k] where
   '[]       :++ ys = ys
   (x ': xs) :++ ys = x ': (xs :++ ys)
 
+-- | @`Head` (x ': xs)@ returns @x@ the head of the type list type.
 type family Head (xs :: [k]) :: k where
   Head (x ': xs) = x
 
+-- | @`Tail` (x ': xs)@ returns @xs@ the tail of the type list type.
 type family Tail (xs :: [k]) :: [k] where
   Tail xs = xs
 

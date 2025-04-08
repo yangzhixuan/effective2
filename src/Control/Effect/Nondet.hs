@@ -1,11 +1,34 @@
+{-|
+Module      : Control.Effect.Nondet
+Description : Effects for nondeterministic computations
+License     : BSD-3-Clause
+Maintainer  : Nicolas Wu
+Stability   : experimental
+
+This module provides effects and handlers for nondeterministic computations,
+including choice and failure.
+-}
+
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Control.Effect.Nondet
-  ( module Control.Effect.Nondet
-  , Choose
+  ( Choose
   , Empty
+  , stop
+  , or
+  , select
+  , selects
+  , nondet
+  , Once
+  , Once_ (..)
+  , once
+  , list
+  , backtrackAlg
+  , backtrackOnceAlg
+  , backtrackAlg'
+  , backtrack
   ) where
 
 import Prelude hiding (or)
@@ -17,44 +40,50 @@ import Control.Effect.Alternative
 
 import Control.Monad.Trans.List
 
+-- | `stop` represents a computation that immediately fails.
+-- It uses the t`Empty` effect to signal failure.
 {-# INLINE stop #-}
 stop :: Members '[Empty] sig => Prog sig a
 stop  = call (Alg Empty)
 
+-- | `or` represents a nondeterministic choice between two computations.
+-- It uses the t`Choose` effect to combine the results of the two computations.
 {-# INLINE or #-}
 or :: Members '[Choose] sig => Prog sig a -> Prog sig a -> Prog sig a
 or x y = call (Scp (Choose (fmap return x) (fmap return y)))
 
+-- | `select` nondeterministically selects an element from a list.
+-- If the list is empty, the computation fails.
 select :: Members [Choose, Empty] sig => [a] -> Prog sig a
 select = foldr (or . return) stop
 
+-- | `selects` generates all permutations of a list, returning each element
+-- along with the remaining elements of the list.
 selects :: [a] -> (a, [a]) ! [Choose, Empty]
 selects []      =  empty
 selects (x:xs)  =  return (x, xs)  <|>  do  (y, ys) <- selects xs
                                             return (y, x:ys)
 
+-- | The `nondet` handler transforms nondeterministic effects t`Empty` and t`Choose`
+-- into the t`ListT` monad transformer, which collects all possible results.
 {-# INLINE nondet #-}
 nondet :: Handler [Empty, Choose] '[] (ListT) []
 nondet = handler runListT' alternativeAlg
 
--- This does not work becuase `Choose` is algebraic, for a greedy approach
--- it must favour the lhs, but `return x <|> return y` prevents this
--- greedy :: Handler [Empty, Choose] '[] MaybeT '[Maybe]
--- greedy = handler runMaybeT alternativeAlg
-
--------------------------------
--- Example: Backtracking (and Culling?)
-type Once = Scp Once'
-data Once' a where
-  Once :: a -> Once' a
+-- | Signature for delimiting the scope of nondeterminism to `once`
+type Once = Scp Once_
+-- | Underlying signature for delimiting the scope of nondeterminism to `once`
+data Once_ a where
+  Once :: a -> Once_ a
   deriving Functor
 
+-- | `once` restricts a computation to return at most one result.
 once
   :: Member Once sig => Prog sig a -> Prog sig a
 once p = call (Scp (Once (fmap return p)))
 
--- Everything can be handled together. Here is the non-modular way
--- list :: (Member (Choose) sig, Member (Empty) sig, Member (Once) sig) => Prog sig a -> [a]
+-- | `list` evaluates a nondeterministic computation and collects all results
+-- into a list. It handles the t`Empty`, t`Choose`, and t`Once` effects.
 list :: Prog [Empty, Choose, Once] a -> [a]
 list = eval halg where
   halg :: Effs [Empty, Choose, Once] [] a -> [a]
@@ -65,6 +94,8 @@ list = eval halg where
                                                   []     -> []
                                                   (x:xs) -> [x]
 
+-- | `backtrackAlg` defines the semantics of backtracking for the t`Empty`,
+-- t`Choose`, and t`Once` effects in the context of the t`ListT` monad transformer.
 backtrackAlg
   :: Monad m => (forall x. oeff m x -> m x)
   -> (forall x. Effs [Empty, Choose, Once] (ListT m) x -> ListT m x)
@@ -77,6 +108,8 @@ backtrackAlg oalg op
                  Nothing       -> return Nothing
                  Just (x, mxs) -> return (Just (x, empty))
 
+-- | `backtrackOnceAlg` defines the semantics of backtracking for the t`Once`
+-- effect in the context of the t`ListT` monad transformer.
 backtrackOnceAlg
   :: Monad m
   => (forall x . oeff m x -> m x)
@@ -88,10 +121,15 @@ backtrackOnceAlg oalg op
                  Nothing       -> return Nothing
                  Just (x, mxs) -> return (Just (x, empty))
 
+-- | `backtrackAlg'` combines the semantics of alternative and backtracking
+-- for the t`Empty`, t`Choose`, and t`Once` effects.
 backtrackAlg'
   :: Monad m => (forall x. Effs oeff m x -> m x)
   -> (forall x. Effs [Empty, Choose, Once] (ListT m) x -> ListT m x)
 backtrackAlg' oalg = alternativeAlg oalg # backtrackOnceAlg oalg
 
+-- | `backtrack` is a handler that transforms nondeterministic effects
+-- t`Empty`, t`Choose`, and t`Once` into the t`ListT` monad transformer,
+-- supporting backtracking.
 backtrack :: Handler [Empty, Choose, Once] '[] (ListT) []
 backtrack = handler runListT' backtrackAlg'
