@@ -424,17 +424,6 @@ handle (Handler run halg)
   . inline (run @Identity) absurdEffs
   . eval (inline (halg absurdEffs))
 
-{-# INLINE handleN #-}
-handleN :: forall effs ts f a .
-  ( Monad (ts Identity) , Functor f, HFunctor (Effs effs) )
-  => Handler effs '[] ts f        -- ^ Handler @h@ with no output effects
-  -> Prog effs a                  -- ^ Program @p@ with effects @effs@
-  -> f a
-handleN (Handler run halg)
-  = runIdentity
-  . run @Identity absurdEffs
-  . eval (halg absurdEffs)
-
 -- handle'
 --   :: forall effs oeffs ts fs a . (Monad (HComps ts (Prog oeffs)), Functors fs)
 --   => Handler effs oeffs ts fs -> Prog effs a -> Prog oeffs (RComposes fs a)
