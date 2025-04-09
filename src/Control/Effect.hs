@@ -17,6 +17,9 @@ module Control.Effect
   , Prog
   , Effs (Eff, Effs)
   , call
+  , callM
+  , call'
+  , callM'
   , weakenProg
   , Effect
 
