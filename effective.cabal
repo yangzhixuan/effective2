@@ -38,7 +38,8 @@ library
     Control.Effect.Maybe
     Control.Effect.Nondet
     Control.Effect.Concurrency
-    Control.Effect.Concurrency.Action
+    Control.Effect.Concurrency.Types
+    Control.Effect.Yield
     Control.Effect.Reader
     Control.Effect.State
     Control.Effect.State.Type
@@ -56,6 +57,7 @@ library
     Control.Monad.Trans.List
     Control.Monad.Trans.Resump
     Control.Monad.Trans.CRes
+    Control.Monad.Trans.YRes
     Control.Monad.Trans.Compose
     Data.CutList
     Data.HFunctor
