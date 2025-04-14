@@ -157,5 +157,3 @@ prjCall _           = Nothing
 {-# INLINE progAlg #-}
 progAlg :: Algebra effs (Prog effs) 
 progAlg x = Call x return
-
-
