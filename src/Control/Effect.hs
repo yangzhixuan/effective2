@@ -17,10 +17,12 @@ module Control.Effect
   , Prog
   , Effs (Eff, Effs)
   , call
+  , callK
   , callM
   , call'
   , callM'
   , weakenProg
+  , progAlg
   , Effect
 
   -- * Operations
@@ -46,11 +48,13 @@ module Control.Effect
   , identity
   , fuse, (|>)
   , pipe, (||>)
+  , simpleFuse, (|>>)
+  , simpleFuseU, (||>>)
   , hide
 
   -- * Evaluation
   , eval
-  , fold
+ -- , fold
   , handle
   , handleM
   , handleP
@@ -74,7 +78,7 @@ module Control.Effect
   ) where
 
 import Data.Functor.Identity
-import Data.Functor.Compose
+import Data.Functor.Compose ( Compose(..) )
 import Control.Monad.Trans.Identity
 import Control.Monad.Trans.Compose
 
