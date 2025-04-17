@@ -35,6 +35,7 @@ module Control.Effect
 
   -- * Algebras
   , Algebra
+  , singAlgIso
   , (#)
   , Forward (..)
   , Forwards (..)
