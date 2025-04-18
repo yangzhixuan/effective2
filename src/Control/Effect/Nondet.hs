@@ -16,6 +16,7 @@ including choice and failure.
 module Control.Effect.Nondet
   ( Choose
   , Empty
+  , ListT (..)
   , stop
   , or
   , select
@@ -131,5 +132,5 @@ backtrackAlg' oalg = alternativeAlg oalg # backtrackOnceAlg oalg
 -- | `backtrack` is a handler that transforms nondeterministic effects
 -- t`Empty`, t`Choose`, and t`Once` into the t`ListT` monad transformer,
 -- supporting backtracking.
-backtrack :: Handler [Empty, Choose, Once] '[] (ListT) []
+backtrack :: Handler [Empty, Choose, Once] '[] ListT []
 backtrack = handler runListT' backtrackAlg'
