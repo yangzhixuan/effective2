@@ -15,7 +15,11 @@ including choice and failure.
 
 module Control.Effect.Nondet
   ( Choose
+  , Choose_(Choose)
   , Empty
+  , Empty_(Empty)
+  , (<|>)
+  , empty
   , ListT (..)
   , stop
   , or
