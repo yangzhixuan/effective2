@@ -87,7 +87,7 @@ cutListAlg oalg op
 
 -- | A handler for the t`CutListT` monad transformer.
 cutList :: Handler [Empty, Choose, CutFail, CutCall] '[] CutListT []
-cutList = handler fromCutListT cutListAlg
+cutList = handler' fromCutListT cutListAlg
 
 
 -- | A handler for the t`Once` effect using t`CutCall` and t`CutFail`.
