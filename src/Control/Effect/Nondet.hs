@@ -72,7 +72,7 @@ selects (x:xs)  =  return (x, xs)  <|>  do  (y, ys) <- selects xs
 -- | The `nondet` handler transforms nondeterministic effects t`Empty` and t`Choose`
 -- into the t`ListT` monad transformer, which collects all possible results.
 {-# INLINE nondet #-}
-nondet :: Handler [Empty, Choose] '[] (ListT) []
+nondet :: Handler [Empty, Choose] '[] '[ListT] '[[]]
 nondet = handler' runListT' alternativeAlg
 
 -- | Signature for delimiting the scope of nondeterminism to `once`
@@ -136,5 +136,5 @@ backtrackAlg' oalg = alternativeAlg oalg # backtrackOnceAlg oalg
 -- | `backtrack` is a handler that transforms nondeterministic effects
 -- t`Empty`, t`Choose`, and t`Once` into the t`ListT` monad transformer,
 -- supporting backtracking.
-backtrack :: Handler [Empty, Choose, Once] '[] ListT []
+backtrack :: Handler [Empty, Choose, Once] '[] '[ListT] '[[]]
 backtrack = handler' runListT' backtrackAlg'

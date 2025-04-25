@@ -86,12 +86,12 @@ cutListAlg oalg op
   | Just (Scp (CutCall xs))    <- prj op = CutListT (\cons nil zero -> runCutListT xs cons nil nil)
 
 -- | A handler for the t`CutListT` monad transformer.
-cutList :: Handler [Empty, Choose, CutFail, CutCall] '[] CutListT []
+cutList :: Handler [Empty, Choose, CutFail, CutCall] '[] '[CutListT] '[[]]
 cutList = handler' fromCutListT cutListAlg
 
 
 -- | A handler for the t`Once` effect using t`CutCall` and t`CutFail`.
-onceCut :: Handler '[Once] '[CutCall, CutFail, Choose] IdentityT Identity
+onceCut :: Handler '[Once] '[CutCall, CutFail, Choose] '[] '[]
 onceCut = interpretM onceCutAlg
 
 -- | The algebra for handling the t`Once` effect with t`CutCall` and t`CutFail`.
@@ -105,5 +105,5 @@ onceCutAlg oalg op
                                     return x))
 
 -- | A combined handler for t`Once`, t`Empty`, t`Choose`, t`CutFail`, and t`CutCall` effects.
-onceNondet :: Handler '[Once, Empty, Choose, CutFail, CutCall] '[] CutListT []
+onceNondet :: Handler '[Once, Empty, Choose, CutFail, CutCall] '[] '[CutListT] '[[]]
 onceNondet = onceCut |> cutList
