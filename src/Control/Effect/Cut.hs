@@ -17,8 +17,8 @@ module Control.Effect.Cut where
 import Prelude hiding (or)
 
 import Control.Effect
-import Control.Effect.Algebraic
-import Control.Effect.Scoped
+import Control.Effect.Family.Algebraic
+import Control.Effect.Family.Scoped
 import Control.Effect.Alternative
 import Control.Effect.Nondet
 import Control.Monad.Trans.CutList
@@ -85,14 +85,20 @@ cutListAlg oalg op
   | Just (Alg CutFail)         <- prj op = CutListT (\cons nil zero -> zero)
   | Just (Scp (CutCall xs))    <- prj op = CutListT (\cons nil zero -> runCutListT xs cons nil nil)
 
+cutListAT :: AlgTransM [Empty, Choose, CutFail, CutCall] '[] '[CutListT] 
+cutListAT = AlgTrans cutListAlg
+
 -- | A handler for the t`CutListT` monad transformer.
 cutList :: Handler [Empty, Choose, CutFail, CutCall] '[] '[CutListT] '[[]]
 cutList = handler' fromCutListT cutListAlg
 
-
 -- | A handler for the t`Once` effect using t`CutCall` and t`CutFail`.
 onceCut :: Handler '[Once] '[CutCall, CutFail, Choose] '[] '[]
 onceCut = interpretM onceCutAlg
+
+-- | Transforming the operation t`Once` to t`CutCall`, t`CutFail`, and `Choose`.
+onceCutAT :: AlgTransM '[Once] '[CutCall, CutFail, Choose] '[] 
+onceCutAT = AlgTrans onceCutAlg
 
 -- | The algebra for handling the t`Once` effect with t`CutCall` and t`CutFail`.
 onceCutAlg :: forall oeff m . (Monad m , Members [CutCall, CutFail, Choose] oeff)

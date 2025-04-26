@@ -32,15 +32,14 @@ module Control.Effect.Nondet
   , list
   , backtrackAlg
   , backtrackOnceAlg
-  , backtrackAlg'
   , backtrack
   ) where
 
 import Prelude hiding (or)
 
 import Control.Effect
-import Control.Effect.Algebraic
-import Control.Effect.Scoped
+import Control.Effect.Family.Algebraic
+import Control.Effect.Family.Scoped
 import Control.Effect.Alternative
 
 import Control.Monad.Trans.List
@@ -73,7 +72,7 @@ selects (x:xs)  =  return (x, xs)  <|>  do  (y, ys) <- selects xs
 -- into the t`ListT` monad transformer, which collects all possible results.
 {-# INLINE nondet #-}
 nondet :: Handler [Empty, Choose] '[] '[ListT] '[[]]
-nondet = handler' runListT' alternativeAlg
+nondet = handler' runListT' (getAT alternativeAlg)
 
 -- | Signature for delimiting the scope of nondeterminism to `once`
 type Once = Scp Once_
@@ -99,22 +98,6 @@ list = eval halg where
                                                   []     -> []
                                                   (x:xs) -> [x]
 
--- | `backtrackAlg` defines the semantics of backtracking for the t`Empty`,
--- t`Choose`, and t`Once` effects in the context of the t`ListT` monad transformer.
-backtrackAlg
-  :: Monad m => (forall x. oeff m x -> m x)
-  -> (forall x. Effs [Empty, Choose, Once] (ListT m) x -> ListT m x)
-backtrackAlg oalg op
-  | Just (Alg Empty)            <- prj op = empty
-  | Just (Scp (Choose xs ys))   <- prj op = xs <|> ys
-  | Just (Scp (Once p))         <- prj op =
-    ListT $ do mx <- runListT p
-               case mx of
-                 Nothing       -> return Nothing
-                 Just (x, mxs) -> return (Just (x, empty))
-
--- | `backtrackOnceAlg` defines the semantics of backtracking for the t`Once`
--- effect in the context of the t`ListT` monad transformer.
 backtrackOnceAlg
   :: Monad m
   => (forall x . oeff m x -> m x)
@@ -128,13 +111,16 @@ backtrackOnceAlg oalg op
 
 -- | `backtrackAlg'` combines the semantics of alternative and backtracking
 -- for the t`Empty`, t`Choose`, and t`Once` effects.
-backtrackAlg'
-  :: Monad m => (forall x. Effs oeff m x -> m x)
+backtrackAlg
+  :: Monad m => (forall x. Effs '[] m x -> m x)
   -> (forall x. Effs [Empty, Choose, Once] (ListT m) x -> ListT m x)
-backtrackAlg' oalg = alternativeAlg oalg # backtrackOnceAlg oalg
+backtrackAlg oalg = (getAT alternativeAT oalg) # backtrackOnceAlg oalg
+
+backtrackAT :: AlgTransM [Empty, Choose, Once] '[] '[ListT] 
+backtrackAT = AlgTrans backtrackAlg
 
 -- | `backtrack` is a handler that transforms nondeterministic effects
 -- t`Empty`, t`Choose`, and t`Once` into the t`ListT` monad transformer,
 -- supporting backtracking.
 backtrack :: Handler [Empty, Choose, Once] '[] '[ListT] '[[]]
-backtrack = handler' runListT' backtrackAlg'
+backtrack = handler' runListT' backtrackAlg
