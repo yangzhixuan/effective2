@@ -116,7 +116,7 @@ backtrackAlg
   -> (forall x. Effs [Empty, Choose, Once] (ListT m) x -> ListT m x)
 backtrackAlg oalg = (getAT alternativeAT oalg) # backtrackOnceAlg oalg
 
-backtrackAT :: AlgTransM [Empty, Choose, Once] '[] '[ListT] 
+backtrackAT :: AlgTrans [Empty, Choose, Once] '[] '[ListT] Monad
 backtrackAT = AlgTrans backtrackAlg
 
 -- | `backtrack` is a handler that transforms nondeterministic effects

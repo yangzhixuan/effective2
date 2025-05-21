@@ -85,7 +85,7 @@ cutListAlg oalg op
   | Just (Alg CutFail)         <- prj op = CutListT (\cons nil zero -> zero)
   | Just (Scp (CutCall xs))    <- prj op = CutListT (\cons nil zero -> runCutListT xs cons nil nil)
 
-cutListAT :: AlgTransM [Empty, Choose, CutFail, CutCall] '[] '[CutListT] 
+cutListAT :: AlgTrans [Empty, Choose, CutFail, CutCall] '[] '[CutListT] Monad
 cutListAT = AlgTrans cutListAlg
 
 -- | A handler for the t`CutListT` monad transformer.
@@ -97,11 +97,12 @@ onceCut :: Handler '[Once] '[CutCall, CutFail, Choose] '[] '[]
 onceCut = interpretM onceCutAlg
 
 -- | Transforming the operation t`Once` to t`CutCall`, t`CutFail`, and `Choose`.
-onceCutAT :: AlgTransM '[Once] '[CutCall, CutFail, Choose] '[] 
+onceCutAT :: AlgTrans '[Once] '[CutCall, CutFail, Choose] '[] Monad
 onceCutAT = AlgTrans onceCutAlg
 
 -- | The algebra for handling the t`Once` effect with t`CutCall` and t`CutFail`.
-onceCutAlg :: forall oeff m . (Monad m , Members [CutCall, CutFail, Choose] oeff)
+onceCutAlg :: forall oeff m . 
+     (Monad m , HFunctor (Effs oeff), Members [CutCall, CutFail, Choose] oeff)
   => (forall x. Effs oeff m x -> m x)
   -> (forall x. Effs '[Once] m x -> m x)
 onceCutAlg oalg op
