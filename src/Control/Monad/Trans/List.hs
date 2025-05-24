@@ -2,10 +2,11 @@
 Module      : Control.Monad.Trans.List
 Description : List monad transformer
 License     : BSD-3-Clause
-Maintainer  : Nicolas Wu
-Stability   : experimental
--}
+Maintainer  : Nicolas Wu, Zhixuan Yang
+Stability   : stable
 
+This module contains the list monad transformer for modelling search-based nondeterminism.
+-}
 module Control.Monad.Trans.List where
 
 import Data.HFunctor ( HFunctor(..) )
@@ -19,7 +20,7 @@ import Control.Monad.Trans.Class ( MonadTrans(..) )
 newtype ListT m a = ListT { runListT :: m (Maybe (a, ListT m a)) }
   deriving Functor
 
--- | The `runListT'` produces a list from a t`ListT`
+-- | Exhaust all the @a@-values in a @ListT@ and perform the @m@-actions along the way. 
 {-# INLINE runListT' #-}
 runListT' :: Monad m => ListT m a -> m [a]
 runListT' (ListT mmxs) =
