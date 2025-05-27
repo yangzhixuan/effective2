@@ -25,6 +25,3 @@ cabal.project.local~
 .vscode/settings.json
 ltex*
 *.dump-simpl
-src/Control/Effect/Internal/HandlerOld/LowLevelOld.hs
-src/Control/Effect/Internal/HandlerOlld.hs
-src/Control/Effect/Internal/HandlerOld/TypeOld.hs

@@ -123,7 +123,7 @@ test-suite docs
 test-suite readme
   type:          exitcode-stdio-1.0
   ghc-options:   -threaded -pgmL markdown-unlit -ddump-simpl  -ddump-to-file
-  main-is:       README.lhs
+  main-is:       README.md
   default-extensions: DataKinds
   default-language: GHC2021
   hs-source-dirs:  .
