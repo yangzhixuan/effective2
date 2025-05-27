@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeOperators #-}
 {-|
 Module      : Control.Effect.Internal.Prog
 Description : The datatype for effectful programs
@@ -15,8 +16,9 @@ Currently the default is the impredicative encoding in "Control.Effect.Internal.
 module Control.Effect.Internal.Prog
   ( 
     -- * Program datatypes
-    Prog, 
+    Prog,
     Progs, 
+    type (!),
 
     -- * Program constructors
     call, 

@@ -30,7 +30,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 -}
 
 {-# LANGUAGE TypeFamilies, UnicodeSyntax, TemplateHaskell, BlockArguments #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UndecidableInstances, TypeAbstractions #-}
 
 module Control.Effect.CodeGen.SoPU where
 

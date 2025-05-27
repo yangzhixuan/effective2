@@ -72,7 +72,7 @@ selects (x:xs)  =  return (x, xs)  <|>  do  (y, ys) <- selects xs
 -- into the t`ListT` monad transformer, which collects all possible results.
 {-# INLINE nondet #-}
 nondet :: Handler [Empty, Choose] '[] '[ListT] '[[]]
-nondet = handler' runListT' (getAT alternativeAlg)
+nondet = handler' runListT' (getAT alternativeAT)
 
 -- | Signature for delimiting the scope of nondeterminism to `once`
 type Once = Scp Once_

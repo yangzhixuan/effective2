@@ -101,9 +101,9 @@ onceCutAT :: AlgTrans '[Once] '[CutCall, CutFail, Choose] '[] Monad
 onceCutAT = AlgTrans onceCutAlg
 
 -- | The algebra for handling the t`Once` effect with t`CutCall` and t`CutFail`.
-onceCutAlg :: forall oeff m . 
-     (Monad m , HFunctor (Effs oeff), Members [CutCall, CutFail, Choose] oeff)
-  => (forall x. Effs oeff m x -> m x)
+onceCutAlg :: forall m . 
+     Monad m
+  => (forall x. Effs '[CutCall, CutFail, Choose] m x -> m x)
   -> (forall x. Effs '[Once] m x -> m x)
 onceCutAlg oalg op
   | Just (Scp (Once p)) <- prj op
