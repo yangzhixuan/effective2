@@ -80,7 +80,7 @@ The idea is to execute this program using a specialised handler
 that counts the number of ticks:
 ```haskell
 exampleEchoTick :: IO (Int, ())
-exampleEchoTick = handleIO @'[GetLine, PutStrLn] ticker echoTick
+exampleEchoTick = handleIO (Proxy @'[GetLine, PutStrLn]) ticker echoTick
 ```
 When this is executed, it counts the number of lines received:
 ```console
@@ -99,7 +99,7 @@ We can also emulate the behaviour of `echo` by ignoring all the ticks by using
 the `unticker` handler:
 ```haskell
 exampleEchoNoTick :: IO ()
-exampleEchoNoTick = handleIO @'[GetLine, PutStrLn] unticker echoTick
+exampleEchoNoTick = handleIO (Proxy @'[GetLine, PutStrLn]) unticker echoTick
 ```
 Note that this is different to discarding the tick count by applying `fst`
 to the result of a program that counts ticks: the count is not even generated
@@ -864,7 +864,7 @@ timer :: Handler '[Profile] '[Tell [(String, Integer)], GetCPUTime] '[] '[]
 timer = interpretM timerAlg
 
 timerAlg :: forall effs oeffs m
-  . (Monad m, Members '[Tell [(String, Integer)],GetCPUTime] oeffs)
+  . (Monad m, HFunctor (Effs oeffs), Members '[Tell [(String, Integer)],GetCPUTime] oeffs)
   => (forall x . Effs oeffs m x -> m x)
   -> (forall x . Effs '[Profile] m x -> m x)
 timerAlg oalg (Eff (Scp (Profile name p))) =
@@ -895,7 +895,7 @@ profiler :: forall instr a b . (HFunctor instr, Member instr '[Tell [(String, b)
 profiler f instrument = interpretM (profilerAlg @instr f instrument)
 
 profilerAlg :: forall instr effs oeffs m a b
-  .  (HFunctor instr, Monad m, Member (Tell [(String, b)]) oeffs, Member instr oeffs)
+  .  (HFunctor instr, HFunctor (Effs oeffs), Monad m, Member (Tell [(String, b)]) oeffs, Member instr oeffs)
   => (a -> a -> b)
   -> (Prog '[instr] a)
   -> (forall x . Effs oeffs m x -> m x)
