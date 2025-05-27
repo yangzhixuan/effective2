@@ -14,8 +14,9 @@ smart constructor.
 module Control.Effect.Clone (
   -- * Syntax
   Clone (..),
-  cloneK,
   clone, 
+  cloneJ,
+  cloneK,
   cloneAlg,
   cloneScp,
 
@@ -53,7 +54,12 @@ cloneAT :: forall effs oeffs ts cs.
         -> AlgTrans (Map Clone effs) oeffs ts cs
 cloneAT h = unsafeCoerce h
 
--- | @clone x k@ invokes the clone version of the operation @x@ (together with its
+-- | @clone x@ invokes the clone version of the operation @x@.
+clone :: forall eff effs a . (HFunctor eff, Member (Clone eff) effs)
+      => eff (Prog effs) a -> Prog effs a
+clone x = call (Clone x)
+
+-- | @cloneK x k@ invokes the clone version of the operation @x@ (together with its
 -- continuation @k@).
 cloneK :: forall eff effs a x . 
           (HFunctor eff, Member (Clone eff) effs )
@@ -62,15 +68,16 @@ cloneK :: forall eff effs a x .
        -> Prog effs a
 cloneK x k = callK (Clone x) k
 
--- | @clone x k@ invokes the clone version of the operation @x@.
-clone :: forall eff effs a . (HFunctor eff, Member (Clone eff) effs)
+-- | @cloneJ x@ invokes the clone version of the operation @x@ (together with its
+-- continuation given as return values).
+cloneJ :: forall eff effs a . (HFunctor eff, Member (Clone eff) effs)
       => eff (Prog effs) (Prog effs a) -> Prog effs a
-clone x = call (Clone x)
+cloneJ x = callJ (Clone x)
 
--- | A special case of `cloneK` for algebraic operations.
+-- | A special case of `clone` for algebraic operations.
 cloneAlg :: (Member (Clone (Alg f)) effs, Functor f) => f a -> Prog effs a
-cloneAlg f = cloneK (Alg f) return
+cloneAlg f = clone (Alg f)
 
--- | A special case of `cloneK` for scoped operations.
+-- | A special case of `clone` for scoped operations.
 cloneScp :: (Member (Clone (Scp f)) effs, Functor f) => f (Prog effs a) -> Prog effs a
-cloneScp f = cloneK (Scp f) return
+cloneScp f = clone (Scp f)

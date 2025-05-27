@@ -52,7 +52,7 @@ data Ask_ r k where
 -- | Fetch the value of the environment.
 {-# INLINE ask #-}
 ask :: Member (Ask r) sig => Prog sig r
-ask = call (Alg (Ask return))
+ask = call (Alg (Ask id))
 
 -- | Retrieve a function of the current environment.
 {-# INLINE asks #-}
@@ -78,7 +78,7 @@ local :: Member (Local r) sig
   => (r -> r)    -- ^ Function to transform the environment
   -> Prog sig a  -- ^ Computation to run in the transformed environment
   -> Prog sig a
-local f p = call' (Scp (Local f p))
+local f p = call (Scp (Local f p))
 
 -- | The `reader` handler supplies a static environment @r@ to the program
 -- that can be accessed with `ask`, and locally transformed with `local`.

@@ -25,7 +25,6 @@ up-operation is needed.
 module Control.Effect.CodeGen.Up where
 
 import Control.Effect
-import Control.Effect.Internal.AlgTrans.Type
 import Control.Effect.Family.Algebraic
 import Control.Effect.Family.Scoped
 import Control.Effect.Family.Distributive
@@ -105,12 +104,12 @@ upAlgIso = trans singAlgIso upIso
 
 -- | Syntactic up-operations on (meta-)programs.
 up :: Member (UpOp m) sig => Up (m a) -> Prog sig (Up a) 
-up = Iso.fwd upIso call'
+up = Iso.fwd upIso call
 
 -- | Syntactic up-operations on (meta-)programs with an additional continuation
 -- argument @Up a -> x@.
 up' :: Member (UpOp m) sig => Up (m a) -> (Up a -> x) -> Prog sig x 
-up' u k = call' (Alg (UpOp u k))
+up' u k = call (Alg (UpOp u k))
 
 -- | Up-operations on a monad @n@.
 upM :: forall m sig n a. (Member (UpOp m) sig, Functor n) 
@@ -297,7 +296,7 @@ instance HFunctor Reset where
 -- | Reset code generation.
 reset :: forall x sig. Member Reset sig 
       => Prog sig (Up x) -> Prog sig (Up x)
-reset p = call' (Reset p id)
+reset p = call (Reset p id)
 
 -- | Resetting is interpreted as @up@ followed by @down@.
 resetAT :: forall m. AlgTrans '[Reset] '[UpOp m] '[] (MonadDown m)

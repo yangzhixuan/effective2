@@ -1,5 +1,5 @@
 {-|
-Module      : Control.Effect.HOStore.Unsafe
+Module      : Control.Effect.HStore.Unsafe
 Description : Higher-order store (unsafe implementation)
 License     : BSD-3-Clause
 Maintainer  : Zhixuan Yang
@@ -61,7 +61,7 @@ As a rule of thumb for safety, when using the effect handler from this module,
 A safer but more cumbersome interface in the style of ST monad is provided
 in the sister module "Control.Effect.HOStore.Safe".
 -}
-module Control.Effect.HOStore.Unsafe (
+module Control.Effect.HStore.Unsafe (
   -- * Syntax
   -- ** Operations
   put, get, new,
@@ -104,7 +104,7 @@ instance HFunctor New where
 
 -- | Smart constructor for the t`New` operation.
 new :: forall a sig. Member New sig => a -> Prog sig (Ref a)
-new a = call' (New a id)
+new a = call (New a id)
 
 -- | Signature for the operation of updating a memory reference
 -- to a new value.
@@ -119,7 +119,7 @@ instance HFunctor Put where
 
 -- | Smart constructor for the t`Put` operation.
 put :: forall a sig. Member Put sig => Ref a -> a -> Prog sig ()
-put r a = call' (Put r a ())
+put r a = call (Put r a ())
 
 -- | Signature for the operation of reading a memory reference.
 data Get (f :: * -> *) (x :: *) where
@@ -133,7 +133,7 @@ instance HFunctor Get where
 
 -- | Smart constructor for the t`Get` operation.
 get :: forall a sig. Member Get sig => Ref a -> Prog sig a
-get r = call' (Get r id)
+get r = call (Get r id)
 
 -- | Internally the store is implemented by a map from locations to 
 -- an untyped value. Since the type t`Ref` tracks the type of the

@@ -25,10 +25,10 @@ instance Unary (MapYield_ a b) where
 
 {-# INLINE yield #-}
 yield :: Member (Yield a b) sig => a -> Prog sig b
-yield a = call' (Alg (Yield a id))
+yield a = call (Alg (Yield a id))
 
 mapYield :: Member (MapYield a b) sig => (a -> a) -> (b -> b) -> Prog sig x -> Prog sig x
-mapYield f g p = call' (Scp (MapYield f g p)) 
+mapYield f g p = call (Scp (MapYield f g p)) 
 
 yieldAlg :: Monad m => Algebra '[Yield a b, MapYield a b] (YResT a b m)
 yieldAlg eff

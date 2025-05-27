@@ -1,6 +1,6 @@
 {-# LANGUAGE QuantifiedConstraints, MonoLocalBinds #-}
 {-|
-Module      : Control.Effect.HOStore.Safe
+Module      : Control.Effect.HStore.Safe
 Description : Higher-order store (safe implementation)
 License     : BSD-3-Clause
 Maintainer  : Zhixuan Yang
@@ -25,7 +25,7 @@ careful when defining the forwarder of @op@ along the state monad transformer to
 created for some memory store are never available to some other memory store. 
 (If @op@ is handled /before/ higher-order store, there is nothing to worry about.)
 -}
-module Control.Effect.HOStore.Safe (
+module Control.Effect.HStore.Safe (
   -- * Syntax
   -- ** Operations
   put, get, new,
@@ -46,7 +46,7 @@ module Control.Effect.HOStore.Safe (
 import Control.Effect.Internal.Effs
 import Control.Effect.Internal.Forward 
 import Control.Effect.Internal.Handler
-import Control.Effect.Internal.Prog ( Prog, call', progAlg )
+import Control.Effect.Internal.Prog ( Prog, call, progAlg )
 import Control.Monad.Trans.Class
 import GHC.Types (Any)
 import Unsafe.Coerce
@@ -77,7 +77,7 @@ instance HFunctor (New w) where
 
 -- | Smart constructor for the t`New` operation.
 new :: forall a w sig. Member (New w) sig => a -> Prog sig (Ref w a)
-new a = call' (New a id)
+new a = call (New a id)
 
 -- | Signature for the operation of updating a memory reference
 -- to a new value.
@@ -92,7 +92,7 @@ instance HFunctor (Put w) where
 
 -- | Smart constructor for the t`Put` operation.
 put :: forall a w sig. Member (Put w) sig => Ref w a -> a -> Prog sig ()
-put r a = call' (Put r a ())
+put r a = call (Put r a ())
 
 -- | Signature for the operation of reading a memory reference.
 data Get w (f :: * -> *) (x :: *) where
@@ -106,7 +106,7 @@ instance HFunctor (Get w) where
 
 -- | Smart constructor for the t`Get` operation.
 get :: forall a w sig. Member (Get w) sig => Ref w a -> Prog sig a
-get r = call' (Get r id)
+get r = call (Get r id)
 
 -- | Internal representation of the store.
 type Mem = M.Map Loc Any

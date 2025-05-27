@@ -461,7 +461,7 @@ joinEx1' b = $$(stage
                         let x_aaCJ = 20 :: Int in x_aaCF x_aaCJ)))
 -}
 joinEx2 :: Bool -> StateT Int (MaybeT Identity) ()
-joinEx2 b = $$(down $ evalTr' 
+joinEx2 b = $$(down $ evalAT' 
   (letPut @Int 
   `fuseAT'` upState @Int @Identity 
   `fuseAT'` stateAT @(Up Int)
@@ -511,7 +511,7 @@ joinEx2 b = $$(down $ evalTr'
 -- Yes, using @upCache@ like below.
 -}
 joinEx3 :: Bool -> StateT Int (ListT (MaybeT Identity)) ()
-joinEx3 b = $$(down $ evalTr' 
+joinEx3 b = $$(down $ evalAT' 
   (letPut @Int 
   `fuseAT'` stateAT @(Up Int)
   `fuseAT'` caseATSameC' (joinPush @(MaybeT Identity)) 
@@ -545,7 +545,7 @@ joinEx3 b = $$(down $ evalTr'
 
 -}
 joinEx4 :: Bool -> StateT Int (ListT (MaybeT Identity)) ()
-joinEx4 b = $$(down $ evalTr' 
+joinEx4 b = $$(down $ evalAT' 
   (letPut @Int 
   `fuseAT'` stateAT @(Up Int)
   `fuseAT'` caseATSameC' (joinPush @(MaybeT Identity)) 

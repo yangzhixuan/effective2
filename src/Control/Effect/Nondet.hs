@@ -54,7 +54,7 @@ stop  = call (Alg Empty)
 -- It uses the t`Choose` effect to combine the results of the two computations.
 {-# INLINE or #-}
 or :: Members '[Choose] sig => Prog sig a -> Prog sig a -> Prog sig a
-or x y = call' (Scp (Choose x y))
+or x y = call (Scp (Choose x y))
 
 -- | `select` nondeterministically selects an element from a list.
 -- If the list is empty, the computation fails.
@@ -84,7 +84,7 @@ data Once_ a where
 -- | `once` restricts a computation to return at most one result.
 once
   :: Member Once sig => Prog sig a -> Prog sig a
-once p = call' (Scp (Once p))
+once p = call (Scp (Once p))
 
 -- | `list` evaluates a nondeterministic computation and collects all results
 -- into a list. It handles the t`Empty`, t`Choose`, and t`Once` effects.

@@ -29,7 +29,7 @@ module Control.Effect.Writer (
 
   -- ** Algebras
   writerAlg,
-  writeAT,
+  writerAT,
   censorAT,
 
   -- ** Underlying monad transformers
@@ -56,11 +56,11 @@ data Tell_ w k where
 
 -- | @`tell` w@ produces the output @w@.
 tell :: (Member (Tell w) sig, Monoid w) => w -> Prog sig ()
-tell w = call (Alg (Tell w (return ())))
+tell w = call (Alg (Tell w ()))
 
 -- | The algebra transformer for the `writer` handler.
-writeAT :: Monoid w => AlgTrans '[Tell w] '[] '[W.WriterT w] Monad
-writeAT = AlgTrans writerAlg
+writerAT :: Monoid w => AlgTrans '[Tell w] '[] '[W.WriterT w] Monad
+writerAT = AlgTrans writerAlg
 
 writerAlg
   :: (Monad m, Monoid w)
@@ -101,7 +101,7 @@ instance U.Unary (Censor_ w) where
 -- | The @`censor` f p@ operation executes program @p@ with output censored
 -- by @f@.
 censor :: Member (Censor w) sig => (w -> w) -> Prog sig a -> Prog sig a
-censor cipher p = call (Scp (Censor cipher (fmap return p)))
+censor cipher p = call (Scp (Censor cipher p))
 
 -- | The @`censors` f@ handler applies an initial function @f@ to the
 -- any output produced by `tell`. If a @`censor` f' p@ operation is encountered,

@@ -22,7 +22,7 @@ module Control.Effect.Internal.Prog
 
     -- * Program constructors
     call, 
-    call', 
+    callJ, 
     callK,
     progAlg, 
     weakenProg, 

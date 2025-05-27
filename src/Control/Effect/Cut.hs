@@ -63,7 +63,7 @@ cut = or skip cutFail
 
 -- | Execute a computation within a t`CutCall` scope.
 cutCall :: Member CutCall sig => Prog sig a -> Prog sig a
-cutCall p = call' (Scp (CutCall p))
+cutCall p = call (Scp (CutCall p))
 
 -- | Execute a computation within a t`CutCall` scope using a monadic handler.
 cutCallM :: (Monad m, Member CutCall sig)

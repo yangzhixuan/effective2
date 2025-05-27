@@ -17,9 +17,9 @@ module Control.Effect
   , Prog
   , Effs (Eff, Effs)
   , call
+  , callJ
   , callK
   , callM
-  , call'
   , callM'
   , weakenProg
   , progAlg
@@ -38,6 +38,7 @@ module Control.Effect
   , Algebra
   , singAlgIso
   , (#)
+  , weakenAlg
   , Forward (..)
   , Forwards (..)
   , ForwardsM (..)
@@ -88,8 +89,8 @@ module Control.Effect
   , handleP'
   , handleMApp
   , handlePApp
-  , evalTr
-  , evalTr'
+  , evalAT
+  , evalAT'
 
   -- * Auxiliary types
   , Apply

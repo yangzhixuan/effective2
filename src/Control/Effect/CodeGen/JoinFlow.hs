@@ -1,7 +1,7 @@
 {-
 Module      : Control.Effect.CodeGen.JoinFlow
 Description : Join code-generation branches
-License     : MIT
+License     : BSD-3-Clause
 Maintainer  : Zhixuan Yang
 Stability   : experimental
 
@@ -73,7 +73,7 @@ instance HFunctor JoinFlow where
 -- the corresponding product type) and resumes the code generation from these join points.
 joinFlow :: forall x sig. (Member JoinFlow sig, IsSOP x) 
          => Prog sig x -> Prog sig x
-joinFlow p = call' (JoinFlow p id)
+joinFlow p = call (JoinFlow p id)
 
 -- | @joinFlow@ on a monad @m@.
 joinFlowM :: forall x sig m. Member JoinFlow sig 

@@ -26,8 +26,8 @@ import Control.Effect.Internal.Forward
 -- * Using algebra transformers and runners 
 
 -- | Evaluating a program with an algebra transformer.
-{-# INLINE evalTr #-}
-evalTr :: forall effs oeffs xeffs ts cs m a.
+{-# INLINE evalAT #-}
+evalAT :: forall effs oeffs xeffs ts cs m a.
        ( HFunctor (Effs effs)
        , cs m
        , Injects oeffs xeffs
@@ -36,18 +36,18 @@ evalTr :: forall effs oeffs xeffs ts cs m a.
        -> AlgTrans effs oeffs ts cs
        -> Prog effs a
        -> Apply ts m a
-evalTr oalg alg = eval (getAT alg (oalg . injs)) 
+evalAT oalg alg = eval (getAT alg (oalg . injs)) 
 
 -- | Evaluating a program with an algebra transformer that outputs no effects.
-{-# INLINE evalTr' #-}
-evalTr' :: forall m effs ts cs a. 
+{-# INLINE evalAT' #-}
+evalAT' :: forall m effs ts cs a. 
         ( HFunctor (Effs effs) 
         , cs m
         , Monad (Apply ts m) )
         => AlgTrans effs '[] ts cs
         -> Prog effs a
         -> Apply ts m a
-evalTr' alg = eval (getAT alg (absurdEffs @m)) 
+evalAT' alg = eval (getAT alg (absurdEffs @m)) 
 
 -- * Building algebra transformers
 

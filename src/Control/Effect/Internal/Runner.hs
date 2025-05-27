@@ -33,9 +33,6 @@ type Runner
 newtype Runner oeffs ts fs cs = Runner {
   getR :: forall m . cs m => Algebra oeffs m -> (forall x . Apply ts m x -> m (Apply fs x)) }
 
--- | Runners for monads.
-type RunnerM oeffs ts fs = Runner oeffs ts fs Monad 
-
 {-# INLINE run #-}
 run :: forall oeffs ts fs cs m x.
        cs m 

@@ -114,6 +114,6 @@ prog6' n
                    prog6' n'
 
 test10 :: IO (Either Int Int)
-test10 = handleIOApp (Proxy @'[PutStrLn])
+test10 = handleIO (Proxy @'[PutStrLn])
            (pingpongWith (prog6' @'[Yield Int Int, MapYield Int Int, PutStrLn])) 
            (prog6 0)

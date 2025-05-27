@@ -92,4 +92,4 @@ instance (Member Choose sigs, Member Empty sigs)
 
   {-# INLINE (<|>) #-}
 -- | Syntax for a choice of alternatives. This is a scoped operation.
-  xs <|> ys = call (Scp (Choose (fmap return xs) (fmap return ys)))
+  xs <|> ys = call (Scp (Choose xs ys))

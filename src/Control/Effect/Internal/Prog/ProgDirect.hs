@@ -17,7 +17,7 @@ module Control.Effect.Internal.Prog.ProgDirect (
 
   -- * Program constructors
   call, 
-  call',
+  callJ,
   callK,
   progAlg, 
   weakenProg, 
@@ -44,23 +44,23 @@ data Prog (effs :: [Effect]) a where
         -> (x -> Prog effs a)
         -> Prog effs a
 
--- | Construct a program of type @Prog effs a@ using an operation of type @eff (Prog effs) a@ with
--- an explicit continuation given as a function @a -> (Prog effs b)@.
+-- | Construct a program of type @Prog effs a@ using an operation @eff@.
+{-# INLINE call #-}
+call :: forall eff effs a . Member eff effs => eff (Prog effs) a -> Prog effs a
+call x = Call (inj x) Return
+
+-- | A variant of `call` with an continuation argument given as return values.
+-- Semantically, @callJ = join . `call`@. 
+{-# INLINE callJ #-}
+callJ :: forall eff effs a . Member eff effs => eff (Prog effs) (Prog effs a) -> Prog effs a
+callJ x = Call (inj x) id
+
+-- | A variant of `call` with an continuation argument given as a function.
+-- Semantically, @callK x k = `call` x >>= k@. 
 {-# INLINE callK #-}
-callK :: forall eff effs a b . (Member eff effs, HFunctor eff) 
+callK :: forall eff effs a b . Member eff effs 
       => eff (Prog effs) a -> (a -> Prog effs b) -> Prog effs b
 callK x k = Call (inj x) k
-
--- | Construct a program of type @Prog effs a@ using an operation of type @eff (Prog effs) (Prog effs a)@, 
--- when @eff@ is a member of @effs@.
-{-# INLINE call #-}
-call :: forall eff effs a . (Member eff effs, HFunctor eff) => eff (Prog effs) (Prog effs a) -> Prog effs a
-call x = Call (inj x) id
-
--- | A variant of `call` without the explicit continuation argument.
-{-# INLINE call' #-}
-call' :: forall eff effs a . (Member eff effs, HFunctor eff) => eff (Prog effs) a -> Prog effs a
-call' x = Call (inj x) Return
 
 instance Functor (Prog sigs) where
   {-# INLINE fmap #-}

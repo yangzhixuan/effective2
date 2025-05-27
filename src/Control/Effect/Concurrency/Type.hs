@@ -60,8 +60,7 @@ data Act_ a x = Act a x deriving Functor
 -- | Perform an action of type @a@.
 {-# INLINE act #-}
 act :: Member (Act a) sig => a -> Prog sig ()
-act a = call' (Alg (Act a ()))
-
+act a = call (Alg (Act a ()))
 
 -- | The signature for parallel composition.
 type Par = Scp Par_
@@ -72,7 +71,7 @@ data Par_ x = Par x x deriving Functor
 -- | Run two processes @l@ and @r@ in parallel.
 {-# INLINE par #-}
 par :: Member Par sig => Prog sig x -> Prog sig x -> Prog sig x
-par l r = call' (Scp (Par l r))
+par l r = call (Scp (Par l r))
 
 -- | The signature for joined parallel composition.
 type JPar = Distr JPar_
@@ -86,7 +85,7 @@ data JPar_ x = JPar x x deriving (Functor, Foldable, Traversable)
 -- to use `par` if possible.
 {-# INLINE jpar #-}
 jpar :: Member JPar sig => Prog sig x -> Prog sig x -> Prog sig (x, x)
-jpar l r = call' (Distr (JPar l r) (\(JPar x y) -> (x , y)))
+jpar l r = call (Distr (JPar l r) (\(JPar x y) -> (x , y)))
 
 -- | The signature for action restriction.
 type Res a = Scp (Res_ a)
@@ -98,7 +97,7 @@ data Res_ a x = Res a x deriving Functor
 -- a firewall blocking action @a@.
 {-# INLINE res #-}
 res :: Member (Res a) sig => a -> Prog sig x -> Prog sig x
-res a p = call' (Scp (Res a p))
+res a p = call (Scp (Res a p))
 
 instance Unary (Res_ a) where
   get (Res a x) = x

@@ -111,7 +111,7 @@ type CodeGen = Alg Gen
 
 -- | Generic code-generation operation.
 liftGen :: Member CodeGen sig => Gen a -> Prog sig a
-liftGen o = call' (Alg o)
+liftGen o = call (Alg o)
 
 -- | Generate a let-binding.
 genLet :: Member CodeGen sig => Up a -> Prog sig (Up a)
@@ -140,7 +140,7 @@ type CodeGenM m = Alg (GenM m)
 
 -- | Generic code-generation operation.
 liftGenM :: forall m sig a. Member (CodeGenM m) sig => GenM m a -> Prog sig a
-liftGenM o = call' (Alg o)
+liftGenM o = call (Alg o)
 
 -- | Generate a do-binding.
 genDo :: (Monad m, Member (CodeGenM m) sig) => Up (m a) -> Prog sig (Up a)

@@ -12,6 +12,7 @@ Stability   : experimental
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE MonoLocalBinds #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE MagicHash #-}
 
 module Control.Effect.IO (
   -- * Syntax
@@ -19,7 +20,7 @@ module Control.Effect.IO (
   liftIO, getLine, putStrLn, putStr, getCPUTime, newQSem, signalQSem, waitQSem,
 
   -- ** Signatures
-  IOEffects,
+  IOEffects, IOAlgOps,
   GetLine, GetLine_(..),
   PutStrLn, PutStrLn_(..),
   PutStr, PutStr_(..),
@@ -33,9 +34,9 @@ module Control.Effect.IO (
   evalIO,
   handleIO,
   handleIO',
-  handleIOApp,
 
   -- * Algebras
+  ioAlgAlg,
   ioAlg,
   nativeAlg,
   putStrLnAlg,
@@ -51,6 +52,7 @@ module Control.Effect.IO (
   where
 
 import Control.Effect
+import Control.Effect.Internal.Handler
 import Control.Effect.Family.Algebraic
 import Control.Effect.Family.Scoped
 import Control.Effect.Family.Distributive
@@ -66,28 +68,32 @@ import Data.HFunctor
 import Prelude hiding (getLine, putStrLn, putStr)
 import qualified Prelude as Prelude
 
--- | The effects operations that the IO monad supports natively
-type IOEffects = '[ Alg IO
+-- | The algebraic operations that the IO monad supports natively
+type IOAlgOps = '[ Alg IO
                   , GetLine
                   , PutStrLn
                   , PutStr
                   , GetCPUTime
-                  , Par
-                  , JPar
                   , NewQSem
                   , SignalQSem
                   , WaitQSem
                   ]
 
+-- | All effectful operations that the IO monad supports natively
+type IOEffects = IOAlgOps :++ '[Par, JPar]
+
+-- | Interprets IO algebraic operations using their standard semantics in `IO`.
+ioAlgAlg :: Algebra IOAlgOps IO
+ioAlgAlg = nativeAlg # getLineAlg # putStrLnAlg # putStrAlg # getCPUTimeAlg 
+             # newQSemAlg # signalQSemAlg # waitQSemAlg 
+
 -- | Interprets IO operations using their standard semantics in `IO`.
 ioAlg :: Algebra IOEffects IO
-ioAlg = nativeAlg # getLineAlg # putStrLnAlg # putStrAlg # getCPUTimeAlg 
-        # parAlg # jparAlg # newQSemAlg # signalQSemAlg # waitQSemAlg
-
+ioAlg = ioAlgAlg # parAlg # jparAlg 
 
 -- | Treating an IO computation as an operation of signature `Alg IO`. 
 liftIO :: Members '[Alg IO] sig => IO a -> Prog sig a
-liftIO o = call' (Alg o)
+liftIO o = call (Alg o)
 
 -- | Algebra for the generic algebraic IO effect
 nativeAlg :: Algebra '[Alg IO] IO
@@ -101,7 +107,7 @@ data GetLine_ k  = GetLine (String -> k) deriving Functor
 
 -- | Read a line from from standard input device.
 getLine :: Members '[GetLine] sig => Prog sig String
-getLine = call (Alg (GetLine return))
+getLine = call (Alg (GetLine id))
 
 -- | Signature for `Control.Effect.IO.putStrLn`.
 type PutStrLn = Alg PutStrLn_
@@ -110,7 +116,7 @@ data PutStrLn_ k = PutStrLn String k     deriving Functor
 
 -- | Write a string to the standard output device, and add a newline character.
 putStrLn :: Members '[PutStrLn] sig => String -> Prog sig ()
-putStrLn str = call (Alg (PutStrLn str (return ())))
+putStrLn str = call (Alg (PutStrLn str ()))
 
 -- | Signature for `Control.Effect.IO.putStr`.
 type PutStr = Alg PutStr_
@@ -119,7 +125,7 @@ data PutStr_ k = PutStr String k     deriving Functor
 
 -- | Write a string to the standard output device.
 putStr :: Members '[PutStr] sig => String -> Prog sig ()
-putStr str = call (Alg (PutStr str (return ())))
+putStr str = call (Alg (PutStr str ()))
 
 -- | Signature for `Control.Effect.IO.getCPUTime`.
 type GetCPUTime = Alg (GetCPUTime_)
@@ -129,7 +135,7 @@ data GetCPUTime_ k = GetCPUTime (Integer -> k) deriving Functor
 -- | Returns the number of picoseconds CPU time used by the current
 -- program.
 getCPUTime :: Members '[GetCPUTime] sig => Prog sig Integer
-getCPUTime = call (Alg (GetCPUTime return))
+getCPUTime = call (Alg (GetCPUTime id))
 
 -- | Interprets `Control.Effects.IO.getLine` using `Prelude.getLine` from "Prelude".
 getLineAlg :: Algebra '[GetLine] IO
@@ -188,7 +194,7 @@ data NewQSem_ k = NewQSem Int (QSem.QSem -> k) deriving Functor
 -- | Create a new quantity semaphore with the given initial quantity,
 -- which should be non-negative.
 newQSem :: Members '[NewQSem] sig => Int -> Prog sig QSem.QSem
-newQSem n = call (Alg (NewQSem n return))
+newQSem n = call (Alg (NewQSem n id))
 
 -- | Interprets t`Control.Effect.IO.NewQSem` using `Control.Concurrent.QSem.newQSem`.
 newQSemAlg :: Algebra '[NewQSem] IO
@@ -205,7 +211,7 @@ data SignalQSem_ k = SignalQSem QSem.QSem k deriving Functor
 
 -- | Signal that a unit of the semaphore is available
 signalQSem :: Members '[SignalQSem] sig => QSem.QSem -> Prog sig ()
-signalQSem q = call (Alg (SignalQSem q (return ())))
+signalQSem q = call (Alg (SignalQSem q ()))
 
 -- | Interprets t`Control.Effect.IO.SignalQSem` using `Control.Concurrent.QSem.signalQSem`.
 signalQSemAlg :: Algebra '[SignalQSem] IO
@@ -222,7 +228,7 @@ data WaitQSem_ k = WaitQSem QSem.QSem k deriving Functor
 
 -- | Wait for the semaphore to be available.
 waitQSem :: Members '[WaitQSem] sig => QSem.QSem -> Prog sig ()
-waitQSem q = call (Alg (WaitQSem q (return ())))
+waitQSem q = call (Alg (WaitQSem q ()))
 
 -- | Interprets t`Control.Effect.IO.WaitQSem` using `Control.Concurrent.QSem.waitQSem`.
 waitQSemAlg :: Algebra '[WaitQSem] IO
@@ -236,30 +242,31 @@ waitQSemAlg eff
 evalIO :: Prog IOEffects a -> IO a
 evalIO = eval ioAlg
 
-type AutoHandleIO effs oeffs xeffs = 
+type HandleIO# effs oeffs xeffs = 
   ( Injects (xeffs :\\ effs) xeffs
   , Append effs (xeffs :\\ effs)
   , HFunctor (Effs (effs `Union` xeffs)))
 
 -- | @`handleIO` h p@ evaluates @p@ using the handler @h@. The handler may
--- output some effects @xeffs@ that are a subset of the IO effects and
--- the program may also use @xeffs@ .
+-- output some effects that are a subset of the IO effects and additionally
+-- the program may also use a subset @xeffs@ of the IO effects (which must
+-- be forwardable through the monad transformer @ts@).
 -- The type argument @xeffs@ usually can't be inferred and needs given
 -- explicitly. 
-
 handleIO
   :: forall xeffs effs oeffs ts fs a
-  . ( Injects oeffs xeffs
+  . ( Injects oeffs IOEffects
     , ForwardsM xeffs ts
     , Monad (Apply ts IO)
     , Injects xeffs IOEffects
-    , AutoHandleIO effs oeffs xeffs )
+    , HandleIO# effs oeffs xeffs )
   => Proxy xeffs -> Handler effs oeffs ts fs
   -> Prog (effs `Union` xeffs) a -> IO (Apply fs a)
-handleIO _ = handleM @effs @oeffs @xeffs (ioAlg . injs)
+handleIO p h = handleMFwds p ioAlg h
 
 -- | @`handleIO'` h p@ evaluates @p@ using the handler @h@. Any residual
--- effects are then interpreted in `IO` using their standard semantics.
+-- effects are then interpreted in `IO` using their standard semantics, but
+-- IO effects are not forwarded along the handler.
 handleIO'
   :: forall effs oeffs ts fs a
   . ( Injects oeffs IOEffects
@@ -268,21 +275,3 @@ handleIO'
   => Handler effs oeffs ts fs
   -> Prog effs a -> IO (Apply fs a)
 handleIO' = handleM' @effs @oeffs ioAlg
-
-
--- | @`handleIO'` h p@ evaluates @p@ using the handler @h@. Any residual
--- effects @xeffs@ are then interpreted in `IO` using their standard semantics.
--- The type argument @xeffs@ usually can't be inferred and needs given
--- explicitly. 
-handleIOApp :: forall xeffs effs oeffs ts fs a .
-  ( Monad (Apply ts IO)
-  , ForwardsM xeffs ts
-  , Injects oeffs xeffs
-  , Append effs xeffs
-  , HFunctor (Effs (effs :++ xeffs))
-  , Injects xeffs IOEffects )
-  => Proxy xeffs -> Handler effs oeffs ts fs
-  -> Prog (effs :++ xeffs) a
-  -> IO (Apply fs a)
-
-handleIOApp _ = handleMApp @effs @oeffs @xeffs (ioAlg . injs) 

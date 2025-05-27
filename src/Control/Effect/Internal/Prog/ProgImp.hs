@@ -22,7 +22,7 @@ module Control.Effect.Internal.Prog.ProgImp (
 
   -- * Program constructors
   call, 
-  call', 
+  callJ, 
   callK,
   progAlg, 
   weakenProg, 
@@ -40,30 +40,30 @@ import Control.Applicative
 #endif
 import Control.Monad
 
+-- | The impredicative-encoding of effectful programs
 newtype Prog (effs :: [Effect]) a = Prog { runProg :: forall m. Monad m => Algebra effs m -> m a }
 
--- | Construct a program of type @Prog effs a@ using an operation of type @eff (Prog effs) (Prog effs a)@, 
--- when @eff@ is a member of @effs@.
+-- | Construct a program of type @Prog effs a@ using an operation @eff@.
 {-# INLINE call #-}
-call :: forall eff effs a . (Member eff effs, HFunctor eff) => eff (Prog effs) (Prog effs a) -> Prog effs a
+call :: forall eff effs a . (Member eff effs, HFunctor eff) => eff (Prog effs) a -> Prog effs a
 call x = Prog $ \(alg :: Algebra effs m) ->
-  let r :: forall x. Prog effs x -> m x
-      r p = runProg p alg 
-  in join (alg (inj (fmap r (hmap r x))))
-
--- | A variant of `call` without the explicit continuation argument.
-{-# INLINE call' #-}
-call' :: forall eff effs a . (Member eff effs, HFunctor eff) => eff (Prog effs) a -> Prog effs a
-call' x = Prog $ \(alg :: Algebra effs m) ->
   let r :: forall x. Prog effs x -> m x
       r p = runProg p alg 
   in alg (inj (hmap r x))
 
--- | A variant of `call` where the continuation is given as a function.
+-- | A variant of `call` with an continuation argument given as return values.
+-- Semantically, @callJ = join . `call`@. 
+{-# INLINE callJ #-}
+callJ :: forall eff effs a . (Member eff effs, HFunctor eff) 
+     => eff (Prog effs) (Prog effs a) -> Prog effs a
+callJ = join . call
+
+-- | A variant of `call` with an continuation argument given as a function.
+-- Semantically, @callK x k = `call` x >>= k@. 
 {-# INLINE callK #-}
 callK :: forall eff effs a b . (Member eff effs, HFunctor eff) 
       => eff (Prog effs) a -> (a -> Prog effs b) -> Prog effs b
-callK x k = call' x >>= k
+callK x k = call x >>= k
 
 -- | Construct a program from an operation in a union.
 {-# INLINE progAlg #-}

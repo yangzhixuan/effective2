@@ -60,7 +60,7 @@ instance HFunctor ParUp where
 
 -- | Restricted par operation
 parUp :: Member ParUp sig => Prog sig (Up x) -> Prog sig (Up x) -> Prog sig (Up x)
-parUp p q = call' (ParUp p q id)
+parUp p q = call (ParUp p q id)
 
 -- | The operation `par` on `CResT` needs to perform pattern matching on the resumption
 -- monad, but `CResUpT` can't be pattern matched. Therefore here we simply

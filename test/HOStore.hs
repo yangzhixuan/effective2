@@ -3,8 +3,8 @@ module Main where
 
 import Prelude hiding (or)
 import Control.Effect
-import Control.Effect.HOStore.Unsafe
-import qualified Control.Effect.HOStore.Safe as Safe
+import Control.Effect.HStore.Unsafe
+import qualified Control.Effect.HStore.Safe as Safe
 import qualified Control.Effect.State as St
 import Control.Effect.Nondet
 import Data.List.Kind

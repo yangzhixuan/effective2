@@ -355,11 +355,11 @@ generalFuse p1 p2 (Handler r1 a1) (Handler r2 a2)
 -- and the handler must produce no effects.
 
 {-# INLINE handle #-}
-handle :: forall effs ts f a .
+handle :: forall effs ts fs a .
   (Monad (Apply ts Identity), HFunctor (Effs effs))
-  => Handler effs '[] ts f        -- ^ Handler @h@ with no output effects
+  => Handler effs '[] ts fs        -- ^ Handler @h@ with no output effects
   -> Prog effs a                  -- ^ Program @p@ with effects @effs@
-  -> Apply f a
+  -> Apply fs a
 handle (Handler run halg)
   = runIdentity . LL.run run absurdEffs . eval (getAT halg (absurdEffs @Identity))
 
@@ -413,7 +413,6 @@ handleMFwds :: forall yeffs effs oeffs xeffs m ts fs a .
   , Injects oeffs xeffs
   , Injects yeffs xeffs
   , ForwardsM yeffs ts
-  , HFunctor (Effs effs) 
   , HandleM# effs yeffs )
   => Proxy yeffs                     -- ^ @yeffs@ can't be infered so must be given explicitly
   -> Algebra xeffs m                 -- ^ Algebra @xalg@ for external effects @xeffs@
