@@ -17,8 +17,8 @@ module Control.Effect.Cut where
 import Prelude hiding (or)
 
 import Control.Effect
-import Control.Effect.Algebraic
-import Control.Effect.Scoped
+import Control.Effect.Family.Algebraic
+import Control.Effect.Family.Scoped
 import Control.Effect.Alternative
 import Control.Effect.Nondet
 import Control.Monad.Trans.CutList
@@ -63,7 +63,7 @@ cut = or skip cutFail
 
 -- | Execute a computation within a t`CutCall` scope.
 cutCall :: Member CutCall sig => Prog sig a -> Prog sig a
-cutCall p = call (Scp (CutCall (fmap return p)))
+cutCall p = call (Scp (CutCall p))
 
 -- | Execute a computation within a t`CutCall` scope using a monadic handler.
 cutCallM :: (Monad m, Member CutCall sig)
@@ -85,18 +85,25 @@ cutListAlg oalg op
   | Just (Alg CutFail)         <- prj op = CutListT (\cons nil zero -> zero)
   | Just (Scp (CutCall xs))    <- prj op = CutListT (\cons nil zero -> runCutListT xs cons nil nil)
 
--- | A handler for the t`CutListT` monad transformer.
-cutList :: Handler [Empty, Choose, CutFail, CutCall] '[] CutListT []
-cutList = handler fromCutListT cutListAlg
+cutListAT :: AlgTrans [Empty, Choose, CutFail, CutCall] '[] '[CutListT] Monad
+cutListAT = AlgTrans cutListAlg
 
+-- | A handler for the t`CutListT` monad transformer.
+cutList :: Handler [Empty, Choose, CutFail, CutCall] '[] '[CutListT] '[[]]
+cutList = handler' fromCutListT cutListAlg
 
 -- | A handler for the t`Once` effect using t`CutCall` and t`CutFail`.
-onceCut :: Handler '[Once] '[CutCall, CutFail, Choose] IdentityT Identity
+onceCut :: Handler '[Once] '[CutCall, CutFail, Choose] '[] '[]
 onceCut = interpretM onceCutAlg
 
+-- | Transforming the operation t`Once` to t`CutCall`, t`CutFail`, and `Choose`.
+onceCutAT :: AlgTrans '[Once] '[CutCall, CutFail, Choose] '[] Monad
+onceCutAT = AlgTrans onceCutAlg
+
 -- | The algebra for handling the t`Once` effect with t`CutCall` and t`CutFail`.
-onceCutAlg :: forall oeff m . (Monad m , Members [CutCall, CutFail, Choose] oeff)
-  => (forall x. Effs oeff m x -> m x)
+onceCutAlg :: forall m . 
+     Monad m
+  => (forall x. Effs '[CutCall, CutFail, Choose] m x -> m x)
   -> (forall x. Effs '[Once] m x -> m x)
 onceCutAlg oalg op
   | Just (Scp (Once p)) <- prj op
@@ -105,5 +112,5 @@ onceCutAlg oalg op
                                     return x))
 
 -- | A combined handler for t`Once`, t`Empty`, t`Choose`, t`CutFail`, and t`CutCall` effects.
-onceNondet :: Handler '[Once, Empty, Choose, CutFail, CutCall] '[] CutListT []
+onceNondet :: Handler '[Once, Empty, Choose, CutFail, CutCall] '[] '[CutListT] '[[]]
 onceNondet = onceCut |> cutList

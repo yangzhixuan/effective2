@@ -17,8 +17,14 @@ module Control.Effect
   , Prog
   , Effs (Eff, Effs)
   , call
+  , callJ
+  , callK
+  , callM
+  , callM'
   , weakenProg
+  , progAlg
   , Effect
+  , Identity
 
   -- * Operations
   , Member(..)
@@ -30,49 +36,73 @@ module Control.Effect
 
   -- * Algebras
   , Algebra
+  , singAlgIso
   , (#)
+  , weakenAlg
   , Forward (..)
   , Forwards (..)
+  , ForwardsM (..)
+  , ForwardsC (..)
   , absurdEffs
 
-  -- * Handlers
+  -- * Handler combinators
   , Handler (..)
   , handler
-  , interpret
-  , interpretM
+  , handler'
   , identity
+  , comp
+  , weaken
+  , hide
+  , bypass
+  , fromAT
+  , interpret, interpretAT
+  , interpret1, interpretAT1
+  , interpretM
+  , caseHdl
+  , unionHdl
+
+  -- ** Fusion-based combinators
   , fuse, (|>)
   , pipe, (||>)
-  , hide
+  , pass
+  , generalFuse
+
+  -- * Algebra transformers
+  , AlgTrans (..)
+  , asAT
+  , idAT
+  , compAT
+  , weakenAT
+  , algTrans1
+  , fuseAT, fuseAT'
+  , pipeAT
+  , passAT
+  , generalFuseAT
+
 
   -- * Evaluation
   , eval
-  , fold
   , handle
   , handleM
+  , handleP
+  , handleM'
+  , handleP'
+  , handleMApp
+  , handlePApp
+  , evalAT
+  , evalAT'
 
-  -- * Type families
-  -- | The types of handlers are normalised when they are fused together, as are
-  -- any results when a handler is applied. This normalisation removes unnecessary
-  -- t`Identity`, t`Compose`, t`IdentityT`, and t`ComposeT` functors.
+  -- * Auxiliary types
   , Apply
-  , HApply
-  , RAssoc
-  , HRAssoc
-
-  -- * Re-exports
-  , Compose(..)
-  , Identity(..)
-  , ComposeT(..)
-  , IdentityT(..)
+  , Proxy (..)
   ) where
-
-import Data.Functor.Identity
-import Data.Functor.Compose
-import Control.Monad.Trans.Identity
-import Control.Monad.Trans.Compose
 
 import Control.Effect.Internal.Prog
 import Control.Effect.Internal.Effs
 import Control.Effect.Internal.Handler
+import Control.Effect.Internal.AlgTrans
+import Control.Effect.Internal.AlgTrans.Type
 import Control.Effect.Internal.Forward
+import Data.Functor.Identity
+import Data.List.Kind
+import Data.Proxy

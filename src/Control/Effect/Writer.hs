@@ -23,17 +23,25 @@ module Control.Effect.Writer (
   -- ** Handlers
   writer,
   writer_,
+  writerIO,
   censors,
   uncensors,
 
   -- ** Algebras
   writerAlg,
+  writerAT,
+  censorAT,
+
+  -- ** Underlying monad transformers
+  W.WriterT(..)
 ) where
 
 import Control.Effect
-import Control.Effect.Algebraic
-import Control.Effect.Scoped
+import Control.Effect.Family.Algebraic
+import Control.Effect.Family.Scoped
+import Control.Effect.IO (liftIO)
 
+import qualified Data.Functor.Unary as U
 import Data.Tuple (swap)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Reader
@@ -48,9 +56,12 @@ data Tell_ w k where
 
 -- | @`tell` w@ produces the output @w@.
 tell :: (Member (Tell w) sig, Monoid w) => w -> Prog sig ()
-tell w = call (Alg (Tell w (return ())))
+tell w = call (Alg (Tell w ()))
 
--- | The algebra for the `writer` handler.
+-- | The algebra transformer for the `writer` handler.
+writerAT :: Monoid w => AlgTrans '[Tell w] '[] '[W.WriterT w] Monad
+writerAT = AlgTrans writerAlg
+
 writerAlg
   :: (Monad m, Monoid w)
   => (forall x. oeff m x -> m x)
@@ -62,13 +73,20 @@ writerAlg _ eff
 
 -- | The `writer` handler consumes `tell` operations, and
 -- returns the final state @w@.
-writer :: Monoid w => Handler '[Tell w] '[] (W.WriterT w) ((,) w)
-writer = handler (fmap swap . W.runWriterT) writerAlg
+writer :: Monoid w => Handler '[Tell w] '[] '[W.WriterT w] '[(,) w]
+writer = handler' (fmap swap . W.runWriterT) writerAlg
 
 -- | The `writer_` handler deals with `tell` operations, and
 -- silently discards the final state.
-writer_ :: Monoid w => Handler '[Tell w] '[] (W.WriterT w) Identity
-writer_ = handler (fmap (Identity . fst) . W.runWriterT) writerAlg
+writer_ :: Monoid w => Handler '[Tell w] '[] '[W.WriterT w] '[]
+writer_ = handler' (fmap fst . W.runWriterT) writerAlg
+
+-- | The `writerIO` handler translates `tell` operations to 
+-- physical IO printing.
+writerIO :: Handler '[Tell String] '[Alg IO] '[] '[]
+writerIO = interpret $
+  \(Eff (Alg (Tell w k))) -> do liftIO (putStr w)
+                                return k
 
 -- | Signature for 'censor'.
 type Censor w = Scp (Censor_ w)
@@ -77,20 +95,25 @@ data Censor_ w k where
   Censor :: (w -> w) -> k -> Censor_ w k
   deriving Functor
 
+instance U.Unary (Censor_ w) where
+  get (Censor c x) = x
+
 -- | The @`censor` f p@ operation executes program @p@ with output censored
 -- by @f@.
 censor :: Member (Censor w) sig => (w -> w) -> Prog sig a -> Prog sig a
-censor cipher p = call (Scp (Censor cipher (fmap return p)))
+censor cipher p = call (Scp (Censor cipher p))
 
 -- | The @`censors` f@ handler applies an initial function @f@ to the
 -- any output produced by `tell`. If a @`censor` f' p@ operation is encountered,
 -- @p@ will be censored by the composition @f . f'@, and the `censor` operation
 -- will be consumed.
-censors :: forall w . Monoid w => (w -> w) -> Handler '[Tell w, Censor w] '[Tell w]  (ReaderT (w -> w)) Identity
-censors cipher = handler run alg where
-  run :: Monad m => (forall x. ReaderT (w -> w) m x -> m (Identity x))
-  run (ReaderT mx) = fmap Identity (mx cipher)
+censors :: forall w . (w -> w) -> Handler '[Tell w, Censor w] '[Tell w] '[ReaderT (w -> w)] '[]
+censors cipher = handler' run (getAT censorAT) where
+  run :: Monad m => (forall x. ReaderT (w -> w) m x -> m x)
+  run (ReaderT mx) = mx cipher
 
+censorAT :: AlgTrans '[Tell w, Censor w] '[Tell w] '[ReaderT (w -> w)] Monad
+censorAT = AlgTrans alg where
   alg :: Monad m
       => (forall x. Effs '[Tell w] m x -> m x)
       -> (forall x. Effs '[Tell w, Censor w] (ReaderT (w -> w) m) x -> ReaderT (w -> w) m x)
@@ -103,12 +126,9 @@ censors cipher = handler run alg where
            lift (runReaderT k (cipher . cipher'))
 
 -- | The `uncensors` handler removes any occurrences of `censor`.
-uncensors :: forall w . Monoid w => Handler '[Censor w] '[] IdentityT Identity
-uncensors = handler run alg where
-  run :: Monad m => (forall x. IdentityT m x -> m (Identity x))
-  run (IdentityT mx) = fmap Identity mx
-
+uncensors :: forall w . Handler '[Censor w] '[] '[] '[]
+uncensors = handler' id alg where
   alg :: Monad m
       => (forall x. Effs '[] m x -> m x)
-      -> (forall x. Effs '[Censor w] (IdentityT m) x -> IdentityT m x)
+      -> (forall x. Effs '[Censor w] m x -> m x)
   alg oalg (Eff (Scp (Censor (_ :: w -> w) k))) = k

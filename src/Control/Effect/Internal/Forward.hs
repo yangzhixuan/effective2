@@ -1,100 +1,135 @@
 {-|
 Module      : Control.Effect.Internal.Forward
-Description : Forwarding algebras
+Description : Default forwarding algebras
 License     : BSD-3-Clause
-Maintainer  : Nicolas Wu
+Maintainer  : Nicolas Wu, Zhixuan Yang
 Stability   : experimental
+
+This module provides a class @ForwardsC cs effs ts@ that associates the transformer
+stack @ts@ with an algebra transformer @`fwdsC` :: AlgTrans effs effs ts cs@ that is
+expected to be 'the canonical way' to forward the effects @effs@ along @ts@.
 -}
 
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UndecidableSuperClasses #-}
 {-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE GADTs #-}
 
-module Control.Effect.Internal.Forward where
+module Control.Effect.Internal.Forward
+  ( Forward (..)
+  , ForwardEffs (..)
+  , Forwards (..)
+  , ForwardsC (..)
+  , ForwardsM (..)
+  ) where
+
+import Control.Effect.Internal.AlgTrans.Type
 import Control.Effect.Internal.Effs
 
-import Data.Kind ( Type )
+import Data.Kind 
 import Data.HFunctor
-import Data.List.Kind
+#ifdef INDEXED
 import GHC.TypeNats
-import Control.Monad.Trans.Identity
-import Control.Monad.Trans.Compose
-import Control.Monad.Trans.Class
+import Data.List.Kind
+#endif
 
--- | The class demonstrating that an effect @eff@ can be forwarded through a transformer @t@.
-class Forward (eff :: Effect) (t :: Effect) where
-  -- | @fwd alg@ is a higher-order @eff@ algebra with carrier @m@ that will
-  -- create an @eff@ algebra with carrier @t m@.
-  fwd :: forall m . (Monad m)
-       => (forall x . eff m x  -> m x)
+-- | The class demonstrating that an effect @eff@ on every type constructor satisfying @cs@
+-- can be forwarded through a transformer @t@.
+-- This is a typeclass that is expected to be instantiated by the user of @effective@ for 
+-- user-defined transformers @t@, but the user should /use/ the typeclass `Forwards` or `ForwardsC`
+-- that automatically deal with forwarding a list of effects along a list of transformers.
+class Forward (eff :: Effect) (t :: (Type -> Type) -> (Type -> Type)) where
+  -- | @FwdConstraint eff t@ is the constraint that the carrier needs to satisfy in order 
+  -- to forward the effect @eff@. The default value is the constraint `Monad`.
+  type FwdConstraint eff t :: (Type -> Type) -> Constraint 
+  type FwdConstraint eff t = Monad
+
+  -- | @fwd@ constructs an @eff@-algebra on @t m@ given an @eff@-algebra on @m@, for every
+  -- @m :: * -> *@ satisfying the constraint @FwdConstraint eff t@.
+  fwd :: forall m . FwdConstraint eff t m
+       => (forall x . eff m x     -> m x)
        -> (forall x . eff (t m) x -> t m x)
+
+{-
+-- In theory the following instance is very useful but it causes conflicting
+-- definitions of the associated type family @FwdConstraint@ with the instance
+-- @Forward (Alg sig) t@, and I don't know how to workaround it.
+
+instance HFunctor eff => Forward eff IdentityT where
+  type FwdConstraint eff IdentityT = Functor
+  fwd alg = IdentityT . alg . hmap runIdentityT
+-}
 
 -- | This class builds a forwarder for an t`Effs` by recursion over @effs@,
 -- by ensuring that each effect can be forwarded through a given @t@.
+-- This is an internal typeclass that the user of @effective@ don't need
+-- to use explicitly.
 class ForwardEffs effs (t :: (Type -> Type) -> (Type -> Type))  where
-  fwdEffs :: forall m . Monad m
-    => Algebra effs m
-    -> Algebra effs (t m)
+  type FwdEffsConstraint effs t :: (Type -> Type) -> Constraint
+  fwdEffs :: AlgTrans effs effs '[t] (FwdEffsConstraint effs t)
 
 instance ForwardEffs '[] t where
+  type FwdEffsConstraint '[] t = TruthC
+
   {-# INLINE fwdEffs #-}
-  fwdEffs :: forall m . Monad m
-    => Algebra '[] (m)
-    -> Algebra '[] (t m)
-  fwdEffs alg = absurdEffs
+  fwdEffs :: AlgTrans '[] '[] '[t] TruthC
+  fwdEffs = AlgTrans $ \_ -> absurdEffs
 
-instance (HFunctor eff, Forward eff t, ForwardEffs effs t, KnownNat (Length effs), KnownNat (1 + Length effs)) => ForwardEffs (eff ': effs) t where
-  {-# INLINE fwdEffs #-}
-  fwdEffs :: forall m . Monad m => Algebra (eff ': effs) m -> Algebra (eff ': effs) (t m)
-  fwdEffs alg (Eff op)   = fwd (alg . Eff) op
-  fwdEffs alg (Effs ops) = fwdEffs (alg . Effs) ops
-
--- The `Forwards` class forwards effects through a transformer stack, assuming
--- that for each member of the stack, all operations in `effs` can be forwarded.
--- class (forall m . Monad m => Monad (HComps ts m)) => Forwards effs ts where
---   fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (HComps ts m)
---
--- instance Forwards effs '[] where
---   fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (HComps '[] m)
---   fwds alg = HNil . alg . hmap unHNil
---
--- instance (forall m . Monad m => Monad (t (HComps ts m)), ForwardEffs effs t, Forwards effs ts)
---   => Forwards effs (t ': ts) where
---   fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (HComps (t ': ts) m)
---   fwds alg x = HCons . fwdEffs (fwds alg) . hmap unHCons $ x
-
--- | This provides the `fwds` function, which forwards an algebra with carrier
--- @m@ into an algebra with carrier @t m@.
-class Forwards effs t where
-  fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (t m)
-
-instance ForwardEffs effs t => Forwards effs t where
-  {-# INLINE fwds #-}
-  fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (t m)
-  fwds alg = fwdEffs alg
-
-instance {-# OVERLAPS #-} HFunctor (Effs effs) => Forwards effs IdentityT where
-  {-# INLINE fwds #-}
-  fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (IdentityT m)
-  fwds alg = IdentityT . alg . hmap runIdentityT
-
-
-#if MIN_VERSION_base(4,18,0)
-instance {-# OVERLAPS #-} 
-  ( MonadTrans t1, MonadTrans t2
-  , ForwardEffs effs t1, Forwards effs t2
-  , HFunctor (Effs effs)
-  )
-#else
-instance {-# OVERLAPS #-} (MonadTrans t1, MonadTrans t2, ForwardEffs effs t1, Forwards effs t2
-  , forall m . Monad m => Monad (t2 m)
-  , forall m . Monad m => Monad (t1 (t2 m))
-  , HFunctor (Effs effs)
-  )
+instance ( HFunctor eff
+         , Forward eff t
+         , ForwardEffs effs t 
+#ifdef INDEXED
+         , KnownNat (Length effs), KnownNat (1 + Length effs)
 #endif
-  => Forwards effs (ComposeT t1 t2) where
+         ) 
+         => ForwardEffs (eff ': effs) t where
+
+  type FwdEffsConstraint (eff ': effs) t = AndC (FwdConstraint eff t) (FwdEffsConstraint effs t)
+
+  {-# INLINE fwdEffs #-}
+  fwdEffs :: AlgTrans (eff ': effs) (eff ': effs) '[t] (FwdEffsConstraint (eff ': effs) t)
+  fwdEffs = AlgTrans $ \alg -> \case
+    (Eff op)   -> fwd @_ @t (alg . Eff) op
+    (Effs ops) -> getAT (fwdEffs @_ @t)  (alg . Effs) ops
+
+
+-- | This class builds a forwarder for an t`Effs` along a list @ts@ of transformers 
+-- by ensuring that each transformer in @ts@ can forward @effs@.
+-- This class is expected to be used by the user of @effective@ whenever they need 
+-- to assert that some transformers can forward some effects, but this class is not
+-- expected to be instantiated by the user because the following instances reduce
+-- @Forwards effs ts@ to @`Forward` cs eff t@ for every @t@ in @ts@ and every
+-- @eff@ in @effs@.
+class Forwards effs ts where
+  type FwdsConstraint effs ts :: (Type -> Type) -> Constraint
+  fwds :: AlgTrans effs effs ts (FwdsConstraint effs ts)
+
+instance Forwards effs '[] where
+  type FwdsConstraint effs '[] = TruthC
+
   {-# INLINE fwds #-}
-  fwds :: forall m . Monad m => Algebra effs m -> Algebra effs (ComposeT t1 t2 m)
-  fwds alg x = ComposeT . fwdEffs (fwds alg) . hmap getComposeT $ x
+  fwds :: AlgTrans effs effs '[] (FwdsConstraint effs '[])
+  fwds = AlgTrans $ \alg -> alg 
+
+instance (ForwardEffs effs t, Forwards effs ts) => Forwards effs (t ': ts) where
+  type FwdsConstraint effs (t ': ts) = 
+    CompC ts (FwdEffsConstraint effs t) (FwdsConstraint effs ts)
+
+  {-# INLINE fwds #-}
+  fwds :: AlgTrans effs effs (t ': ts) (FwdsConstraint effs (t ': ts))
+  fwds = AlgTrans $ \(alg :: Algebra effs m) -> 
+    getAT (fwdEffs @_ @t) (getAT (fwds @_ @ts) alg)
+
+-- | @ForwardsC cs effs ts@ if and only if effects @effs@ on @m@ can be transformed along
+-- the transformer stack @ts@ on input satisfying the constraint @cs@.
+class    (Forwards effs ts, ImpliesC cs (FwdsConstraint effs ts)) => ForwardsC cs effs ts where
+instance (Forwards effs ts, ImpliesC cs (FwdsConstraint effs ts)) => ForwardsC cs effs ts where
+
+-- | @ForwardsM effs ts@ if and only if effects @effs@ on every monad @m@ can be 
+-- transformed along the transformer stack @ts@.
+class    (Forwards effs ts, ImpliesC Monad (FwdsConstraint effs ts)) => ForwardsM effs ts where
+instance (Forwards effs ts, ImpliesC Monad (FwdsConstraint effs ts)) => ForwardsM effs ts where

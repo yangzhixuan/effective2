@@ -1,6 +1,6 @@
 {-|
 Module      : Control.Effect.Alternative
-Description : Effects for alternatives with choose and empty.
+Description : Effects for alternatives with choose and empty
 License     : BSD-3-Clause
 Maintainer  : Nicolas Wu
 Stability   : experimental
@@ -35,13 +35,12 @@ module Control.Effect.Alternative (
   alternative,
 
   -- ** Algebras
-  alternativeAlg,
+  alternativeAT,
 ) where
 
 import Control.Effect
-    ( Algebra, Member, prj, Prog, call, Handler(Handler) )
-import Control.Effect.Algebraic
-import Control.Effect.Scoped
+import Control.Effect.Family.Algebraic
+import Control.Effect.Family.Scoped
 
 import Control.Applicative ( Alternative(empty, (<|>)) )
 
@@ -64,18 +63,22 @@ data Choose_ a where
 -- for any monad @m@ to provide semantics.
 alternative
   :: forall t f
-  . (Monad f, Alternative f
-  , forall m . Monad m => Alternative (t m))
+  .  (forall m . Monad m => Alternative (t m))
   => (forall m . Monad m => (forall a . t m a -> m (f a)))
-  -> Handler '[Empty, Choose] '[] t f
-alternative run = Handler (\_ -> run) alternativeAlg
+  -> Handler '[Empty, Choose] '[] '[t] '[f]
+alternative run = handler' run alternativeAlg
 
--- | The algebra that corresponds to the 'alternative' handler. This uses an
+-- | The algebra transformer underlying the 'alternative' handler. This uses an
 -- underlying 'Alternative' instance for @t m@ given by a transformer @t@.
+alternativeAT
+  :: forall t. (forall m . Monad m => Alternative (t m))
+  => AlgTrans '[Empty, Choose] '[] '[t] Monad
+alternativeAT = AlgTrans alternativeAlg
+
 alternativeAlg
-  :: forall oeffs t m . (Alternative (t m), Functor m)
-  => (Algebra oeffs m)
-  -> (Algebra [Empty , Choose] (t m))
+  :: forall oeffs t . (forall m . Monad m => Alternative (t m))
+  => forall m. Monad m 
+  => Algebra oeffs m -> Algebra [Empty, Choose] (t m)
 alternativeAlg oalg eff
   | (Just (Alg Empty))          <- prj eff = empty
   | (Just (Scp (Choose xs ys))) <- prj eff = xs <|> ys
@@ -89,4 +92,4 @@ instance (Member Choose sigs, Member Empty sigs)
 
   {-# INLINE (<|>) #-}
 -- | Syntax for a choice of alternatives. This is a scoped operation.
-  xs <|> ys = call (Scp (Choose (fmap return xs) (fmap return ys)))
+  xs <|> ys = call (Scp (Choose xs ys))

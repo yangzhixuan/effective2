@@ -23,11 +23,14 @@ module Control.Effect.State.Strict
   , state, state_
 
     -- ** Algebras
-  , stateAlg
+  , stateAT
+
+    -- ** Re-export the carrier
+  , Strict.StateT(..),
   ) where
 
 import Control.Effect
-import Control.Effect.Algebraic
+import Control.Effect.Family.Algebraic
 import Control.Effect.State.Type
 
 import qualified Control.Monad.Trans.State.Strict as Strict
@@ -36,16 +39,20 @@ import Data.Tuple (swap)
 -- | The `state` handler deals with stateful operations and
 -- returns the final state @s@.
 {-# INLINE state #-}
-state :: s -> Handler [Put s, Get s] '[] (Strict.StateT s) ((,) s)
-state s = handler (fmap swap . flip Strict.runStateT s) stateAlg
+state :: s -> Handler [Put s, Get s] '[] '[Strict.StateT s] '[(,) s]
+state s = handler' (fmap swap . flip Strict.runStateT s) stateAlg
 
 -- | The `state_` handler deals with stateful operations and silenty
 -- discards the final state.
 {-# INLINE state_ #-}
-state_ :: s -> Handler [Put s, Get s] '[] (Strict.StateT s) Identity
-state_ s = handler (fmap Identity . flip Strict.evalStateT s) stateAlg
+state_ :: s -> Handler [Put s, Get s] '[] '[Strict.StateT s] '[]
+state_ s = handler' (flip Strict.evalStateT s) stateAlg
 
--- | An algebra that interprets t'Get' and t'Put' using the strict t'Strict.StateT'.
+-- | An algebra transformer that interprets t'Get' and t'Put' using the strict t'Strict.StateT'.
+stateAT :: AlgTrans [Put s, Get s] '[] '[Strict.StateT s] Monad
+stateAT = AlgTrans stateAlg
+
+-- | The underlying algebra of the state handler.
 {-# INLINE stateAlg #-}
 stateAlg
   :: Monad m

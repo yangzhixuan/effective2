@@ -32,9 +32,7 @@ module Control.Effect.Internal.Effs.Sum
   where
 
 import Control.Effect.Internal.Effs.Sum.Type
-import Data.HFunctor
 import Data.List.Kind
-
 import GHC.Exts
 
 
@@ -50,6 +48,7 @@ inj = inj' (proxy# @(PElemIndex sig sigs))
 prj :: forall sig sigs m a . Member sig sigs => Effs sigs m a -> Maybe (sig m a)
 prj = prj' (proxy# @(PElemIndex sig sigs))
 
+infixr 6 #
 -- | @alg1 # alg2@ joins together algebras @alg1@ and @alg2@.
 {-# INLINE (#) #-}
 (#) :: forall eff1 eff2 m .
@@ -137,6 +136,7 @@ weakenAlg alg = alg . injs
 
 -- | Constructs an algebra for the union containing @xeffs `Union` yeffs@
 -- by using an algebra for the union @xeffs@ and aonther for the union @yeffs@.
+-- If an effect is in both @xeffs@ and @yeffs@, the algebra for @xeffs@ is used.
 {-# INLINE hunion #-}
 hunion :: forall xeffs yeffs f a b
   .  ( Append xeffs (yeffs :\\ xeffs), Injects (yeffs :\\ xeffs) yeffs )
@@ -162,22 +162,22 @@ instance (Member x xys, Injects xs xys)
   injs (Effs x) = injs x
 
 -- | @Member' sig sigs n@ holds when @sig@ is contained in @sigs@ at index @n@.
-class (HFunctor sig, HFunctor (Effs sigs)) => Member' sig sigs (n :: Peano) where
+class Member' sig sigs (n :: Peano) where
   inj' :: Proxy# n -> sig f a -> Effs sigs f a
   prj' :: Proxy# n -> Effs sigs f a -> Maybe (sig f a)
 
 
-instance (HFunctor (Effs sigs), HFunctor sig, (sigs' ~ (sig ': sigs))) => Member' sig sigs' Zero where
+instance (sigs' ~ (sig ': sigs)) => Member' sig sigs' Zero where
   {-# INLINE inj' #-}
-  inj' :: (HFunctor sig, sigs' ~ (sig : sigs)) => Proxy# Zero -> sig f a -> Effs sigs' f a
+  inj' :: (sigs' ~ (sig : sigs)) => Proxy# Zero -> sig f a -> Effs sigs' f a
   inj' _ x = Eff x
 
   {-# INLINE prj' #-}
-  prj' :: (HFunctor sig, sigs' ~ (sig : sigs)) => Proxy# Zero -> Effs sigs' f a -> Maybe (sig f a)
+  prj' :: (sigs' ~ (sig : sigs)) => Proxy# Zero -> Effs sigs' f a -> Maybe (sig f a)
   prj' _ (Eff x) = Just x
   prj' _ _       = Nothing
 
-instance (sigs' ~ (sig' ': sigs), HFunctor sig, HFunctor sig', Member' sig sigs n) => Member' sig sigs' (Succ n) where
+instance (sigs' ~ (sig' ': sigs), Member' sig sigs n) => Member' sig sigs' (Succ n) where
   {-# INLINE inj' #-}
   inj' _ x = Effs . inj' (proxy# @n) $ x
 
