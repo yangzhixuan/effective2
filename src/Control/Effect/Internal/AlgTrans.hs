@@ -20,7 +20,7 @@ import Data.Proxy
 
 import Control.Effect.Internal.Effs
 import Control.Effect.Internal.AlgTrans.Type
-import Control.Effect.Internal.Prog.ProgImp ( Prog, eval )
+import Control.Effect.Internal.Prog ( Prog, eval )
 import Control.Effect.Internal.Forward
 
 -- * Using algebra transformers and runners 
