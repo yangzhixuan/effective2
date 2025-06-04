@@ -1,4 +1,5 @@
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE CPP #-}
 {-|
 Module      : Control.Effect.Internal.Prog
 Description : The datatype for effectful programs
@@ -11,7 +12,6 @@ representations (that provide the same interface) and are controlled by some CPP
 Currently the default is the impredicative encoding in "Control.Effect.Internal.Prog.ProgImp".
 -}
 
-{-# LANGUAGE CPP #-}
 
 module Control.Effect.Internal.Prog
   ( 
