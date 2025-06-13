@@ -55,6 +55,7 @@ data Tell_ w k where
   deriving Functor
 
 -- | @`tell` w@ produces the output @w@.
+{-# INLINE tell #-}
 tell :: (Member (Tell w) sig, Monoid w) => w -> Prog sig ()
 tell w = call (Alg (Tell w ()))
 
@@ -62,6 +63,8 @@ tell w = call (Alg (Tell w ()))
 writerAT :: Monoid w => AlgTrans '[Tell w] '[] '[W.WriterT w] Monad
 writerAT = AlgTrans writerAlg
 
+-- | The algebra for the `writer` handler.
+{-# INLINE writerAlg #-}
 writerAlg
   :: (Monad m, Monoid w)
   => (forall x. oeff m x -> m x)
@@ -100,6 +103,7 @@ instance U.Unary (Censor_ w) where
 
 -- | The @`censor` f p@ operation executes program @p@ with output censored
 -- by @f@.
+{-# INLINE censor #-}
 censor :: Member (Censor w) sig => (w -> w) -> Prog sig a -> Prog sig a
 censor cipher p = call (Scp (Censor cipher p))
 
@@ -132,3 +136,4 @@ uncensors = handler' id alg where
       => (forall x. Effs '[] m x -> m x)
       -> (forall x. Effs '[Censor w] m x -> m x)
   alg oalg (Eff (Scp (Censor (_ :: w -> w) k))) = k
+
