@@ -228,7 +228,7 @@ return value of the program.
 A variation of the `state` handler is `state_`,
 which does not return the final state:
 ```haskell ignore
-state_ :: s -> Handler [Put s, Get s] '[] '[]
+state_ :: s -> Handler [Put s, Get s] '[StateT s] '[]
 ```
 Here the final output wrapper is `Identity`, and so applying this to a program
 of type `Prog sig a` will simply return a value of type `a`, since `Apply Identity a = a`.
