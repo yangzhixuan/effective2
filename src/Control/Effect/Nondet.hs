@@ -86,18 +86,6 @@ once
   :: Member Once sig => Prog sig a -> Prog sig a
 once p = call (Scp (Once p))
 
--- | `list` evaluates a nondeterministic computation and collects all results
--- into a list. It handles the t`Empty`, t`Choose`, and t`Once` effects.
-list :: Prog [Empty, Choose, Once] a -> [a]
-list = eval halg where
-  halg :: Effs [Empty, Choose, Once] [] a -> [a]
-  halg op
-    | Just (Alg Empty)          <- prj op = []
-    | Just (Scp (Choose xs ys)) <- prj op = xs ++ ys
-    | Just (Scp (Once xs))      <- prj op = case xs of
-                                                  []     -> []
-                                                  (x:xs) -> [x]
-
 backtrackOnceAlg
   :: Monad m
   => (forall x . oeff m x -> m x)
