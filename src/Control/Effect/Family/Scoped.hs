@@ -107,15 +107,33 @@ instance Functor sig => Forward (Scp sig) (ReaderT w) where
 -- operation recursively to all @m@-actions inside the `ListT` value.
 instance U.Unary sig => Forward (Scp sig) ListT where
   type FwdConstraint (Scp sig) ListT = Functor
-  fwd :: forall m. Functor m => (forall x. Scp sig m x -> m x) 
+  fwd :: forall m. Functor m => (forall x. Scp sig m x -> m x)
       -> (forall x. Scp sig (ListT m) x -> ListT m x)
   fwd alg (Scp op) = hmap ualg (U.get op) where
     ualg :: forall y. m y -> m y
     ualg op' = alg (Scp (U.upd op op'))
+{-
+The following instance compiles but has the unintended effect of
+applying the forwarder only to the first "element" in the `ListT`:
+
+> instance Functor sig => Forward (Scp sig) ListT where
+>   {-# INLINE fwd #-}
+>   fwd alg (Scp op) = ListT (alg (Scp (fmap runListT op)))
+
+A similar problem occurs for these instances of `CutListT` and `LogicT`:
+
+> instance Functor sig => Forward (Scp sig) CutListT where
+>   {-# INLINE fwd #-}
+>   fwd alg (Scp op) = CutListT (\con emp zer -> alg (Scp (fmap (\(CutListT f) -> f con emp zer) op) ))
+>
+> instance Functor sig => Forward (Scp sig) LogicT where
+>   {-# INLINE fwd #-}
+>   fwd alg (Scp op) = LogicT (\con emp -> alg (Scp (fmap (\(LogicT f) -> f con emp) op) ))
+-}
 
 instance (Functor s, U.Unary sig) => Forward (Scp sig) (ResT s) where
   type FwdConstraint (Scp sig) (ResT s) = Functor
-  fwd :: forall m. Functor m => (forall x. Scp sig m x -> m x) 
+  fwd :: forall m. Functor m => (forall x. Scp sig m x -> m x)
       -> (forall x. Scp sig (ResT s m) x -> ResT s m x)
   fwd alg (Scp op) = hmap ualg (U.get op) where
     ualg :: forall y. m y -> m y
