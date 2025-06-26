@@ -53,6 +53,7 @@ data Empty_ a where
 
 -- | Signature for choice of alternatives.
 type Choose = Scp Choose_
+-- type Choose = Alg Choose_
 -- | Underlying signature for choice of alternatives.
 data Choose_ a where
   Choose :: a -> a -> Choose_ a
@@ -61,6 +62,7 @@ data Choose_ a where
 -- | The 'alternative' handler makes use of an 'Alternative' functor @f@
 -- as well as a transformer @t@ that produces an 'Alternative' functor @t m@.
 -- for any monad @m@ to provide semantics.
+{-# INLINE alternative #-}
 alternative
   :: forall t f
   .  (forall m . Monad m => Alternative (t m))
@@ -75,13 +77,15 @@ alternativeAT
   => AlgTrans '[Empty, Choose] '[] '[t] Monad
 alternativeAT = AlgTrans alternativeAlg
 
+{-# INLINE alternativeAlg #-}
 alternativeAlg
   :: forall oeffs t . (forall m . Monad m => Alternative (t m))
-  => forall m. Monad m 
+  => forall m. Monad m
   => Algebra oeffs m -> Algebra [Empty, Choose] (t m)
 alternativeAlg oalg eff
   | (Just (Alg Empty))          <- prj eff = empty
   | (Just (Scp (Choose xs ys))) <- prj eff = xs <|> ys
+  -- | (Just (Alg (Choose xs ys))) <- prj eff = pure xs <|> pure ys
 
 -- | Instance for 'Alternative' that uses 'Choose_' and 'Empty_'.
 instance (Member Choose sigs, Member Empty sigs)

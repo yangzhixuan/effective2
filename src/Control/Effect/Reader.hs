@@ -82,22 +82,25 @@ local f p = call (Scp (Local f p))
 
 -- | The `reader` handler supplies a static environment @r@ to the program
 -- that can be accessed with `ask`, and locally transformed with `local`.
+{-# INLINE reader #-}
 reader :: r -> Handler [Ask r, Local r] '[] '[R.ReaderT r] '[]
 reader r = handler' (flip R.runReaderT r) (\_ -> readerAlg)
 
--- | The `reader'` handler supplies an environment @r@ computed using the 
--- output effects to the program that can be accessed with `ask`, and 
+-- | The `reader'` handler supplies an environment @r@ computed using the
+-- output effects to the program that can be accessed with `ask`, and
 -- locally transformed with `local`.
+{-# INLINE reader' #-}
 reader' :: forall oeffs r. (forall m . Monad m => Algebra oeffs m -> m r)
         -> Handler [Ask r, Local r] oeffs '[R.ReaderT r] '[]
 reader' mr = handler run (\_ -> readerAlg) where
-  run :: forall m . Monad m => Algebra oeffs m 
+  run :: forall m . Monad m => Algebra oeffs m
       -> (forall x. R.ReaderT r m x -> m x)
   run oalg rmx = do r <- mr oalg
                     x <- R.runReaderT rmx r
                     return x
 
 -- | The algebra for the 'reader' handler.
+{-# INLINE readerAlg #-}
 readerAlg
   :: Monad m => Algebra [Ask r, Local r] (R.ReaderT r m)
 readerAlg eff
