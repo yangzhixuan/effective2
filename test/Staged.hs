@@ -694,5 +694,93 @@ listExample6 xs = $$(runGen $
   runPushT (evalGen pushGen (do i <- up [||xs||]; return [||$$i + $$i||]))
     (\_ n -> do n' <- n; return [|| 1 + $$n' ||]) 
     (return [||0||]))
+    
+{-
+    stage
+      (upCache @(YResT Int Int Identity)
+         `fuseAT` yResUpAT @Identity @Int @Int)
+      (coroutine1Gen [|| ns_a2gw ||] [|| go_a2gv ||])
+  ======>
+    ResT
+      (case ns_a2gw of
+         [] -> unResT (return [])
+         (a_a7PD : as_a7PE)
+           -> return (Right (YieldS a_a7PD (\ x_a7PF ->
+                ResT (runIdentity
+                  (foldRes
+                     (\ a_a7PG -> Identity (unResT (return (x_a7PF : a_a7PG))))
+                     (\ sm_a7PH -> Identity
+                        (case sm_a7PH of
+                           YieldS a_a7PI f_a7PJ
+                             -> return (Right (YieldS a_a7PI (\ x_a7PK ->
+                                 ResT (runIdentity (f_a7PJ x_a7PK)))))))
+                     (go_a2gv as_a7PE)))))))
+-}
+coroutine1 :: Int -> YResT Int Int Identity [Int]
+coroutine1 upbound = go [1 .. upbound] where
+  go :: [Int] -> YResT Int Int Identity [Int]
+  go ns = $$(stage 
+     (upCache @(YResT Int Int Identity) `fuseAT` yResUpAT @Identity @Int @Int) 
+     (coroutine1Gen [||ns||] [||go||]))
+     
+{-
+    stage
+      (upCache @(YResT Int Int Identity)
+         `fuseAT` yResUpAT @Identity @Int @Int)
+      (coroutine2Gen [|| a_a2gA ||] [|| coroutine2 ||])
+  ======>
+    ResT (return
+         (Right (YieldS (a_a2gA + 100) (\ x_a7MR -> ResT (unResT (coroutine2 x_a7MR))))))
+-}
+coroutine2 :: Int -> YResT Int Int Identity a
+coroutine2 a = $$(stage 
+     (upCache @(YResT Int Int Identity) `fuseAT` yResUpAT @Identity @Int @Int) 
+     (coroutine2Gen [||a||] [||coroutine2||]))
+     
+-- >>> coroutineExample 10
+-- [101,102,103,104,105,106,107,108,109,110]
+
+coroutineShallow :: Int -> [Int]
+coroutineShallow n = either id id $ runIdentity $ pingpong (coroutine1 n) coroutine2
+
+{-
+    stage
+      (pushWithUpAT @Identity) (chooseGen [|| n_a2gV ||] [|| choose ||])
+  ======>
+    if (n_a2gV > 0) then
+        runIdentity
+          (foldr
+             (\ a_a7YU ms_a7YV -> Identity (a_a7YU : runIdentity ms_a7YV))
+             (Identity (n_a2gV : [])) (choose (n_a2gV - 1)))
+    else
+        []
+-}
+choose :: Int -> [Int]
+choose n = $$(stage (pushWithUpAT @Identity)
+  (chooseGen [||n||] [||choose||]))
+
+-- >>> pythShallow 10
+-- [(3,4,5),(4,3,5),(6,8,10),(8,6,10)]
+{-
+test/Staged.hs:(753,19)-(754,32): Splicing expression
+    stage
+      (pushWithUpAT @Identity) (pythGen [|| n_a2gZ ||] [|| choose ||])
+  ======>
+    runIdentity (foldr (\ a_a7Vm ms_a7Vn ->
+      Identity (runIdentity (foldr (\ a_a7Vo ms_a7Vp -> Identity
+        (runIdentity (foldr (\ a_a7Vq ms_a7Vr ->
+           Identity
+             (if (((a_a7Vm * a_a7Vm) + (a_a7Vo * a_a7Vo)) == (a_a7Vq * a_a7Vq)) 
+                then
+                    ((a_a7Vm, a_a7Vo, a_a7Vq) : runIdentity ms_a7Vr)
+                else
+                    runIdentity ms_a7Vr))
+              (Identity (runIdentity ms_a7Vp)) (choose n_a2gZ))))
+           (Identity (runIdentity ms_a7Vn)) (choose n_a2gZ))))
+         (Identity []) (choose n_a2gZ))
+-}
+pythShallow :: Int -> [(Int, Int, Int)]
+pythShallow n = $$(stage (pushWithUpAT @Identity)
+ (pythGen [||n||] [||choose||]))
 
 main = return ()
