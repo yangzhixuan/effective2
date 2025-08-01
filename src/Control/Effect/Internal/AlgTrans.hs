@@ -6,7 +6,7 @@ Maintainer  : Nicolas Wu, Zhixuan Yang
 Stability   : experimental
 
 This module contains combinators of /algebra transformers/, the core data type
-of this library. 
+of this library.
 -}
 {-# LANGUAGE ImpredicativeTypes, QuantifiedConstraints, UndecidableInstances #-}
 {-# LANGUAGE MonoLocalBinds, LambdaCase, BlockArguments #-}
@@ -14,7 +14,7 @@ of this library.
 
 module Control.Effect.Internal.AlgTrans where
 
-import Data.List.Kind 
+import Data.List.Kind
 import Data.HFunctor ( HFunctor )
 import Data.Proxy
 
@@ -119,10 +119,10 @@ caseAT' at1 at2 = AlgTrans \oalg -> heither (getAT at1 oalg) (getAT at2 oalg)
 
 -- | Algebra transformer for a single effect.
 {-# INLINE algTrans1 #-}
-algTrans1 :: (forall m. cs m => Algebra oeffs m 
-                -> forall x. eff (Apply ts m) x -> Apply ts m x)
+algTrans1 :: forall eff oeffs ts cs
+          .  (forall m. cs m => Algebra oeffs m -> forall x. eff (Apply ts m) x -> Apply ts m x)
           -> AlgTrans '[eff] oeffs ts cs
-algTrans1 at = AlgTrans \oalg (o :: Effs '[eff] _ _) -> 
+algTrans1 at = AlgTrans \(oalg :: Algebra oeffs m) (o :: Effs '[eff] (Apply ts m) x) ->
    case prj @eff o of Just o' -> at oalg o'
 
 -- | Replace the carrier constraint of an algebra transformer with a strong one.

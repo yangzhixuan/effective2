@@ -133,8 +133,8 @@ getAsk = local (+ (100 :: Int)) (do x <- get ; y <- ask ; return (x , y) )
 
 getToAsk :: Handler '[Get Int] '[Ask Int] '[] '[]
 getToAsk= interpret $
-    \(Eff (Alg (Get k))) -> do y <- ask @Int
-                               return (k (y))
+    \(Get k) -> do y <- ask @Int
+                   return (k (y))
 
 example_getAsk1 :: Property
 example_getAsk1 = property $
