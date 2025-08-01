@@ -38,7 +38,11 @@ import qualified Control.Monad.Trans.State.Lazy as Lazy
 -- | The `state` handler deals with stateful operations and
 -- returns the final state @s@.
 state :: s -> Handler [Put s, Get s] '[] '[Lazy.StateT s] '[(,) s]
-state s = handler' (fmap (\ ~(x, y) -> (y, x)) . flip Lazy.runStateT s) stateAlg
+state s = handler' (stateRun s) stateAlg
+
+-- | An alternative definition of `state` using a runner and handler.
+state' :: s -> Handler [Put s, Get s] '[] '[Lazy.StateT s] '[(,) s]
+state' s = stateAT #: runner (stateRun s)
 
 -- | The `state_` handler deals with stateful operations and silenty
 -- discards the final state.
@@ -51,9 +55,9 @@ stateAT = AlgTrans stateAlg
 
 -- | The underlying algebra of the state handler.
 stateAlg
-  :: Monad m
-  => (forall x. oeff m x -> m x)
-  -> (forall x.  Effs [Put s, Get s] (Lazy.StateT s m) x -> Lazy.StateT s m x)
+  :: forall s oeffs m . Monad m
+  => Algebra oeffs m
+  -> Algebra [Put s, Get s] (Lazy.StateT s m)
 stateAlg _ op
   | Just (Alg (Put s p)) <- prj op =
       do Lazy.put s
@@ -61,3 +65,6 @@ stateAlg _ op
   | Just (Alg (Get p)) <- prj op =
       do s <- Lazy.get
          return (p s)
+
+stateRun :: Functor f => s -> Lazy.StateT s f b -> f (s, b)
+stateRun s = fmap (\ ~(x, y) -> (y, x)) . flip Lazy.runStateT s

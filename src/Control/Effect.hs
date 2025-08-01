@@ -44,9 +44,11 @@ module Control.Effect
   , ForwardsM (..)
   , ForwardsC (..)
   , absurdEffs
+  , (#:)
 
   -- * Handler combinators
   , Handler (..)
+  , runner
   , handler
   , handler'
   , identity
