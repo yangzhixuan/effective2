@@ -8,6 +8,8 @@ Stability   : experimental
 
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Control.Effect.Reader (
   -- * Syntax
@@ -17,6 +19,7 @@ module Control.Effect.Reader (
   local,
 
   -- ** Signatures
+  pattern Ask,
   Ask, Ask_(..),
   Local, Local_(..),
 
@@ -47,13 +50,16 @@ import qualified Control.Monad.Trans.Reader as R
 type Ask r = Alg (Ask_ r)
 -- | Underlying signature for asking for the environment.
 data Ask_ r k where
-  Ask :: (r -> k) -> Ask_ r k
+  Ask_ :: (r -> k) -> Ask_ r k
   deriving Functor
+
+pattern Ask :: Member (Ask r) sig => (r -> k) -> Effs sig m k
+pattern Ask k <- (prj -> Just (Alg (Ask_ k)))
 
 -- | Fetch the value of the environment.
 {-# INLINE ask #-}
 ask :: Member (Ask r) sig => Prog sig r
-ask = call (Alg (Ask id))
+ask = call (Alg (Ask_ id))
 
 -- | Retrieve a function of the current environment.
 {-# INLINE asks #-}
@@ -105,7 +111,7 @@ reader' mr = handler run (\_ -> readerAlg) where
 readerAlg
   :: Monad m => Algebra [Ask r, Local r] (R.ReaderT r m)
 readerAlg eff
-  | Just (Alg (Ask p)) <- prj eff =
+  | Just (Alg (Ask_ p)) <- prj eff =
       do r <- R.ask
          return (p r)
   | Just (Scp (Local (f :: r -> r) p)) <- prj eff =
@@ -121,4 +127,4 @@ readerAsk :: r -> Handler '[Ask r] '[] '[R.ReaderT r] '[]
 readerAsk r = handler' (flip R.runReaderT r) (getAT readerAskAT)
 
 asker :: r -> Handler '[Ask r] '[] '[] '[]
-asker r = interpret1 (\(Alg (Ask k)) -> return (k r))
+asker r = interpret (\(Ask k) -> return (k r))
