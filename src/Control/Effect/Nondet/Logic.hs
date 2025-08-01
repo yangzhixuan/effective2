@@ -14,8 +14,8 @@ including choice and failure.
 {-# LANGUAGE UndecidableInstances #-}
 
 module Control.Effect.Nondet.Logic
-  ( Choose, Choose_(Choose)
-  , Empty , Empty_(Empty)  , empty
+  ( Choose, Choose_(Choose_)
+  , Empty , Empty_(Empty_)  , empty
   , Once  , Once_ (..)     , once
   , list
   , nondet
@@ -49,8 +49,8 @@ nondetAlg
   :: Monad m => (forall x. oeff m x -> m x)
   -> (forall x. Effs [Empty, Nondet] (LogicT m) x -> LogicT m x)
 nondetAlg oalg op
-  | Just (Alg Empty)            <- prj op = empty
-  | Just (Alg (Choose xs ys))   <- prj op = pure xs <|> pure ys
+  | Just (Alg Empty_)            <- prj op = empty
+  | Just (Alg (Choose_ xs ys))   <- prj op = pure xs <|> pure ys
 
 -- | `backtrackAlg` defines the semantics of backtracking for the t`Empty`,
 -- t`Choose`, and t`Once` effects in the context of the t`LogicT` monad transformer.
@@ -58,9 +58,9 @@ backtrackAlg
   :: Monad m => (forall x. oeff m x -> m x)
   -> (forall x. Effs [Empty, Nondet, Once] (LogicT m) x -> LogicT m x)
 backtrackAlg oalg op
-  | Just (Alg Empty)            <- prj op = empty
-  | Just (Alg (Choose xs ys))   <- prj op = pure xs <|> pure ys
-  | Just (Scp (Once p))         <- prj op =
+  | Just (Alg Empty_)            <- prj op = empty
+  | Just (Alg (Choose_ xs ys))   <- prj op = pure xs <|> pure ys
+  | Just (Scp (Once_ p))         <- prj op =
       LogicT (\cons nil -> runLogicT p cons nil)
 
 --    LogicT $ do mx <- runLogicT p
@@ -75,7 +75,7 @@ backtrackOnceAlg
   => (forall x . oeff m x -> m x)
   -> (forall x . Effs '[Once] (LogicT m) x -> LogicT m x)
 backtrackOnceAlg oalg op
-  | Just (Scp (Once p))         <- prj op =
+  | Just (Scp (Once_ p))         <- prj op =
       LogicT (\cons nil -> runLogicT p cons nil)
 
 -- | `backtrackAlg'` combines the semantics of alternative and backtracking

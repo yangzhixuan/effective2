@@ -15,10 +15,10 @@ For lazy state, import "Control.Effect.State.Lazy" instead.
 
 module Control.Effect.Nondet
   ( Choose
-  , Choose_(Choose)
+  , Choose_(Choose_)
   , Nondet
   , Empty
-  , Empty_(Empty)
+  , Empty_(Empty_)
   , Once
   , Once_ (..)
   , ListT (..)
