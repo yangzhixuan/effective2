@@ -256,7 +256,7 @@ ghci> handle (state "Hello") echo
 This is essentially saying that `GetLine` is not supported by the state handler.
 
 
-Creating  Operations
+Defining  Operations
 --------------------
 
 One of the key features of an effect system is to allow an effect engineer
@@ -265,33 +265,65 @@ to create new effects and interpret them in different ways. Although
 and provided by the `effective` library, the `tick` operation is a
 custom operation with a semantics given as we desire.
 
-The `tick` operation is defined by providing a datastructure to hold the syntax
-as data:
-```haskell
-type Tick = Alg Tick'
-data Tick' k = Tick k
-  deriving Functor
+The goal is to provide an operation written `tick` that can be used when constructing programs, and a corresponding datatype `Tick` that is used
+for pattern matching.
 
+Creating custom operations typically requires the following to be defined:
+
+1. **Operation Signature:** A datatype for the underlying operation
+2. **Pattern Synonym:** A pattern synonym facilitate algebra definitions
+3. **Smart Constructor:** A smart constructor to enable programs to use the operation
+
+This is boilerplate that will hopefully be avoided Template Haskell
+in a future iteration of this library.
+
+### Operation Signature
+
+For now, the `tick` operation is defined by providing a datastructure to hold
+the syntax as data with the following:
+```haskell
+type Tick = Alg Tick_
+data Tick_ k = Tick_ k
+  deriving Functor
+```
+The `Tick` type is an algebraic operation, denoted with `Alg` using the
+underlying signature `Tick_`. The convention is to add an *underscore* for the *underlying* signature functor.
+
+### Pattern Synonym
+
+A pattern synonym `Tick` is defined that projects `Alg Tick_` into
+an `Effs` type, which is the type used to assemble multiple effects into one:
+```haskell
+pattern Tick :: Member Tick eff => k -> Effs eff m k
+pattern Tick p <- (prj -> Just (Alg (Tick_ p)))
+```
+
+### Smart Constructor
+
+A smart constructor `tick` is defined that allows programs to be written
+that uses this operation:
+```haskell
 tick :: Member Tick sig => Prog sig ()
-tick = call (Alg (Tick ()))
+tick = call (Alg (Tick_ ()))
 ```
 The signature of `tick` uses a `Member` constraint to describe how `tick` can be
 used in any program where `Tick` is in its signature, and this is the same as
 writing `tick :: () ! '[Tick]`. The `Alg` constructor indicates that `Tick` is
 an algebraic operation.
 
+Defining Handlers
+-----------------
+
 The `unticker` and `ticker` handlers are examples of interpreters that
 will interpret `Tick` in different ways. The simplest one is `unticker`,
 which removes all instances of `Tick`:
 ```haskell
 unticker :: Handler '[Tick] '[] '[] '[]
-unticker = interpret1 gen where
-  gen :: Tick m x -> Prog '[] x
-  gen (Alg (Tick x)) = return x
+unticker = interpret (\(Tick x) -> return x)
 ```
-The `gen` function describes how to generate a program from the operations
-it recognises. In this instance, the program is always empty, and
-simply returns `k`.
+The `interpret` function builds a handler from a function
+that describes how to rephrase an operation. Here, `Tick x`
+is translated into `return x`.
 
 The `ticker` handler is a bit more complex: it works by interpreting
 the `tick` operation into `get` and `put` operations, which interact
@@ -299,11 +331,11 @@ with an `Int` to keep track of how many ticks have been produced.
 Notice that the `gen` function generates these operations from the given `tick`:
 ```haskell
 tickState :: Handler '[Tick] '[Put Int, Get Int] '[] '[]
-tickState = interpret1 gen where
-  gen :: Tick m x -> Prog [Put Int, Get Int] x
-  gen (Alg (Tick x)) = do n <- get
-                          put @Int (n + 1)
-                          return x
+tickState = interpret rephrase where
+  rephrase :: Effs '[Tick] m x -> Prog [Put Int, Get Int] x
+  rephrase (Tick x) = do n <- get
+                         put @Int (n + 1)
+                         return x
 ```
 The `ticker` is produced by combining `tickState` with the `state` handler using
 the _pipe_ combinator, written `h1 ||> h2` to pipe the handler `h1` into the
@@ -588,10 +620,10 @@ with handlers. An example of this is to apply a transformation to all the
 interpreting handler called `retell` can be defined, which takes in a function used
 to modify output:
 ```haskell
-retell :: forall w w' . (Monoid w, Monoid w') 
-       => (w -> w') 
+retell :: forall w w' . (Monoid w, Monoid w')
+       => (w -> w')
        -> Handler '[Tell w] '[Tell w'] '[] '[]
-retell f = interpret1 $ \(Alg (Tell w k)) -> 
+retell f = interpret $ \(Tell w k) ->
   do tell (f w)
      return k
 ```
@@ -742,7 +774,7 @@ first transform any `putStrLn` operation into a `tell` using
 turn any `tell` back into `putStrLn` with using `tellPutStrLn`:
 ```haskell
 tellPutStrLn :: Handler '[Tell [String]] '[PutStrLn] '[] '[]
-tellPutStrLn = interpret1 $ \(Alg (Tell strs k)) ->
+tellPutStrLn = interpret $ \(Tell strs k) ->
   do putStrLn (unwords strs)
      return k
 ```
@@ -826,7 +858,7 @@ However, this is a case where a reinterpretation might be better where all
 instances of `tell` are augmented with the appropriate timestamp.
 ```haskell
 telltime :: forall w . Monoid w => Handler '[Tell w] '[Tell [(Integer, w)], GetCPUTime] '[] '[]
-telltime = interpret1 $ \(Alg (Tell w k)) -> 
+telltime = interpret $ \(Tell (w :: w) k) ->
   do time <- getCPUTime
      tell [(time, w)]
      return k
@@ -942,8 +974,10 @@ The `effective` library requires the `DataKinds` extension since
 this is used to keep track of effect signatures.
 
 ```haskell top
-{-# LANGUAGE DataKinds #-}    -- Used for the list of effects
-{-# LANGUAGE GADTs     #-}    -- Used for syntax
+{-# LANGUAGE DataKinds       #-}  -- Used for the list of effects
+{-# LANGUAGE GADTs           #-}  -- Used for syntax
+{-# LANGUAGE PatternSynonyms #-}  -- Used for syntax
+{-# LANGUAGE ViewPatterns    #-}  -- Used for syntax
 ```
 <!--
 The following pragma is only needed for the testing framework.

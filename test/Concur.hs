@@ -70,7 +70,7 @@ test4 :: IO ()
 test4 = handleIO (Proxy @IOEffects) (identity @'[]) prog2
 
 tell' :: forall w sig. (Member (Clone (Tell w)) sig, Monoid w) => w -> Prog sig ()
-tell' w = cloneAlg (Tell w ())
+tell' w = cloneAlg (Tell_ w ())
 
 prog3 :: Members '[Par, Act HS, Res HS, Tell String, Clone (Tell String)] sig => Prog sig ()
 prog3 = resHS (par (do tell "A"; handshake; tell' "C")

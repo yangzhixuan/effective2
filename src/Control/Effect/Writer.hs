@@ -8,6 +8,8 @@ Stability   : experimental
 
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Control.Effect.Writer (
   -- * Syntax
@@ -16,6 +18,7 @@ module Control.Effect.Writer (
   censor,
 
   -- ** Signatures
+  pattern Tell,
   Tell, Tell_(..),
   Censor, Censor_(..),
 
@@ -51,13 +54,16 @@ import qualified Control.Monad.Trans.Writer as W
 type Tell w = Alg (Tell_ w)
 -- | Underlying signature for `tell`.
 data Tell_ w k where
-  Tell :: w -> k -> Tell_ w k
+  Tell_ :: w -> k -> Tell_ w k
   deriving Functor
+
+pattern Tell :: (Member (Tell w) sig, Monoid w) => w -> k -> Effs sig m k
+pattern Tell w k <- (prj -> Just (Alg (Tell_ w k)))
 
 -- | @`tell` w@ produces the output @w@.
 {-# INLINE tell #-}
 tell :: (Member (Tell w) sig, Monoid w) => w -> Prog sig ()
-tell w = call (Alg (Tell w ()))
+tell w = call (Alg (Tell_ w ()))
 
 -- | The algebra transformer for the `writer` handler.
 writerAT :: Monoid w => AlgTrans '[Tell w] '[] '[W.WriterT w] Monad
@@ -70,7 +76,7 @@ writerAlg
   => (forall x. oeff m x -> m x)
   -> (forall x.  Effs '[Tell w] (W.WriterT w m) x -> W.WriterT w m x)
 writerAlg _ eff
-  | Just (Alg (Tell w x)) <- prj eff =
+  | Just (Alg (Tell_ w x)) <- prj eff =
       do W.tell w
          return x
 
@@ -84,12 +90,12 @@ writer = handler' (fmap swap . W.runWriterT) writerAlg
 writer_ :: Monoid w => Handler '[Tell w] '[] '[W.WriterT w] '[]
 writer_ = handler' (fmap fst . W.runWriterT) writerAlg
 
--- | The `writerIO` handler translates `tell` operations to 
+-- | The `writerIO` handler translates `tell` operations to
 -- physical IO printing.
 writerIO :: Handler '[Tell String] '[Alg IO] '[] '[]
 writerIO = interpret $
-  \(Eff (Alg (Tell w k))) -> do liftIO (putStr w)
-                                return k
+  \(Tell w k) -> do liftIO (putStr w)
+                    return k
 
 -- | Signature for 'censor'.
 type Censor w = Scp (Censor_ w)
@@ -122,9 +128,9 @@ censorAT = AlgTrans alg where
       => (forall x. Effs '[Tell w] m x -> m x)
       -> (forall x. Effs '[Tell w, Censor w] (ReaderT (w -> w) m) x -> ReaderT (w -> w) m x)
   alg oalg eff
-    | Just (Alg (Tell w k)) <- prj eff =
+    | Just (Alg (Tell_ w k)) <- prj eff =
         do cipher <- ask
-           lift (oalg (Eff (Alg (Tell (cipher w) k))))
+           lift (oalg (Eff (Alg (Tell_ (cipher w) k))))
     | Just (Scp (Censor (cipher' :: w -> w) k)) <- prj eff =
         do cipher <- ask
            lift (runReaderT k (cipher . cipher'))
