@@ -25,6 +25,7 @@ module Control.Effect.Reader (
   reader,
   reader',
   readerAsk,
+  asker,
 
   -- ** Algebras
   readerAT,
@@ -118,3 +119,6 @@ readerAskAT = weakenIEffs readerAT
 
 readerAsk :: r -> Handler '[Ask r] '[] '[R.ReaderT r] '[]
 readerAsk r = handler' (flip R.runReaderT r) (getAT readerAskAT)
+
+asker :: r -> Handler '[Ask r] '[] '[] '[]
+asker r = interpret1 (\(Alg (Ask k)) -> return (k r))
