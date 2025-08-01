@@ -59,12 +59,22 @@ stateAlg
   => Algebra oeffs m
   -> Algebra [Put s, Get s] (Lazy.StateT s m)
 stateAlg _ op
-  | Just (Alg (Put s p)) <- prj op =
+  | Just (Alg (Put_ s p)) <- prj op =
       do Lazy.put s
          return p
-  | Just (Alg (Get p)) <- prj op =
+  | Just (Alg (Get_ p)) <- prj op =
       do s <- Lazy.get
          return (p s)
+
+-- | An alternative version of the algebra using pattern synonyms.
+stateAlg'
+  :: forall s oeffs m . Monad m
+  => Algebra oeffs m
+  -> Algebra [Put s, Get s] (Lazy.StateT s m)
+stateAlg' _ (Put s p) = do Lazy.put s
+                           return p
+stateAlg' _ (Get p) = do s <- Lazy.get
+                         return (p s)
 
 stateRun :: Functor f => s -> Lazy.StateT s f b -> f (s, b)
 stateRun s = fmap (\ ~(x, y) -> (y, x)) . flip Lazy.runStateT s

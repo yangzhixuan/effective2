@@ -59,9 +59,19 @@ stateAlg
   => (forall x. oeff m x -> m x)
   -> (forall x.  Effs [Put s, Get s] (Strict.StateT s m) x -> Strict.StateT s m x)
 stateAlg _ op
-  | Just (Alg (Put s p)) <- prj op =
+  | Just (Alg (Put_ s p)) <- prj op =
       do Strict.put s
          return p
-  | Just (Alg (Get p)) <- prj op =
+  | Just (Alg (Get_ p)) <- prj op =
       do s <- Strict.get
          return (p s)
+
+-- | The underlying algebra of the state handler using pattern synonyms.
+stateAlg'
+  :: Monad m
+  => (forall x. oeff m x -> m x)
+  -> (forall x.  Effs [Put s, Get s] (Strict.StateT s m) x -> Strict.StateT s m x)
+stateAlg' _ (Put s p) = do Strict.put s
+                           return p
+stateAlg' _ (Get p) = do s <- Strict.get
+                         return (p s)

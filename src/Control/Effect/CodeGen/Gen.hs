@@ -153,4 +153,5 @@ specialiseGen = interpretAT1 $ \(Alg g) -> liftGenM @m (specialise g)
 
 -- | Insert a let-binding for every put operation.
 letPut :: forall s. AlgTrans '[Put (Up s)] '[Put (Up s), CodeGen] '[] Monad
-letPut = interpretAT1 (\(Alg (Put s k)) -> do s' <- genLet s; put s'; return k) 
+-- letPut = interpretAT1 (\(Alg (Put_ s k)) -> do s' <- genLet s; put s'; return k)
+letPut = interpretAT (\(Put (s :: Up s) k) -> do s' <- genLet s; put s'; return k)
