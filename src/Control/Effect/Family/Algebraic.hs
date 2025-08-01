@@ -27,7 +27,7 @@ the @Forward@ instance.
 
 module Control.Effect.Family.Algebraic where
 
-import Control.Effect
+import Control.Effect.Internal.Forward
 
 import Data.Iso
 import Data.Kind ( Type )
@@ -65,8 +65,8 @@ instance {-# INCOHERENT #-} MonadTrans t => Forward (Alg f) t where
 -- | Functions @forall x. Alg sig m x -> m x@ are the same as @forall x. sig x -> m x@,
 -- and they are in bijection with functions @op :: forall x. sig (m x) -> m x@ satisfying
 -- the equation @op x >>= k  ==  op (fmap (>>= k) x)@.
-algOpIso :: (Functor sig, Monad m) 
+algOpIso :: (Functor sig, Monad m)
          => Iso (forall x. Alg sig m x -> m x) (forall x. sig (m x) -> m x) 
-algOpIso = Iso 
+algOpIso = Iso
   (\a sm -> a (Alg sm) >>= id)
   (\b (Alg s) -> b (fmap return s))

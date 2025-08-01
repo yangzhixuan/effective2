@@ -42,19 +42,19 @@ test3 = handle hstore goWrong      -- crash
 
 goWrong2 :: forall sig. 
             Members '[ New, Get, Put, 
-                       Choose, 
+                       Empty, Choose,
                        St.Put (Maybe (Ref Int)), St.Get (Maybe (Ref Int))
                      ] sig
          => Prog sig Int
 goWrong2 = do iRef <- new @Int 0
-              or (do iRef' <- new @Int 0; St.put (Just iRef'); return 0)
-                 (do r <- St.get;
-                     case r of 
-                       Just iRefFromOtherWorld -> get iRefFromOtherWorld
-                       Nothing -> return 0)
+              (do iRef' <- new @Int 0; St.put (Just iRef'); return 0) <|>
+                (do r <- St.get;
+                    case r of
+                      Just iRefFromOtherWorld -> get iRefFromOtherWorld
+                      Nothing -> return 0)
 
 test3' :: [Int]
-test3' = handle (hstore |> nondet |> St.state_ @(Maybe (Ref Int)) Nothing) goWrong2
+test3' = handle (hstore |> nondet' |> St.state_ @(Maybe (Ref Int)) Nothing) goWrong2
 
 progS :: forall w sig. (Members '[Safe.Put w, Safe.Get w, Safe.New w] sig) 
       => Prog sig Int
@@ -70,16 +70,15 @@ test4 = runIdentity (Safe.handleHSM @'[] absurdEffs progS') where
   progS' :: forall w. Prog (Safe.HSEffs w) Int
   progS' = progS @w
 
-prog2 :: forall w. Progs '[Choose, Empty, Safe.Put w, Safe.Get w, Safe.New w] Int  
+prog2 :: forall w. Progs '[Choose, Empty, Safe.Put w, Safe.Get w, Safe.New w] Int
 prog2 = do iRef <- Safe.new @Int @w 1
-           or (do Safe.put iRef 2; return 0) 
-              (do Safe.get iRef)
+           (do Safe.put iRef 2; return 0) <|> (do Safe.get iRef)
 
 -- State is local if state gets handled first
 -- test5 == [0, 1]
 test5 :: [Int]
-test5 = handle nondet (Safe.handleHSP prog2') where
-  prog2' :: forall w sig. 
+test5 = handle nondet' (Safe.handleHSP prog2') where
+  prog2' :: forall w sig.
          ( Members '[Empty, Choose] sig, Append (Safe.HSEffs ()) sig )
          => Prog (Safe.HSEffs w :++ sig) Int
   prog2' = prog2 @w
@@ -87,7 +86,7 @@ test5 = handle nondet (Safe.handleHSP prog2') where
 -- State is global if state gets handled later
 -- test6 == [0, 2]
 test6 :: [Int]
-test6 = Safe.runHS (handleP nondet (prog2 @w) 
+test6 = Safe.runHS (handleP nondet' (prog2 @w)
                       :: forall w. Prog (Safe.HSEffs w) [Int])
 
 main :: IO ()

@@ -24,8 +24,8 @@ source-repository head
 
 common common
   default-language: GHC2021
-  default-extensions: DataKinds CPP RecordWildCards ImpredicativeTypes LambdaCase AllowAmbiguousTypes
-  ghc-options: -O2 
+  default-extensions: DataKinds CPP RecordWildCards ImpredicativeTypes LambdaCase AllowAmbiguousTypes GADTs
+  ghc-options: -O2
   --cpp-options: -DINDEXED
   --cpp-options: -DPROGDIRECT
 

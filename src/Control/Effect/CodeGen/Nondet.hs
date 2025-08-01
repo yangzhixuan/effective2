@@ -7,7 +7,7 @@ Stability   : experimental
 
 This module contains algebra transformers for `PushT`, the monad transformer to be
 used at the meta level for nondeterminism. The monad transformer `PushT` supports the
-usual non-deterministic operations and can be downed to and upped from `ListT`. 
+usual non-deterministic operations and can be downed to and upped from `ListT`.
 -}
 module Control.Effect.CodeGen.Nondet (pushAT, pushWithUpAT, pushGen, upPush) where
 
@@ -34,9 +34,9 @@ pushAT = AlgTrans $ pushAlg where
 
 -- | Algebra of the non-deterministic operations and the up-operation on `PushT`.
 pushWithUpAT :: Monad m =>
-  AlgTrans '[UpOp (ListT m), UpOp [], Empty, Choose, Once] 
-           '[UpOp m] 
-           '[PushT] 
+  AlgTrans '[UpOp (ListT m), UpOp [], Empty, Choose, Once]
+           '[UpOp m]
+           '[PushT]
             (MonadDown m)
 pushWithUpAT = weakenC (appendAT upPush pushAT)
 

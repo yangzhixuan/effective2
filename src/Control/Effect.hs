@@ -103,6 +103,9 @@ import Control.Effect.Internal.Handler
 import Control.Effect.Internal.AlgTrans
 import Control.Effect.Internal.AlgTrans.Type
 import Control.Effect.Internal.Forward
+import Control.Effect.Family.Scoped
+import Control.Effect.Family.Algebraic
+
 import Data.Functor.Identity
 import Data.List.Kind
 import Data.Proxy

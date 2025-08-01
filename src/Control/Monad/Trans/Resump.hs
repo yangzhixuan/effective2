@@ -77,7 +77,7 @@ elimRes :: Monad n
         => (forall x. m x -> n x)            -- ^ a monad morphism
         -> (forall x. s x -> n x)            -- ^ a natural transformation
         -> (forall x. ResT s m x -> n x)     -- ^ a monad morphism
-elimRes l r res = 
+elimRes l r res =
   do e <- l (unResT res)
      case e of
        Left a  -> return a

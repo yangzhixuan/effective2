@@ -45,18 +45,18 @@ import Control.Monad.Trans.ResumpUp as RUp
 import Data.HFunctor
 import Data.Iso
 
--- TODO: Operations of the form @sig (m (Up a)) -> m (Up a)@ should probably be a new 
+-- TODO: Operations of the form @sig (m (Up a)) -> m (Up a)@ should probably be a new
 -- operation family.
 
 -- | Signature for the restricted par operation
 data ParUp (f :: * -> *) x where
   ParUp :: forall y x f. f (Up y) -> f (Up y) -> (Up y -> x) -> ParUp f x
-  
+
 instance Functor (ParUp f) where
-  fmap f (ParUp p q k) = ParUp p q (f . k) 
+  fmap f (ParUp p q k) = ParUp p q (f . k)
 
 instance HFunctor ParUp where
-  hmap f (ParUp p q k) = ParUp (f p) (f q) k 
+  hmap f (ParUp p q k) = ParUp (f p) (f q) k
 
 -- | Restricted par operation
 parUp :: Member ParUp sig => Prog sig (Up x) -> Prog sig (Up x) -> Prog sig (Up x)
@@ -66,19 +66,19 @@ parUp p q = call (ParUp p q id)
 -- monad, but `CResUpT` can't be pattern matched. Therefore here we simply
 -- `down` the two processes and perform `par` at the object level. As a result,
 -- the two processes have to return an Up-type.
-parResUp :: forall n m a x. (n $~> m, Monad n, Monad m, Action a) 
-         => Algebra '[UpOp m, CodeGen] n 
+parResUp :: forall n m a x. (n $~> m, Monad n, Monad m, Action a)
+         => Algebra '[UpOp m, CodeGen] n
          -> CResUpT (Up a) n (Up x) -> CResUpT (Up a) n (Up x) -> CResUpT (Up a) n (Up x)
-parResUp oalg p q = 
+parResUp oalg p q =
   do lhs <- lift (genLetM oalg (down @_ @(CResT a m) p))
      rhs <- lift (genLetM oalg (down @_ @(CResT a m) q))
      upResAlg oalg ([|| $$lhs `par` $$rhs ||])
 
 -- | Algebra transformer for the resumption monad transformer for concurrency.
 cResUpAT :: forall m a . (Action a, Monad m)
-         => AlgTrans '[UpOp (CResT a m), Empty, Choose, ParUp, Act (Up a)] 
-                     '[UpOp m, CodeGen] 
-                     '[CResUpT (Up a)] 
+         => AlgTrans '[UpOp (CResT a m), Empty, Choose, ParUp, Act (Up a)]
+                     '[UpOp m, CodeGen]
+                     '[CResUpT (Up a)]
                       (MonadDown m)
 cResUpAT = AlgTrans $ \oalg -> \case
   (prj -> Just (Alg (UpOp o k)))   -> bwd upIso (upResAlg oalg) (Alg (UpOp o k))
@@ -89,9 +89,9 @@ cResUpAT = AlgTrans $ \oalg -> \case
 
 -- | Algebra transformer for the resumption monad transformer for yielding.
 yResUpAT :: forall m a b . (Monad m)
-         => AlgTrans '[UpOp (YResT a b m), Yield (Up a) (Up b), MapYield (Up a) (Up b)] 
-                     '[UpOp m, CodeGen] 
-                     '[YResUpT (Up a) (Up b)] 
+         => AlgTrans '[UpOp (YResT a b m), Yield (Up a) (Up b), MapYield (Up a) (Up b)]
+                     '[UpOp m, CodeGen]
+                     '[YResUpT (Up a) (Up b)]
                       (MonadDown m)
 yResUpAT = AlgTrans $ \oalg -> \case
   (prj -> Just (Alg (UpOp o k)))       -> bwd upIso (upResAlg oalg) (Alg (UpOp o k))
