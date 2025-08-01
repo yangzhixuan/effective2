@@ -59,6 +59,7 @@ data Tell_ w k where
 
 pattern Tell :: (Member (Tell w) sig, Monoid w) => w -> k -> Effs sig m k
 pattern Tell w k <- (prj -> Just (Alg (Tell_ w k)))
+  where Tell w k = inj (Alg (Tell_ w k))
 
 -- | @`tell` w@ produces the output @w@.
 {-# INLINE tell #-}
