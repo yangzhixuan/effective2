@@ -296,6 +296,7 @@ an `Effs` type, which is the type used to assemble multiple effects into one:
 ```haskell
 pattern Tick :: Member Tick eff => k -> Effs eff m k
 pattern Tick p <- (prj -> Just (Alg (Tick_ p)))
+  where Tick p = inj (Alg (Tick_ p))
 ```
 
 ### Smart Constructor

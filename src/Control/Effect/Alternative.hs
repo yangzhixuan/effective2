@@ -69,6 +69,7 @@ data Empty_ a where
 
 pattern Empty :: Member Empty effs => Effs effs m k
 pattern Empty <- (prj -> Just (Alg Empty_))
+  where Empty = inj (Alg Empty_)
 
 -- | Signature for choice of alternatives.
 type Choose = Scp Choose_
@@ -80,6 +81,7 @@ data Choose_ a where
 
 pattern Choose :: Member Choose effs => m k -> m k -> Effs effs m k
 pattern Choose x y <- (prj -> Just (Scp (Choose_ x y )))
+  where Choose x y = inj (Scp (Choose_ x y))
 
 -- | The 'alternative' handler makes use of an 'Alternative' functor @f@
 -- as well as a transformer @t@ that produces an 'Alternative' functor @t m@.

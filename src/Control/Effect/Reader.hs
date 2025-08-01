@@ -55,6 +55,7 @@ data Ask_ r k where
 
 pattern Ask :: Member (Ask r) sig => (r -> k) -> Effs sig m k
 pattern Ask k <- (prj -> Just (Alg (Ask_ k)))
+  where Ask k = inj (Alg (Ask_ k))
 
 -- | Fetch the value of the environment.
 {-# INLINE ask #-}

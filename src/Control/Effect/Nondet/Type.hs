@@ -26,6 +26,7 @@ type Nondet = Alg Choose_
 
 pattern Nondet :: Member Nondet effs => k -> k -> Effs effs m k
 pattern Nondet x y <- (prj -> Just (Alg (Choose_ x y)))
+  where Nondet x y = inj (Alg (Choose_ x y))
 
 -- | Signature for delimiting the scope of nondeterminism to `once`
 type Once = Scp Once_

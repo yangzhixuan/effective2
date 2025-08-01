@@ -24,6 +24,7 @@ data Put_ s k where
 
 pattern Put :: Member (Put s) effs => s -> k -> Effs effs m k
 pattern Put s k <- (prj -> Just (Alg (Put_ s k)))
+  where Put s k = inj (Alg (Put_ s k))
 
 -- | Syntax for putting a value into the state.
 {-# INLINE put #-}
@@ -40,6 +41,7 @@ newtype Get_ s k where
 
 pattern Get :: Member (Get s) effs => (s -> k) -> Effs effs m k
 pattern Get k <- (prj -> Just (Alg (Get_ k)))
+  where Get k = inj (Alg (Get_ k))
 
 -- | Syntax for getting a value from the state.
 {-# INLINE get #-}
