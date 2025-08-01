@@ -72,6 +72,25 @@ handler'
   -> Handler effs oeffs ts fs
 handler' run alg = Handler (Runner (\_ -> run)) (AlgTrans (\oalg -> alg oalg))
 
+runner
+  :: (forall m a . Monad m => Apply ts m a -> m (Apply fs a))
+  -> Handler '[] '[] ts fs
+runner run = Handler (Runner (\_ -> run)) (AlgTrans (const absurdEffs))
+
+-- (#:) :: forall effs oeffs effs' ts fs . (Append effs (effs' :\\ effs), Injects (effs' :\\ effs) effs') =>
+--        (forall m . Monad m => Algebra effs (Apply ts m))
+--       -> Handler effs' oeffs ts fs -> Handler (effs `Union` effs') oeffs ts fs
+-- algs #: Handler hrun halg = Handler hrun (AlgTrans (\(oalg :: Algebra oeffs m)
+--   -> hunion @effs @effs' (algs @m) (getAT halg @m oalg)))
+
+infixr #:
+
+(#:) :: forall effs oeffs effs' oeffs' ts fs . UnionAT# effs effs' oeffs oeffs'
+      => AlgTrans effs oeffs ts Monad
+      -> Handler effs' oeffs' ts fs -> Handler (effs `Union` effs') (oeffs `Union` oeffs') ts fs
+algs #: Handler hrun halg = Handler (weakenREffs hrun) (weakenC (algs `unionAT` halg))
+
+
 -- | The identity handler that doesn't transform the effects.
 {-# INLINE identity #-}
 identity :: Handler effs effs '[] '[]
