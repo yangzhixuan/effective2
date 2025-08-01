@@ -60,6 +60,8 @@ module Control.Effect
   , interpretM
   , caseHdl
   , unionHdl
+  , unscope
+  , unscopes
 
   -- ** Fusion-based combinators
   , fuse, (|>)
