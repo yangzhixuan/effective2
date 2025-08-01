@@ -77,7 +77,7 @@ handler' run alg = Handler (Runner (\_ -> run)) (AlgTrans (\oalg -> alg oalg))
 identity :: Handler effs effs '[] '[]
 identity = Handler LL.idRunner LL.idAT
 
-type Comp# effs1 ts1 ts2 fs1 fs2 = 
+type Comp# effs1 ts1 ts2 fs1 fs2 =
   ( CompRunner# ts1 ts2 fs1 fs2
   , CompAT# ts1 ts2 effs1 Monad)
 
@@ -89,7 +89,7 @@ comp :: ( forall m. Monad m => MonadApply ts1 m
      => Handler effs1 effs2 ts1 fs1
      -> Handler effs2 effs3 ts2 fs2
      -> Handler effs1 effs3 (ts1 :++ ts2) (fs2 :++ fs1)
-comp (Handler r1 a1) (Handler r2 a2) = 
+comp (Handler r1 a1) (Handler r2 a2) =
   Handler (weakenRC (compRunner a2 r1 r2)) (weakenC (compAT a1 a2))
 
 -- | Weakens a handler from @Handler effs oeffs ts fs@ to @Handler effs' oeffs' ts fs@,
@@ -137,7 +137,7 @@ bypass
   -> Handler (effs `Union` beffs) (oeffs `Union` beffs) ts fs
 bypass _ (Handler run alg) = Handler (weakenR run) (LL.withFwds (Proxy @beffs) alg)
 
--- | An algebra transformer that doesn't transform the carrier can be 
+-- | An algebra transformer that doesn't transform the carrier can be
 -- regarded as a handler trivially.
 {-# INLINE fromAT #-}
 fromAT :: AlgTrans effs oeffs '[] Monad -> Handler effs oeffs '[] '[]
@@ -201,6 +201,14 @@ interpretM
 interpretM mrephrase
   = handler @effs @oeffs @'[] (const id) mrephrase
 
+{-# INLINE interpretM1 #-}
+interpretM1
+  :: forall eff oeffs.
+     (forall m . Monad m => (forall x . Effs oeffs m x -> m x)
+                         -> (forall x . eff m x -> m x))   -- ^ @mrephrase@
+  -> Handler '[eff] oeffs '[] '[]
+interpretM1 mrephrase
+  = handler @'[eff] @oeffs @'[] (const id) (\oalg (Eff op) -> mrephrase oalg op)
 
 -- | Case splitting on the union of two effect rows. Note that `Union` is defined
 -- two be @effs1 ++ (effs2 :\\ effs1)@, so if an effect @e@ is both a member of @effs1@ 
@@ -222,6 +230,16 @@ unionHdl :: forall effs1 effs2 oeffs1 oeffs2 ts fs1 fs2.
        -> Handler effs2 oeffs2 ts fs2
        -> Handler (effs1 `Union` effs2) (oeffs1 `Union` oeffs2) ts fs1
 unionHdl (Handler r1 a1) (Handler _ a2) = Handler (weakenR r1) (weakenC (unionAT a1 a2))
+
+{-# INLINE appendHdl #-}
+-- | Case splitting on the append of two effect rows, and the two handlers may output
+-- different effects.
+appendHdl :: forall effs1 effs2 oeffs1 oeffs2 ts fs1 fs2.
+          AppendAT# effs1 effs2 oeffs1 oeffs2
+       => Handler effs1 oeffs1 ts fs1
+       -> Handler effs2 oeffs2 ts fs2
+       -> Handler (effs1 :++ effs2) (oeffs1 :++ oeffs2) ts fs1
+appendHdl (Handler r1 a1) (Handler _ a2) = Handler (weakenR r1) (weakenC (appendAT a1 a2))
 
 -- * Fusion-based handler combinators
 

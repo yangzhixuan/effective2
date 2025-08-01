@@ -55,9 +55,8 @@ module Control.Effect
   , hide
   , bypass
   , fromAT
-  , interpret, interpretAT
-  , interpret1, interpretAT1
-  , interpretM
+  , interpret, interpretAT, interpretM
+  , interpret1, interpretAT1, interpretM1
   , caseHdl
   , unionHdl
   , unscope
