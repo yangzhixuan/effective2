@@ -38,9 +38,9 @@ list' :: Prog [Empty, Choose, Once] a -> [a]
 list' = eval halg where
   halg :: Effs [Empty, Choose, Once] [] a -> [a]
   halg op
-    | Just (Alg Empty)          <- prj op = []
-    | Just (Scp (Choose xs ys)) <- prj op = xs ++ ys
-    | Just (Scp (Once xs))      <- prj op = case xs of
+    | Just (Alg Empty_)          <- prj op = []
+    | Just (Scp (Choose_ xs ys)) <- prj op = xs ++ ys
+    | Just (Scp (Once_ xs))       <- prj op = case xs of
                                                []     -> []
                                                (x:xs) -> [x]
 

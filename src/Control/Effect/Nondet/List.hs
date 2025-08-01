@@ -49,9 +49,9 @@ nondet'Alg
   . forall m. Monad m
   => Algebra oeffs m -> Algebra [Empty, Choose, Nondet] (ListT m)
 nondet'Alg oalg eff
-  | (Just (Alg Empty))          <- prj eff = empty
-  | (Just (Scp (Choose xs ys))) <- prj eff = xs <|> ys
-  | (Just (Alg (Choose xs ys))) <- prj eff = pure xs <|> pure ys
+  | (Just (Alg Empty_))          <- prj eff = empty
+  | (Just (Scp (Choose_ xs ys))) <- prj eff = xs <|> ys
+  | (Just (Alg (Choose_ xs ys))) <- prj eff = pure xs <|> pure ys
 
 -- | The `nondet` handler transforms nondeterministic effects t`Empty` and t`Choose`
 -- into the t`ListT` monad transformer, which collects all possible results.
@@ -65,8 +65,8 @@ nondetAlg
   . forall m. Monad m
   => Algebra oeffs m -> Algebra [Empty, Nondet] (ListT m)
 nondetAlg oalg eff
-  | (Just (Alg Empty))          <- prj eff = empty
-  | (Just (Alg (Choose xs ys))) <- prj eff = pure xs <|> pure ys
+  | (Just (Alg Empty_))          <- prj eff = empty
+  | (Just (Alg (Choose_ xs ys))) <- prj eff = pure xs <|> pure ys
 
 {-# INLINE nondetAT #-}
 -- | The algebra transformer underlying the 'alternative' handler. This uses an
@@ -82,29 +82,10 @@ backtrack :: Handler [Empty, Choose, Nondet, Once] '[] '[ListT] '[[]]
 backtrack = handler' runListT' (\oalg -> alternativeAlg oalg # nondetAlg' # onceAlg')
 
 nondetAlg' :: Monad m => Algebra '[Nondet]  (ListT m)
-nondetAlg' eff | Just (Alg (Choose x y)) <- prj eff = pure x <|> pure y
-
--- nondetAlg' (x :<|> y) = pure x <|> pure y
-
-nondetAlg1 :: Monad m => Algebra1 Nondet (ListT m)
-nondetAlg1 (Alg (Choose x y)) = pure x <|> pure y
-
--- nondetAlg1' :: Monad m => AlgebraT Nondet (ListT m) Monad
--- nondetAlg1' (Alg (Choose x y)) = AlgTrans (\oalg -> (pure x <|> pure y))
-
-
-
--- nondetAlg3 = algebra (\(Alg (Choose x y) -> pure x <|> pure y))
-
--- algebra x = AlgTrans (\oalg -> x)
-
-
-
-nondetAlg2 :: Monad m => Algebra oalg m -> Algebra1 Nondet (ListT m)
-nondetAlg2 oalg (Alg (Choose x y)) = pure x <|> pure y
+nondetAlg' eff | Just (Alg (Choose_ x y)) <- prj eff = pure x <|> pure y
 
 onceAlg' :: Monad m => Algebra '[Once]  (ListT m)
-onceAlg' eff | Just (Scp (Once xs)) <- prj eff =
+onceAlg' eff | Just (Scp (Once_ xs)) <- prj eff =
   ListT $ do mx <- runListT xs
              case mx of Nothing       -> return Nothing
                         Just (x, mxs) -> return Nothing
@@ -121,9 +102,9 @@ backtrackAlg
   :: Monad m => (forall x. oeff m x -> m x)
   -> (forall x. Effs [Empty, Nondet, Once] (ListT m) x -> ListT m x)
 backtrackAlg oalg op
-  | Just (Alg Empty)            <- prj op = empty
-  | Just (Alg (Choose xs ys))   <- prj op = pure xs <|> pure ys
-  | Just (Scp (Once p))         <- prj op =
+  | Just (Alg Empty_)            <- prj op = empty
+  | Just (Alg (Choose_ xs ys))  <- prj op = pure xs <|> pure ys
+  | Just (Scp (Once_ p))         <- prj op =
     ListT $ do mx <- runListT p
                case mx of
                  Nothing       -> return Nothing
@@ -144,7 +125,7 @@ backtrackOnceAlg
   => (forall x . oeff m x -> m x)
   -> (forall x . Effs '[Once] (ListT m) x -> ListT m x)
 backtrackOnceAlg oalg op
-  | Just (Scp (Once p)) <- prj op =
+  | Just (Scp (Once_ p)) <- prj op =
     ListT $ do mx <- runListT p
                case mx of
                  Nothing       -> return Nothing

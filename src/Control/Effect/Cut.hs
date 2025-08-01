@@ -80,10 +80,10 @@ cutListAlg
   :: Monad m => (forall x. oeff m x -> m x)
   -> forall x. Effs [Empty, Choose, CutFail, CutCall] (CutListT m) x -> CutListT m x
 cutListAlg oalg op
-  | Just (Alg Empty)           <- prj op = empty
-  | Just (Scp (Choose xs ys))  <- prj op = xs <|> ys
-  | Just (Alg CutFail)         <- prj op = CutListT (\cons nil zero -> zero)
-  | Just (Scp (CutCall xs))    <- prj op = CutListT (\cons nil zero -> runCutListT xs cons nil nil)
+  | Just (Alg Empty_)           <- prj op = empty
+  | Just (Scp (Choose_ xs ys))  <- prj op = xs <|> ys
+  | Just (Alg CutFail)          <- prj op = CutListT (\cons nil zero -> zero)
+  | Just (Scp (CutCall xs))     <- prj op = CutListT (\cons nil zero -> runCutListT xs cons nil nil)
 
 cutListAT :: AlgTrans [Empty, Choose, CutFail, CutCall] '[] '[CutListT] Monad
 cutListAT = AlgTrans cutListAlg
@@ -106,7 +106,7 @@ onceCutAlg :: forall m .
   => (forall x. Effs '[CutCall, CutFail, Empty, Choose] m x -> m x)
   -> (forall x. Effs '[Once] m x -> m x)
 onceCutAlg oalg op
-  | Just (Scp (Once p)) <- prj op
+  | Just (Scp (Once_ p)) <- prj op
   = cutCallM oalg (do x <- p
                       eval oalg (do cut
                                     return x))

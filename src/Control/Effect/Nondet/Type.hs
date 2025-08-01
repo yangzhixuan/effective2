@@ -12,6 +12,8 @@ including choice and failure.
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Control.Effect.Nondet.Type where
 
@@ -22,22 +24,28 @@ import Control.Effect.Alternative
 
 type Nondet = Alg Choose_
 
+pattern Nondet :: Member Nondet effs => k -> k -> Effs effs m k
+pattern Nondet x y <- (prj -> Just (Alg (Choose_ x y)))
+
 -- | Signature for delimiting the scope of nondeterminism to `once`
 type Once = Scp Once_
 -- | Underlying signature for delimiting the scope of nondeterminism to `once`
 data Once_ a where
-  Once :: a -> Once_ a
+  Once_ :: a -> Once_ a
   deriving Functor
+
+pattern Once :: Member Once effs => m k -> Effs effs m k
+pattern Once p <- (prj -> Just (Scp (Once_ p)))
 
 -- | `once` restricts a computation to return at most one result.
 once
   :: Member Once sig => Prog sig a -> Prog sig a
-once p = call (Scp (Once p))
+once p = call (Scp (Once_ p))
 
 -- | Execute a computation within a t`Once` scope using a monadic handler.
 onceM :: (Monad m, Member Once sig)
   => (forall a . Effs sig m a -> m a) -> m a -> m a
-onceM alg p = (alg . inj) (Scp (Once p))
+onceM alg p = (alg . inj) (Scp (Once_ p))
 
 -- | `select` nondeterministically selects an element from a list.
 -- If the list is empty, the computation fails.
