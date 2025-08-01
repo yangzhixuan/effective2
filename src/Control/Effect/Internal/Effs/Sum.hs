@@ -22,6 +22,7 @@ module Control.Effect.Internal.Effs.Sum
   , Append (..)
   , weakenAlg
   , hunion
+  , hcons
   , Injects (..)
   , Member' (..)
   , Member
@@ -58,6 +59,9 @@ infixr 6 #
   -> (Algebra (eff1 :++ eff2) m)
 falg # galg = heither @eff1 @eff2 (falg) (galg)
 
+hcons :: (x h a -> b) -> (Effs xs h a -> b) -> (Effs (x ': xs) h a -> b)
+hcons alg algs (Eff x)   = alg x
+hcons alg algs (Effs xs) = algs xs
 
 -- | This type class provides operations that support appending
 -- two effect lists together.
