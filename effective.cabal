@@ -22,13 +22,17 @@ source-repository head
   type: git
   location: https://github.com/zenzike/effective
 
-library
+common common
   default-language: GHC2021
   default-extensions: DataKinds CPP RecordWildCards ImpredicativeTypes LambdaCase AllowAmbiguousTypes
-  ghc-options: -O2 -Wunused-foralls -Wunused-imports -fprint-potential-instances  -ddump-simpl -ddump-to-file -Wno-star-is-type
+  ghc-options: -O2
   --cpp-options: -DINDEXED
   --cpp-options: -DPROGDIRECT
 
+
+library
+  import: common
+-- cpp-options: -DINDEXED
 
   exposed-modules:
     Control.Effect
@@ -42,6 +46,9 @@ library
     Control.Effect.Concurrency
     Control.Effect.Concurrency.Type
     Control.Effect.Yield
+    Control.Effect.Nondet.Type
+    Control.Effect.Nondet.List
+    Control.Effect.Nondet.Logic
     Control.Effect.Reader
     Control.Effect.State
     Control.Effect.State.Type
@@ -67,8 +74,6 @@ library
     Control.Effect.CodeGen.Nondet
     Control.Effect.CodeGen.Concurrency
 
-
-    
     Control.Monad.Trans.CutList
     Control.Monad.Trans.List
     Control.Monad.Trans.Resump
@@ -101,8 +106,11 @@ library
     Control.Effect.Internal.AlgTrans.Type
   hs-source-dirs:
     src
+
   build-depends:
-    base, transformers, array, containers, ghc-prim, template-haskell
+    base, transformers, array, containers,
+    ghc-prim, template-haskell,
+    logict
 
 test-suite docs
   type:          exitcode-stdio-1.0
@@ -128,7 +136,7 @@ test-suite readme
   default-language: GHC2021
   hs-source-dirs:  .
   build-depends: base, transformers, effective, hedgehog
-  build-tool-depends: markdown-unlit:markdown-unlit
+  build-tool-depends: markdown-unlit:markdown-unlit>=0.6
 
 test-suite concur
   type:          exitcode-stdio-1.0
@@ -159,3 +167,17 @@ test-suite staged
 
   other-modules:
     StagedGen
+
+benchmark benchmark
+  import:         common
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: benchmark
+  main-is:        Bench.hs
+  other-modules:
+    Bench.Reader
+
+  build-depends:
+    , base
+    , effective
+    , tasty-bench
+    , transformers
