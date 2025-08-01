@@ -31,6 +31,7 @@ module Control.Effect.Internal.Effs
   , prj
   , weakenAlg
   , heither
+  , hcons
   , hunion
   , (#)
   )
