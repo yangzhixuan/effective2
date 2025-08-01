@@ -58,8 +58,8 @@ data CutCall_ a where
   deriving Functor
 
 -- | Perform a cut operation, pruning the search space.
-cut :: (Members [Choose, CutFail] sig) => Prog sig ()
-cut = or skip cutFail
+cut :: (Members [Empty, Choose, CutFail] sig) => Prog sig ()
+cut = skip <|> cutFail
 
 -- | Execute a computation within a t`CutCall` scope.
 cutCall :: Member CutCall sig => Prog sig a -> Prog sig a
@@ -93,17 +93,17 @@ cutList :: Handler [Empty, Choose, CutFail, CutCall] '[] '[CutListT] '[[]]
 cutList = handler' fromCutListT cutListAlg
 
 -- | A handler for the t`Once` effect using t`CutCall` and t`CutFail`.
-onceCut :: Handler '[Once] '[CutCall, CutFail, Choose] '[] '[]
+onceCut :: Handler '[Once] '[CutCall, CutFail, Empty, Choose] '[] '[]
 onceCut = interpretM onceCutAlg
 
 -- | Transforming the operation t`Once` to t`CutCall`, t`CutFail`, and `Choose`.
-onceCutAT :: AlgTrans '[Once] '[CutCall, CutFail, Choose] '[] Monad
+onceCutAT :: AlgTrans '[Once] '[CutCall, CutFail, Empty, Choose] '[] Monad
 onceCutAT = AlgTrans onceCutAlg
 
 -- | The algebra for handling the t`Once` effect with t`CutCall` and t`CutFail`.
-onceCutAlg :: forall m . 
+onceCutAlg :: forall m .
      Monad m
-  => (forall x. Effs '[CutCall, CutFail, Choose] m x -> m x)
+  => (forall x. Effs '[CutCall, CutFail, Empty, Choose] m x -> m x)
   -> (forall x. Effs '[Once] m x -> m x)
 onceCutAlg oalg op
   | Just (Scp (Once p)) <- prj op

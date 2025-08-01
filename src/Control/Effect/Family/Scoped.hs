@@ -24,10 +24,12 @@ to its \'scope\' @x@. Important examples are scoped operations include
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE MonoLocalBinds #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Control.Effect.Family.Scoped where
 
-import Control.Effect
+import Control.Effect.Family.Algebraic
 
 import Data.Kind ( Type )
 import Data.HFunctor
@@ -42,6 +44,16 @@ import Control.Monad.Trans.Reader
 import Control.Monad.Trans.List
 import Control.Monad.Trans.Resump
 import Control.Monad.Trans.Identity
+
+import Control.Effect.Internal.AlgTrans
+import Control.Effect.Internal.Handler
+import Control.Effect.Internal.Forward
+import Control.Effect.Internal.Effs
+import Control.Monad.Trans.CutList
+import Control.Monad.Logic
+import Data.List.Kind
+import Data.Proxy
+
 
 -- | The family of scoped operations. Forwarding scoped operations through a
 -- transformer must be given explicitly using the `Forward` class.
@@ -138,3 +150,18 @@ instance (Functor s, U.Unary sig) => Forward (Scp sig) (ResT s) where
   fwd alg (Scp op) = hmap ualg (U.get op) where
     ualg :: forall y. m y -> m y
     ualg op' = alg (Scp (U.upd op op'))
+
+unscope :: Proxy sig -> Handler '[Scp sig] '[Alg sig] '[] '[]
+unscope _ = interpretM1 (\oalg (Scp op) -> oalg (Eff (Alg op)) >>= id)
+
+class Unscopes sigs where
+  unscopes :: Proxy sigs -> Handler (Map Scp sigs) (Map Alg sigs) '[] '[]
+
+instance Unscopes '[] where
+  unscopes :: Proxy '[] -> Handler (Map Scp '[]) (Map Alg '[]) '[] '[]
+  unscopes _ = identity
+
+instance (AppendAT# '[Scp sig] (Map Scp sigs) '[Alg sig] (Map Alg sigs),
+   Unscopes sigs) => Unscopes (sig ': sigs) where
+  unscopes :: Proxy (sig ': sigs) -> Handler (Map Scp (sig ': sigs)) (Map Alg (sig ': sigs)) '[] '[]
+  unscopes _ = unscope (Proxy @sig) `appendHdl` unscopes (Proxy @sigs)

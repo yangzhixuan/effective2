@@ -1,40 +1,61 @@
 ```haskell
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE GADTs #-}
 
 module Nondet where
 
 import Prelude hiding (or)
 
 import Control.Effect
+import Control.Effect.Alternative
+import Control.Effect.Family.Algebraic
+import Control.Effect.Family.Scoped
 import Control.Effect.Cut
 import Control.Effect.Nondet
 
 import Control.Monad (guard)
 
 
-import Hedgehog
+import Hedgehog hiding (eval)
 
 knapsack
   :: Int -> [Int] -> [Int] ! [Empty, Choose]
 knapsack w vs
-  | w <  0    = stop
+  | w <  0    = empty
   | w == 0    = return []
   | otherwise = do v <- select vs
                    vs' <- knapsack (w - v) vs
                    return (v : vs')
 
-
--- `list` is not a modular handler and uses `eval` directly
 example_Nondet1 :: Property
-example_Nondet1 = property $ (list $ knapsack 3 [3, 2, 1] :: [[Int]])
+example_Nondet1 = property $ (handle list $ knapsack 3 [3, 2, 1] :: [[Int]])
   === [[3],[2,1],[1,2],[1,1,1]]
 
--- `nondet` is a modular handler but does not
--- handle `once`. Here it is immaterial because `once`
--- does not appear in the program
+-- | `list` evaluates a nondeterministic computation and collects all results
+-- into a list. It handles the t`Empty`, t`Choose`, and t`Once` effects.
+list' :: Prog [Empty, Choose, Once] a -> [a]
+list' = eval halg where
+  halg :: Effs [Empty, Choose, Once] [] a -> [a]
+  halg op
+    | Just (Alg Empty)          <- prj op = []
+    | Just (Scp (Choose xs ys)) <- prj op = xs ++ ys
+    | Just (Scp (Once xs))      <- prj op = case xs of
+                                               []     -> []
+                                               (x:xs) -> [x]
+
+-- `list'` is not a modular handler and uses `eval` directly
+example_Nondet1' :: Property
+example_Nondet1' = property $ (list' $ knapsack 3 [3, 2, 1] :: [[Int]])
+  === [[3],[2,1],[1,2],[1,1,1]]
+
+
+-- `nondet` is a modular handler but does not handle `once`. Here it is
+-- immaterial because `once` does not appear in the program,
+-- however it requires `choose` to be algebraic.
+
 example_Nondet2 :: Property
-example_Nondet2 = property $ (handle nondet $ knapsack 3 [3, 2, 1] :: [[Int]])
+example_Nondet2 = property $ (handle (unscope (Proxy @(Choose_)) |> nondet) $ knapsack 3 [3, 2, 1] :: [[Int]])
   === [[3],[2,1],[1,2],[1,1,1]]
 
 -- `backtrack` is modular, and is furthermore simply
@@ -44,34 +65,33 @@ example_backtrack1 :: Property
 example_backtrack1 = property $ (handle backtrack $ knapsack 3 [3, 2, 1] :: [[Int]])
   === [[3],[2,1],[1,2],[1,1,1]]
 
--- onceEx :: (Member Choose sig, Member Once sig) => Prog sig I
 example_backtrack2 :: Property
 example_backtrack2 = property $ handle backtrack p === [1, 2] where
-  p :: Members '[Choose, Once] sig => Prog sig Int
-  p = do x <- once (or (return 0) (return 5))
-         or (return (x + 1)) (return (x + 2))
+  p :: (Alternative (Prog sig), Members '[Once] sig) => Prog sig Int
+  p = do x <- once (return 0 <|> return 5)
+         (return (x + 1)) <|> (return (x + 2))
 -- ghci> exampleOnce
 -- [1,2]
 
 example_Once' :: Property
 example_Once' = property $ handle onceNondet p === [1, 2] where
-  p :: Members '[Choose, Once] sig => Prog sig Int
-  p = do x <- once (or (return 0) (return 5))
-         or (return (x + 1)) (return (x + 2))
+  p :: Members '[Choose, Empty, Once] sig => Prog sig Int
+  p = do x <- once ((return 0) <|> (return 5))
+         (return (x + 1)) <|> (return (x + 2))
 -- ghci> exampleOnce'
 -- [1,2]
 
 example_Once'' :: Property
 example_Once'' = property $ handle onceNondet p === [1, 2] where
-  p :: Members '[Choose, Once] sig => Prog sig Int
-  p = do x <- once (or (return 0) (return 5))
-         or (return (x + 1)) (return (x + 2))
+  p :: Members '[Choose, Empty, Once] sig => Prog sig Int
+  p = do x <- once ((return 0) <|> (return 5))
+         (return (x + 1)) <|> (return (x + 2))
 
 example_Once''' :: Property
 example_Once''' = property $ handle onceNondet p === [1, 2] where
-  p :: Members '[Choose, Once] sig => Prog sig Int
-  p = do x <- once (or (return 0) (return 5))
-         or (return (x + 1)) (return (x + 2))
+  p :: Members '[Choose, Empty, Once] sig => Prog sig Int
+  p = do x <- once ((return 0) <|> (return 5))
+         (return (x + 1)) <|> (return (x + 2))
 
 -- queens n = [c_1, c_2, ... , c_n] where
 --   (i, c_i) is the (row, column) of a queen
@@ -93,7 +113,7 @@ queens n = go [1 .. n] []
     noThreat (q:qs)  c r  = abs (q - c) /= r && noThreat qs c (r+1)
 
 example_queens = property $
-  length (list (queens 8)) === 92
+  length (handle list (queens 8)) === 92
 
 examples :: Group
 examples = $$(discoverPrefix "example_")

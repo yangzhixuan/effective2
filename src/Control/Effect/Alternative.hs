@@ -23,7 +23,6 @@ module Control.Effect.Alternative (
   --
   -- '<|>' is a scoped operation.
   empty,
-
   (<|>),
 
   -- ** Signatures
@@ -36,13 +35,27 @@ module Control.Effect.Alternative (
 
   -- ** Algebras
   alternativeAT,
+  alternativeAlg,
 ) where
 
 import Control.Effect
 import Control.Effect.Family.Algebraic
 import Control.Effect.Family.Scoped
 
-import Control.Applicative ( Alternative(empty, (<|>)) )
+import Control.Applicative
+
+-- | Instance for 'Alternative' that uses 'Empty' and 'Choose'.
+instance (Member Empty sigs, Member Choose sigs)
+  => Alternative (Prog sigs) where
+  {-# INLINE empty #-}
+-- | Syntax for an empty alternative. This is an algebraic operation.
+  empty :: Member Empty sigs => Prog sigs a
+  empty = call (Alg Empty)
+
+  {-# INLINE (<|>) #-}
+-- | Syntax for a choice of alternatives. This is a scoped operation.
+  (<|>) :: (Member Choose sigs) => Prog sigs a -> Prog sigs a -> Prog sigs a
+  xs <|> ys = call (Scp (Choose xs ys))
 
 -- | Signature for empty alternatives.
 type Empty = Alg Empty_
@@ -85,15 +98,3 @@ alternativeAlg
 alternativeAlg oalg eff
   | (Just (Alg Empty))          <- prj eff = empty
   | (Just (Scp (Choose xs ys))) <- prj eff = xs <|> ys
-  -- | (Just (Alg (Choose xs ys))) <- prj eff = pure xs <|> pure ys
-
--- | Instance for 'Alternative' that uses 'Choose_' and 'Empty_'.
-instance (Member Choose sigs, Member Empty sigs)
-  => Alternative (Prog sigs) where
-  {-# INLINE empty #-}
--- | Syntax for an empty alternative. This is an algebraic operation.
-  empty = call (Alg Empty)
-
-  {-# INLINE (<|>) #-}
--- | Syntax for a choice of alternatives. This is a scoped operation.
-  xs <|> ys = call (Scp (Choose xs ys))
