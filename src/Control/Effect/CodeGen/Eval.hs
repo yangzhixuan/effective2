@@ -10,6 +10,9 @@ programs. The function `stage` is probably the most useful one.
 -}
 
 {-# LANGUAGE TemplateHaskell, MonoLocalBinds, MagicHash #-}
+{-# LANGUAGE ImpredicativeTypes #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+
 module Control.Effect.CodeGen.Eval where
 
 import Control.Effect.CodeGen.Up

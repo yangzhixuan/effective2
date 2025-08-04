@@ -23,6 +23,9 @@ the result back to the meta level. This is of course very unsatisfactory but cur
 I don't know how to do better.
 -}
 {-# LANGUAGE TemplateHaskell, UndecidableInstances, BlockArguments, MonoLocalBinds, ViewPatterns #-}
+{-# LANGUAGE ImpredicativeTypes #-}
+{-# LANGUAGE LambdaCase #-}
+
 module Control.Effect.CodeGen.Concurrency where
 
 import Control.Effect

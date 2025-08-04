@@ -22,6 +22,7 @@ up-operation is needed.
 -}
 {-# LANGUAGE TemplateHaskell, LambdaCase, UndecidableInstances, TypeFamilies #-}
 {-# LANGUAGE ViewPatterns, PatternSynonyms, QuantifiedConstraints #-}
+{-# LANGUAGE ImpredicativeTypes #-}
 module Control.Effect.CodeGen.Up where
 
 import Control.Effect

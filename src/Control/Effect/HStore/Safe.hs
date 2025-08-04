@@ -1,4 +1,4 @@
-{-# LANGUAGE QuantifiedConstraints, MonoLocalBinds #-}
+{-# LANGUAGE QuantifiedConstraints, MonoLocalBinds, CPP, AllowAmbiguousTypes #-}
 {-|
 Module      : Control.Effect.HStore.Safe
 Description : Higher-order store (safe implementation)

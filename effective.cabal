@@ -2,7 +2,7 @@ cabal-version:       3.0
 name:                effective
 version:             0.1.0.0
 synopsis:            Effect handlers
-description:         Effect handlers
+description:         Effect handlers library for algebraic, scoped, and other effects.
 license:             BSD-3-Clause
 license-file:        LICENSE
 author:              Nicolas Wu
@@ -11,7 +11,9 @@ maintainer:          n.wu@imperial.ac.uk
 category:            Control
 build-type:          Simple
 extra-source-files:
-    README.md
+  README.md
+extra-doc-files:
+  ChangeLog.md
 
 source-repository head
   type: git
@@ -19,15 +21,16 @@ source-repository head
 
 common common
   default-language: GHC2021
-  default-extensions: DataKinds CPP RecordWildCards ImpredicativeTypes LambdaCase AllowAmbiguousTypes GADTs
-  ghc-options: -O2
+  default-extensions:
+    DataKinds
+
+  ghc-options:
   --cpp-options: -DINDEXED
   --cpp-options: -DPROGDIRECT
 
 
 library
   import: common
--- cpp-options: -DINDEXED
 
   exposed-modules:
     Control.Effect
@@ -103,18 +106,26 @@ library
     src
 
   build-depends:
-    base, transformers, array, containers,
-    ghc-prim, template-haskell,
-    logict
+    base               >= 4.19   && < 4.22,
+    transformers       >= 0.4    && < 0.7,
+    array              >= 0.5.7  && < 0.6,
+    containers         >= 0.7    && < 0.8,
+    ghc-prim           >= 0.11.0 && < 0.12,
+    logict             >= 0.8.2  && < 0.9,
+    template-haskell   >= 2.22.0 && < 2.23,
 
 test-suite readme
   type:          exitcode-stdio-1.0
-  ghc-options:   -threaded -pgmL markdown-unlit -ddump-simpl  -ddump-to-file
+  ghc-options:   -threaded -pgmL markdown-unlit
   main-is:       README.lhs
   default-extensions: DataKinds
   default-language: GHC2021
   hs-source-dirs:  .
-  build-depends: base, transformers, effective, hedgehog
+  build-depends:
+    base         >= 4.20.0 && < 4.21,
+    effective,
+    hedgehog     >= 1.5    && < 1.6,
+    transformers >= 0.6.1  && < 0.7,
   build-tool-depends: markdown-unlit:markdown-unlit
 
 test-suite concur
@@ -124,7 +135,11 @@ test-suite concur
   default-language: GHC2021
   default-extensions: DataKinds
   hs-source-dirs:  test
-  build-depends: base, transformers, effective, containers
+  build-depends:
+    base         >= 4.19  && < 4.21,
+    effective,
+    containers   >= 0.7   && < 0.8,
+    transformers >= 0.6.1 && < 0.7,
 
 test-suite hostore
   type:          exitcode-stdio-1.0
@@ -133,16 +148,25 @@ test-suite hostore
   default-language: GHC2021
   default-extensions: DataKinds
   hs-source-dirs:  test
-  build-depends: base, transformers, effective, containers
+  build-depends:
+    base         >= 4.20.0 && < 4.21,
+    effective,
+    containers   >= 0.7    && < 0.8,
+    transformers >= 0.6.1  && < 0.7,
 
 test-suite staged
   type:          exitcode-stdio-1.0
-  ghc-options:   -O0 -ddump-simpl -ddump-splices -dsuppress-all -dno-suppress-type-signatures -ddump-to-file
+  ghc-options:
   main-is:       Staged.hs
   default-language: GHC2021
   default-extensions: DataKinds TemplateHaskell ImpredicativeTypes AllowAmbiguousTypes
   hs-source-dirs:  test
-  build-depends: base, transformers, effective, containers, template-haskell
+  build-depends:
+    base             >= 4.20.0 && < 4.21,
+    effective,
+    containers       >= 0.7 && < 0.8,
+    template-haskell >= 2.22.0 && < 2.23,
+    transformers     >= 0.6.1 && < 0.7,
 
   other-modules:
     StagedGen

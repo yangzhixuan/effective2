@@ -24,6 +24,7 @@ around the powerset functor and probabilistic distribution monad are especially
 important in the study of (nondeterministic/probabilistic) automata theory.)
 -}
 {-# LANGUAGE  TypeFamilies  #-}
+{-# LANGUAGE  ImpredicativeTypes  #-}
 
 module Control.Effect.Family.Distributive where
 

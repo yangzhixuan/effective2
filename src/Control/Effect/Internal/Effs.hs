@@ -15,6 +15,8 @@ Stability   : experimental
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE ImpredicativeTypes #-}
+
 
 module Control.Effect.Internal.Effs
   ( Member
@@ -75,3 +77,4 @@ singAlgIso = Iso fwd bwd where
   {-# INLINE bwd #-}
   bwd :: (forall x. eff m x -> m x) -> Algebra '[eff] m
   bwd alg (Eff e) = alg e
+

@@ -34,6 +34,8 @@ called @join@.
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE ImpredicativeTypes #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 
 module Control.Effect.CodeGen.JoinFlow where
 
