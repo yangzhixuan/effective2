@@ -51,4 +51,4 @@ pingpongWith :: forall oeffs a b y .
 pingpongWith q = handler run (\_ -> yieldAlg) where
   run :: forall m . Monad m => Algebra oeffs m
       -> (forall x. YResT a b m x -> m (Either y x))
-  run oalg p = pingpong p (eval (yieldAlg # getAT (fwds @_ @'[YResT b a]) oalg) . q)
+  run oalg p = pingpong p (eval (yieldAlg # getAT (fwds @oeffs @'[YResT b a]) oalg) . q)
