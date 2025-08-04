@@ -136,7 +136,7 @@ test-suite readme
   default-language: GHC2021
   hs-source-dirs:  .
   build-depends: base, transformers, effective, hedgehog
-  build-tool-depends: markdown-unlit:markdown-unlit ^>=0.5
+  build-tool-depends: markdown-unlit:markdown-unlit ^>=0.6
 
 test-suite concur
   type:          exitcode-stdio-1.0
