@@ -68,7 +68,7 @@ prog2 =
              replicateM_ 5 (io (putStr "D")))
 
 test4 :: IO ()
-test4 = handleIO (Proxy @IOEffects) (identity @'[]) prog2
+test4 = handleIO' (Proxy @IOEffects) (identity @'[]) prog2
 
 tell' :: forall w sig. (Member (Clone (Tell w)) sig, Monoid w) => w -> Prog sig ()
 tell' w = cloneAlg (Tell_ w ())
@@ -86,10 +86,10 @@ prog4 :: Member (Alg IO) sig => Prog sig ()
 prog4 = io (putChar 'x')
 
 test6 :: IO ()
-test6 = handleIO (Proxy @IOEffects) (identity @'[]) prog4
+test6 = handleIO identity prog4
 
 test7 :: IO (Either String ())
-test7 = handleIO (Proxy @IOEffects) (ccsByQSem @ActNames |> writerIO) (prog >> io (putStrLn ""))
+test7 = handleIO' (Proxy @IOEffects) (ccsByQSem @ActNames |> writerIO) (prog >> io (putStrLn ""))
 
 
 prog5 :: Members '[JPar, Act HS, Res HS, Tell String] sig => Prog sig (Int, Int)
@@ -100,7 +100,7 @@ test8 :: (String, ListActs HS (Int, Int))
 test8 = handle (jresump |> writer @String) prog5
 
 test9 :: IO (Either String (Int, Int))
-test9 = handleIO (Proxy @IOEffects) (ccsByQSem @ActNames |> writerIO) prog5
+test9 = handleIO' (Proxy @IOEffects) (ccsByQSem @ActNames |> writerIO) prog5
 
 prog6 :: Members '[Yield Int Int, Alg IO] sig => Int -> Prog sig Int
 prog6 n = do io (putStrLn ("Ping " ++ show n))
@@ -115,6 +115,6 @@ prog6' n
                    prog6' n'
 
 test10 :: IO (Either Int Int)
-test10 = handleIO (Proxy @'[Alg IO])
-           (pingpongWith (prog6' @'[Yield Int Int, MapYield Int Int, Alg IO]))
-           (prog6 0)
+test10 = handleIO' (Proxy @'[Alg IO])
+            (pingpongWith (prog6' @'[Yield Int Int, MapYield Int Int, Alg IO]))
+            (prog6 0)

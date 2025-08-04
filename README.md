@@ -82,7 +82,7 @@ teletypeIO = interpret
 Now to execute the program all that remains is `handleIO`:
 ```haskell
 exampleIO :: IO ()
-exampleIO = handleIO (Proxy @'[]) teletypeIO echo
+exampleIO = handleIO teletypeIO echo
 ```
 This will execute the `echo` program where input provided on the
 terminal by the user is immediately echoed back out to the terminal.
@@ -114,7 +114,7 @@ The idea is to execute this program using a specialised handler
 that counts the number of ticks:
 ```haskell
 exampleEchoTick :: IO (Int, ())
-exampleEchoTick = handleIO (Proxy @'[Alg IO]) (ticker |> teletypeIO) echoTick
+exampleEchoTick = handleIO (ticker |> teletypeIO) echoTick
 ```
 When this is executed, it counts the number of lines received:
 ```console
@@ -133,7 +133,7 @@ We can also emulate the behaviour of `echo` by ignoring all the ticks by using
 the `unticker` handler:
 ```haskell
 exampleEchoNoTick :: IO ()
-exampleEchoNoTick = handleIO (Proxy @'[Alg IO]) (unticker |> teletypeIO) echoTick
+exampleEchoNoTick = handleIO (unticker |> teletypeIO) echoTick
 ```
 Note that this is different to discarding the tick count by applying `fst`
 to the result of a program that counts ticks: the count is not even generated
@@ -453,7 +453,7 @@ getLineIncrState = getLineIncr ||> (state (0 :: Int))
 This can then be executed using `handleIO`, which will deal with
 the residual `GetLine` effect:
 ```console
-ghci> handleIO (Proxy @'[GetLine]) getLineIncrState echo
+ghci> handleIO getLineIncrState echo
 Hello
 Hello
 world!
@@ -553,7 +553,7 @@ handler.
 One fix is to handle the program with `handleIO` to output to IO, while
 redirecting the input to come from a pure list:
 ```console
-ghci> handleIO (Proxy @'[PutStrLn]) (getLinePure_ ["Hello", "world!"]) echo
+ghci> handleIO (getLinePure_ ["Hello", "world!"]) echo
 Hello
 world
 ```

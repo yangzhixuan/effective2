@@ -33,7 +33,8 @@ import Control.Effect.Internal.Forward
 import Data.Iso
 import Data.Kind ( Type )
 import Data.HFunctor
-import Control.Monad.Trans.Class
+import Control.Monad.Trans.Class ( MonadTrans(..) )
+import Control.Effect.Internal.Effs.Sum.Type (Algebra, Effs(..))
 
 -- | @Alg sig@ is the (higher-order) signature of algebraic operations of
 -- (first-order) signature @sig@.
@@ -71,3 +72,7 @@ algOpIso :: (Functor sig, Monad m)
 algOpIso = Iso
   (\a sm -> a (Alg sm) >>= id)
   (\b (Alg s) -> b (fmap return s))
+
+-- | Algebra for the generic algebraic effect
+nativeAlg :: Algebra '[Alg m] m
+nativeAlg (Eff (Alg (op))) = op
