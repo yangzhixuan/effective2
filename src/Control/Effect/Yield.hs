@@ -1,4 +1,5 @@
-{-# LANGUAGE DataKinds, MonoLocalBinds #-}
+{-# LANGUAGE DataKinds, MonoLocalBinds, CPP #-}
+
 module Control.Effect.Yield where
 
 import Control.Effect

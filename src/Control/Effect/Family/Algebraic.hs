@@ -24,6 +24,7 @@ the @Forward@ instance.
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE MonoLocalBinds #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ImpredicativeTypes #-}
 
 module Control.Effect.Family.Algebraic where
 

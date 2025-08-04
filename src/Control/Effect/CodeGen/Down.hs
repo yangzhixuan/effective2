@@ -10,6 +10,7 @@ datatypes to object-level datatypes.
 -}
 {-# LANGUAGE TemplateHaskell, UndecidableInstances #-}
 {-# LANGUAGE BlockArguments, MonoLocalBinds #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Control.Effect.CodeGen.Down where
 

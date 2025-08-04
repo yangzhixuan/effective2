@@ -8,7 +8,7 @@ Stability   : experimental
 This module contains combinators of /algebra transformers/, the core data type
 of this library.
 -}
-{-# LANGUAGE ImpredicativeTypes, QuantifiedConstraints, UndecidableInstances #-}
+{-# LANGUAGE ImpredicativeTypes, QuantifiedConstraints, UndecidableInstances, AllowAmbiguousTypes #-}
 {-# LANGUAGE MonoLocalBinds, LambdaCase, BlockArguments #-}
 {-# LANGUAGE PartialTypeSignatures, MagicHash, PartialTypeSignatures #-}
 
