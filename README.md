@@ -1,3 +1,5 @@
+[![Build Status](https://github.com/effective/effective/actions/workflows/ci.yml/badge.svg)](https://github.com/effective/effective/actions)
+
 Effective
 ==========
 
@@ -1049,3 +1051,4 @@ References
 [^Gordon1992]: [Functional Programming and Input/Output. A. Gordon. PhD Thesis, King's College London. 1992](https://www.microsoft.com/en-us/research/uploads/prod/2016/11/fpio.pdf)
 
 [^Imports]: The language extensions and imports required are at the bottom of this file.
+
