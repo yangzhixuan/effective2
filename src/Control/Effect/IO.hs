@@ -17,14 +17,13 @@ Stability   : experimental
 module Control.Effect.IO (
   -- * Syntax
   -- ** Operations
-  io, getLine, putStrLn, putStr, getCPUTime,
+  io, getLine, putStrLn, putStr,
 
   -- ** Signatures
   IOEffects, IOAlgOps,
   GetLine, GetLine_(..),
   PutStrLn, PutStrLn_(..),
   PutStr, PutStr_(..),
-  GetCPUTime, GetCPUTime_(..),
 
   -- * Semantics
   -- * Evaluation
@@ -39,7 +38,6 @@ module Control.Effect.IO (
   putStrLnAlg,
   putStrAlg,
   getLineAlg,
-  getCPUTimeAlg,
   parAlg,
   jparAlg,
 )
@@ -52,7 +50,6 @@ import Control.Effect.Family.Scoped
 import Control.Effect.Family.Distributive
 import Control.Effect.Concurrency.Type (Par, Par_(..), JPar, JPar_(..))
 
-import qualified System.CPUTime
 import qualified Control.Concurrent
 import qualified Control.Concurrent.MVar as MVar
 import Data.List.Kind
@@ -66,7 +63,6 @@ type IOAlgOps = '[ Alg IO
                   , GetLine
                   , PutStrLn
                   , PutStr
-                  , GetCPUTime
                   ]
 
 -- | All effectful operations that the IO monad supports natively
@@ -74,7 +70,7 @@ type IOEffects = IOAlgOps :++ '[Par, JPar]
 
 -- | Interprets IO algebraic operations using their standard semantics in `IO`.
 ioAlgAlg :: Algebra IOAlgOps IO
-ioAlgAlg = nativeAlg # getLineAlg # putStrLnAlg # putStrAlg # getCPUTimeAlg
+ioAlgAlg = nativeAlg # getLineAlg # putStrLnAlg # putStrAlg
 
 -- | Interprets IO operations using their standard semantics in `IO`.
 ioAlg :: Algebra IOEffects IO
@@ -116,16 +112,6 @@ data PutStr_ k = PutStr String k     deriving Functor
 putStr :: Members '[PutStr] sig => String -> Prog sig ()
 putStr str = call (Alg (PutStr str ()))
 
--- | Signature for `Control.Effect.IO.getCPUTime`.
-type GetCPUTime = Alg (GetCPUTime_)
--- | Underlying signature for `Control.Effect.IO.getCPUTime`.
-data GetCPUTime_ k = GetCPUTime (Integer -> k) deriving Functor
-
--- | Returns the number of picoseconds CPU time used by the current
--- program.
-getCPUTime :: Members '[GetCPUTime] sig => Prog sig Integer
-getCPUTime = call (Alg (GetCPUTime id))
-
 -- | Interprets `Control.Effects.IO.getLine` using `Prelude.getLine` from "Prelude".
 getLineAlg :: Algebra '[GetLine] IO
 getLineAlg eff
@@ -146,13 +132,6 @@ putStrAlg eff
   | Just (Alg (PutStr str x)) <- prj eff =
       do Prelude.putStr str
          return x
-
--- | Interprets `Control.Effect.IO.getCPUTime` using `System.CPUTime.getCPUTime` from "System.CPUTime".
-getCPUTimeAlg :: Algebra '[GetCPUTime] IO
-getCPUTimeAlg eff
-  | Just (Alg (GetCPUTime x)) <- prj eff =
-      do time <- System.CPUTime.getCPUTime
-         return (x time)
 
 -- | Interprets t`Control.Effect.Concurrency.Par` using the native concurrency API.
 -- from `Control.Concurrent`.

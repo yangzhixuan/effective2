@@ -858,16 +858,16 @@ is logged can be recorded. The traditional way of doing this might be to make
 a bespoke `logger` that ensures that there is a timestamp integrated into each
 occurence of the log:
 ```haskell
-logger :: String -> () ! [Tell [(Integer, String)], GetCPUTime]
-logger str = do time <- getCPUTime
+logger :: String -> () ! [Tell [(Integer, String)], Alg IO]
+logger str = do time <- io getCPUTime
                 tell [(time, str)]
 ```
 However, this is a case where a reinterpretation might be better where all
 instances of `tell` are augmented with the appropriate timestamp.
 ```haskell
-telltime :: forall w . Monoid w => Handler '[Tell w] '[Tell [(Integer, w)], GetCPUTime] '[] '[]
+telltime :: forall w . Monoid w => Handler '[Tell w] '[Tell [(Integer, w)], Alg IO ] '[] '[]
 telltime = interpret $ \(Tell (w :: w) k) ->
-  do time <- getCPUTime
+  do time <- io getCPUTime
      tell [(time, w)]
      return k
 ```
@@ -901,12 +901,12 @@ is executed. Then `ask` emits a pair consisting of `(name, t' - t)`,
 thus showing how much time was spent in `p`.
 
 ```haskell
-timer :: Handler '[Profile] '[Tell [(String, Integer)], GetCPUTime] '[] '[]
+timer :: Handler '[Profile] '[Tell [(String, Integer)], Alg IO] '[] '[]
 timer = interpretM $ \oalg (Eff (Scp (Profile name p))) ->
-  do t  <- eval oalg getCPUTime
+  do t  <- eval oalg (io getCPUTime)
      k  <- p
      eval oalg $ do
-        t' <- getCPUTime
+        t' <- io getCPUTime
         tell [(name, t' - t)]
      return k
 ```
@@ -917,8 +917,8 @@ to be implemented, or for logs to be enabled and disabled.
 More generally, there may be other instruments that could be used, and indeed
 the `timer` handler can alternatively be defined by using `profiler`:
 ```haskell
-timer' :: Handler '[Profile] '[Tell [(String, Integer)], GetCPUTime] '[] '[]
-timer' = profiler (flip (-)) getCPUTime
+timer' :: Handler '[Profile] '[Tell [(String, Integer)], Alg IO] '[] '[]
+timer' = profiler (flip (-)) (io getCPUTime)
 ```
 A new `profiler f instrument p` will inject the `instrument` before and after
 `p` and collect two measurements: one before `p` and another after `p` is
@@ -943,6 +943,18 @@ getLineProfile :: Handler '[GetLine] '[Profile, GetLine] '[] '[]
 getLineProfile = interpret1 $ \(Alg (GetLine k)) ->
   profile "getLine" (getLine >>= return . k)
 ```
+
+Working with IO
+---------------
+
+Opening a file can be done with an operation:
+
+```
+do file <- call (Alg (openFile "hello.txt"))
+   ...
+```
+
+
 
 
 Members
@@ -1016,6 +1028,8 @@ import Control.Monad.Trans.Writer (WriterT)
 import Data.List.Kind
 import Data.Char (toUpper)
 import Data.HFunctor
+
+import System.CPUTime (getCPUTime)
 
 import Prelude hiding (putStrLn, getLine)
 ```
