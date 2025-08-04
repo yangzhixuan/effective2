@@ -44,68 +44,45 @@ echo = do str <- getLine
 The type signature says that this is a program that requires
 both `GetLine` and `PutStrLn` operations, where the
 usual `getLine` and `putStrLn` from `Prelude` are hidden,
-and replaced by syntactic operations we will provide.
-
-Here is how they can be defined by the user:
-
+and replaced by syntactic operations:
 ```haskell
--- | Signature for `Control.Effects.IO.getLine`.
 type GetLine = Alg GetLine_
--- | Underlying signature for `Control.Effects.IO.getLine`.
-data GetLine_ k  = GetLine (String -> k) deriving Functor
-
--- | Read a line from from standard input device.
+data GetLine_ k  = GetLine_ (String -> k) deriving Functor
+pattern GetLine :: Member GetLine eff => (String -> k) -> Effs eff m k
+pattern GetLine k <- (prj -> Just (Alg (GetLine_ k)))
+  where GetLine k = inj (Alg (GetLine_ k))
 getLine :: Members '[GetLine] sig => Prog sig String
-getLine = call (Alg (GetLine id))
+getLine = call (Alg (GetLine_ id))
 
--- | Signature for `Control.Effect.IO.putStrLn`.
 type PutStrLn = Alg PutStrLn_
--- | Underlying signature for `Control.Effect.IO.putStrLn`.
-data PutStrLn_ k = PutStrLn String k     deriving Functor
-
--- | Write a string to the standard output device, and add a newline character.
+data PutStrLn_ k = PutStrLn_ String k     deriving Functor
+pattern PutStrLn :: Member PutStrLn eff => String -> k -> Effs eff m k
+pattern PutStrLn str k <- (prj -> Just (Alg (PutStrLn_ str k)))
+  where PutStrLn str k = inj (Alg (PutStrLn_ str k))
 putStrLn :: Members '[PutStrLn] sig => String -> Prog sig ()
-putStrLn str = call (Alg (PutStrLn str ()))
-
--- | Signature for `Control.Effect.IO.putStr`.
-type PutStr = Alg PutStr_
--- | Underlying signature for `Control.Effect.IO.putStr`.
-data PutStr_ k = PutStr String k     deriving Functor
-
--- | Write a string to the standard output device.
-putStr :: Members '[PutStr] sig => String -> Prog sig ()
-putStr str = call (Alg (PutStr str ()))
-
-handleGetLine :: Handler '[GetLine] '[Alg IO] '[] '[]
-handleGetLine = interpret1 (\(Alg (GetLine k)) -> do x <- io (Prelude.getLine); return (k x))
-
-handlePutStrLn :: Handler '[PutStrLn] '[Alg IO] '[] '[]
-handlePutStrLn = interpret1 (\(Alg (PutStrLn xs k)) -> do x <- io (Prelude.putStrLn xs); return k)
-
--- | Interprets `Control.Effect.IO.putStrLn` using `Prelude.putStrLn` from "Prelude".
-putStrLnAlg :: Algebra '[PutStrLn] IO
-putStrLnAlg eff
-  | Just (Alg (PutStrLn str x)) <- prj eff =
-      do Prelude.putStrLn str
-         return x
-
--- | Interprets `Control.Effect.IO.putStr` using `Prelude.putStr` from "Prelude".
-putStrAlg :: Algebra '[PutStr] IO
-putStrAlg eff
-  | Just (Alg (PutStr str x)) <- prj eff =
-      do Prelude.putStr str
-         return x
+putStrLn str = call (Alg (PutStrLn_ str ()))
 ```
-
-
+Much of this is standard boilerplate code.
 
 The most obvious interpretation of `getLine` and `putLine` is to invoke their
-corresponding values from the prelude. Indeed, when all the operations of a
-program are standard Prelude IO operations, it is enough to simply evaluate the
-program using `evalIO`:
-```haskell ignore
+corresponding values from the prelude:
+```haskell
+getLineIO :: Handler '[GetLine] '[Alg IO] '[] '[]
+getLineIO = interpret (\(GetLine k) -> do x <- io (Prelude.getLine); return (k x))
+
+putStrLnIO :: Handler '[PutStrLn] '[Alg IO] '[] '[]
+putStrLnIO = interpret (\(PutStrLn xs k) -> do x <- io (Prelude.putStrLn xs); return k)
+
+teletypeIO :: Handler '[GetLine, PutStrLn] '[Alg IO] '[] '[]
+teletypeIO = interpret
+  (\case (GetLine k)     -> do x <- io (Prelude.getLine); return (k x)
+         (PutStrLn xs k) -> do x <- io (Prelude.putStrLn xs); return k)
+```
+
+Now to execute the program all that remains is `handleIO`:
+```haskell
 exampleIO :: IO ()
-exampleIO = evalIO echo
+exampleIO = handleIO (Proxy @'[]) teletypeIO echo
 ```
 This will execute the `echo` program where input provided on the
 terminal by the user is immediately echoed back out to the terminal.
@@ -137,7 +114,7 @@ The idea is to execute this program using a specialised handler
 that counts the number of ticks:
 ```haskell
 exampleEchoTick :: IO (Int, ())
-exampleEchoTick = handleIO (Proxy @'[Alg IO]) (ticker |> handleGetLine |> handlePutStrLn) echoTick
+exampleEchoTick = handleIO (Proxy @'[Alg IO]) (ticker |> teletypeIO) echoTick
 ```
 When this is executed, it counts the number of lines received:
 ```console
@@ -156,7 +133,7 @@ We can also emulate the behaviour of `echo` by ignoring all the ticks by using
 the `unticker` handler:
 ```haskell
 exampleEchoNoTick :: IO ()
-exampleEchoNoTick = handleIO (Proxy @'[Alg IO]) (unticker |> handleGetLine |> handlePutStrLn) echoTick
+exampleEchoNoTick = handleIO (Proxy @'[Alg IO]) (unticker |> teletypeIO) echoTick
 ```
 Note that this is different to discarding the tick count by applying `fst`
 to the result of a program that counts ticks: the count is not even generated
@@ -456,7 +433,7 @@ getLineIncr
              '[GetLine, Get Int, Put Int]     -- output effects
              '[]                              -- no transformers
              '[]                              -- no wrappers
-getLineIncr = interpret1 $ \(Alg (GetLine k)) ->
+getLineIncr = interpret $ \(GetLine k) ->
   do xs <- getLine
      incr
      return (k xs)
@@ -511,7 +488,7 @@ operations `get` and `put` from a state containing a list of strings:
 ```haskell
 getLineState
   :: Handler '[GetLine] '[Get [String], Put [String]] '[] '[]
-getLineState = interpret1 $ \(Alg (GetLine k)) ->
+getLineState = interpret $ \(GetLine k) ->
   do xss <- get
      case xss of
        []        -> return (k "")
@@ -604,7 +581,7 @@ Now the task is to interpret all `putStrLn` operations in terms of the
 `tell` operation:
 ```haskell
 putStrLnTell :: Handler '[PutStrLn] '[Tell [String]] '[] '[]
-putStrLnTell = interpret1 $ \(Alg (PutStrLn str k)) ->
+putStrLnTell = interpret $ \(PutStrLn str k) ->
   do tell [str]
      return k
 ```
@@ -801,7 +778,7 @@ It is easy enough to see how a variation of `retell` could be written,
 by interpreting `PutStrLn` operations:
 ```haskell
 rePutStrLn :: (String -> String) -> Handler '[PutStrLn] '[PutStrLn] '[] '[]
-rePutStrLn f = interpret1 $ \(Alg (PutStrLn str k)) ->
+rePutStrLn f = interpret $ \(PutStrLn str k) ->
   do putStrLn (f str)
      return k
 ```
@@ -995,7 +972,7 @@ For our teletype example, we can instrument all of the `getLine` operations
 with a profiler as follows:
 ```haskell
 getLineProfile :: Handler '[GetLine] '[Profile, GetLine] '[] '[]
-getLineProfile = interpret1 $ \(Alg (GetLine k)) ->
+getLineProfile = interpret $ \(GetLine k) ->
   profile "getLine" (getLine >>= return . k)
 ```
 
@@ -1053,6 +1030,7 @@ this is used to keep track of effect signatures.
 {-# LANGUAGE GADTs           #-}  -- Used for syntax
 {-# LANGUAGE PatternSynonyms #-}  -- Used for syntax
 {-# LANGUAGE ViewPatterns    #-}  -- Used for syntax
+{-# LANGUAGE LambdaCase      #-}  -- Used for syntax
 ```
 <!--
 The following pragma is only needed for the testing framework.
