@@ -1,2 +1,5 @@
 packages:
     effective.cabal
+
+package effective
+  ghc-options: -Werror
