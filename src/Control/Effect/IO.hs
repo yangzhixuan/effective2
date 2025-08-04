@@ -17,13 +17,10 @@ Stability   : experimental
 module Control.Effect.IO (
   -- * Syntax
   -- ** Operations
-  io, getLine, putStrLn, putStr,
+  io,
 
   -- ** Signatures
   IOEffects, IOAlgOps,
-  GetLine, GetLine_(..),
-  PutStrLn, PutStrLn_(..),
-  PutStr, PutStr_(..),
 
   -- * Semantics
   -- * Evaluation
@@ -35,9 +32,6 @@ module Control.Effect.IO (
   ioAlgAlg,
   ioAlg,
   nativeAlg,
-  putStrLnAlg,
-  putStrAlg,
-  getLineAlg,
   parAlg,
   jparAlg,
 )
@@ -55,14 +49,8 @@ import qualified Control.Concurrent.MVar as MVar
 import Data.List.Kind
 import Data.HFunctor
 
-import Prelude hiding (getLine, putStrLn, putStr)
-import qualified Prelude as Prelude
-
 -- | The algebraic operations that the IO monad supports natively
 type IOAlgOps = '[ Alg IO
-                  , GetLine
-                  , PutStrLn
-                  , PutStr
                   ]
 
 -- | All effectful operations that the IO monad supports natively
@@ -70,7 +58,7 @@ type IOEffects = IOAlgOps :++ '[Par, JPar]
 
 -- | Interprets IO algebraic operations using their standard semantics in `IO`.
 ioAlgAlg :: Algebra IOAlgOps IO
-ioAlgAlg = nativeAlg # getLineAlg # putStrLnAlg # putStrAlg
+ioAlgAlg = nativeAlg
 
 -- | Interprets IO operations using their standard semantics in `IO`.
 ioAlg :: Algebra IOEffects IO
@@ -84,54 +72,6 @@ io o = call (Alg o)
 nativeAlg :: Algebra '[Alg IO] IO
 nativeAlg op
   | Just (Alg (op')) <- prj op = op'
-
--- | Signature for `Control.Effects.IO.getLine`.
-type GetLine = Alg GetLine_
--- | Underlying signature for `Control.Effects.IO.getLine`.
-data GetLine_ k  = GetLine (String -> k) deriving Functor
-
--- | Read a line from from standard input device.
-getLine :: Members '[GetLine] sig => Prog sig String
-getLine = call (Alg (GetLine id))
-
--- | Signature for `Control.Effect.IO.putStrLn`.
-type PutStrLn = Alg PutStrLn_
--- | Underlying signature for `Control.Effect.IO.putStrLn`.
-data PutStrLn_ k = PutStrLn String k     deriving Functor
-
--- | Write a string to the standard output device, and add a newline character.
-putStrLn :: Members '[PutStrLn] sig => String -> Prog sig ()
-putStrLn str = call (Alg (PutStrLn str ()))
-
--- | Signature for `Control.Effect.IO.putStr`.
-type PutStr = Alg PutStr_
--- | Underlying signature for `Control.Effect.IO.putStr`.
-data PutStr_ k = PutStr String k     deriving Functor
-
--- | Write a string to the standard output device.
-putStr :: Members '[PutStr] sig => String -> Prog sig ()
-putStr str = call (Alg (PutStr str ()))
-
--- | Interprets `Control.Effects.IO.getLine` using `Prelude.getLine` from "Prelude".
-getLineAlg :: Algebra '[GetLine] IO
-getLineAlg eff
-  | Just (Alg (GetLine x)) <- prj eff =
-      do str <- Prelude.getLine
-         return (x str)
-
--- | Interprets `Control.Effect.IO.putStrLn` using `Prelude.putStrLn` from "Prelude".
-putStrLnAlg :: Algebra '[PutStrLn] IO
-putStrLnAlg eff
-  | Just (Alg (PutStrLn str x)) <- prj eff =
-      do Prelude.putStrLn str
-         return x
-
--- | Interprets `Control.Effect.IO.putStr` using `Prelude.putStr` from "Prelude".
-putStrAlg :: Algebra '[PutStr] IO
-putStrAlg eff
-  | Just (Alg (PutStr str x)) <- prj eff =
-      do Prelude.putStr str
-         return x
 
 -- | Interprets t`Control.Effect.Concurrency.Par` using the native concurrency API.
 -- from `Control.Concurrent`.

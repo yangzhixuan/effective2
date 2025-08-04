@@ -1,6 +1,6 @@
 module Main where
 
-import Prelude hiding (log, putStrLn, putStr)
+import Prelude hiding (log )
 import Control.Effect
 import Control.Effect.IO
 import Control.Effect.Writer
@@ -54,18 +54,18 @@ test33 = handle (fuse (resumpWith (False : False : True : True : [])) (writer @S
 test34 :: (String, ActsMb HS ())
 test34 = handle (fuse (resumpWith (False : False : True : False : [])) (writer @String)) prog
 
-prog2 :: Members '[Par, PutStr, Alg IO] sig => Prog sig ()
+prog2 :: Members '[Par, Alg IO] sig => Prog sig ()
 prog2 =
   do p <- io (QSem.newQSem 0)
      q <- io (QSem.newQSem 0)
-     par (do replicateM_ 5 (putStr "A")
+     par (do replicateM_ 5 (io (putStr "A"))
              io (QSem.waitQSem p)
              io (QSem.signalQSem q)
-             replicateM_ 5 (putStr "C"))
-         (do replicateM_ 5 (putStr "B")
+             replicateM_ 5 (io (putStr "C")))
+         (do replicateM_ 5 (io (putStr "B"))
              io (QSem.signalQSem p)
              io (QSem.waitQSem q)
-             replicateM_ 5 (putStr "D"))
+             replicateM_ 5 (io (putStr "D")))
 
 test4 :: IO ()
 test4 = handleIO (Proxy @IOEffects) (identity @'[]) prog2
@@ -89,7 +89,7 @@ test6 :: IO ()
 test6 = handleIO (Proxy @IOEffects) (identity @'[]) prog4
 
 test7 :: IO (Either String ())
-test7 = handleIO (Proxy @IOEffects) (ccsByQSem @ActNames |> writerIO) (prog >> putStrLn "")
+test7 = handleIO (Proxy @IOEffects) (ccsByQSem @ActNames |> writerIO) (prog >> io (putStrLn ""))
 
 
 prog5 :: Members '[JPar, Act HS, Res HS, Tell String] sig => Prog sig (Int, Int)
@@ -102,19 +102,19 @@ test8 = handle (jresump |> writer @String) prog5
 test9 :: IO (Either String (Int, Int))
 test9 = handleIO (Proxy @IOEffects) (ccsByQSem @ActNames |> writerIO) prog5
 
-prog6 :: Members '[Yield Int Int, PutStrLn] sig => Int -> Prog sig Int
-prog6 n = do putStrLn ("Ping " ++ show n)
+prog6 :: Members '[Yield Int Int, Alg IO] sig => Int -> Prog sig Int
+prog6 n = do io (putStrLn ("Ping " ++ show n))
              n' <- yield (n + 1)
              prog6 n'
 
-prog6' :: Members '[Yield Int Int, PutStrLn] sig => Int -> Prog sig Int
+prog6' :: Members '[Yield Int Int, Alg IO] sig => Int -> Prog sig Int
 prog6' n
-  | n > 100   = do putStrLn "Too big"; return n
-  | otherwise = do putStrLn ("Pong " ++ show n)
+  | n > 100   = do io (putStrLn "Too big"); return n
+  | otherwise = do io (putStrLn ("Pong " ++ show n))
                    n' <- yield (2 * n)
                    prog6' n'
 
 test10 :: IO (Either Int Int)
-test10 = handleIO (Proxy @'[PutStrLn])
-           (pingpongWith (prog6' @'[Yield Int Int, MapYield Int Int, PutStrLn]))
+test10 = handleIO (Proxy @'[Alg IO])
+           (pingpongWith (prog6' @'[Yield Int Int, MapYield Int Int, Alg IO]))
            (prog6 0)

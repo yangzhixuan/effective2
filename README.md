@@ -42,7 +42,62 @@ echo = do str <- getLine
                      echo
 ```
 The type signature says that this is a program that requires
-both `GetLine` and `PutStrLn` operations.
+both `GetLine` and `PutStrLn` operations, where the
+usual `getLine` and `putStrLn` from `Prelude` are hidden,
+and replaced by syntactic operations we will provide.
+
+Here is how they can be defined by the user:
+
+```haskell
+-- | Signature for `Control.Effects.IO.getLine`.
+type GetLine = Alg GetLine_
+-- | Underlying signature for `Control.Effects.IO.getLine`.
+data GetLine_ k  = GetLine (String -> k) deriving Functor
+
+-- | Read a line from from standard input device.
+getLine :: Members '[GetLine] sig => Prog sig String
+getLine = call (Alg (GetLine id))
+
+-- | Signature for `Control.Effect.IO.putStrLn`.
+type PutStrLn = Alg PutStrLn_
+-- | Underlying signature for `Control.Effect.IO.putStrLn`.
+data PutStrLn_ k = PutStrLn String k     deriving Functor
+
+-- | Write a string to the standard output device, and add a newline character.
+putStrLn :: Members '[PutStrLn] sig => String -> Prog sig ()
+putStrLn str = call (Alg (PutStrLn str ()))
+
+-- | Signature for `Control.Effect.IO.putStr`.
+type PutStr = Alg PutStr_
+-- | Underlying signature for `Control.Effect.IO.putStr`.
+data PutStr_ k = PutStr String k     deriving Functor
+
+-- | Write a string to the standard output device.
+putStr :: Members '[PutStr] sig => String -> Prog sig ()
+putStr str = call (Alg (PutStr str ()))
+
+handleGetLine :: Handler '[GetLine] '[Alg IO] '[] '[]
+handleGetLine = interpret1 (\(Alg (GetLine k)) -> do x <- io (Prelude.getLine); return (k x))
+
+handlePutStrLn :: Handler '[PutStrLn] '[Alg IO] '[] '[]
+handlePutStrLn = interpret1 (\(Alg (PutStrLn xs k)) -> do x <- io (Prelude.putStrLn xs); return k)
+
+-- | Interprets `Control.Effect.IO.putStrLn` using `Prelude.putStrLn` from "Prelude".
+putStrLnAlg :: Algebra '[PutStrLn] IO
+putStrLnAlg eff
+  | Just (Alg (PutStrLn str x)) <- prj eff =
+      do Prelude.putStrLn str
+         return x
+
+-- | Interprets `Control.Effect.IO.putStr` using `Prelude.putStr` from "Prelude".
+putStrAlg :: Algebra '[PutStr] IO
+putStrAlg eff
+  | Just (Alg (PutStr str x)) <- prj eff =
+      do Prelude.putStr str
+         return x
+```
+
+
 
 The most obvious interpretation of `getLine` and `putLine` is to invoke their
 corresponding values from the prelude. Indeed, when all the operations of a
@@ -82,7 +137,7 @@ The idea is to execute this program using a specialised handler
 that counts the number of ticks:
 ```haskell
 exampleEchoTick :: IO (Int, ())
-exampleEchoTick = handleIO (Proxy @'[GetLine, PutStrLn]) ticker echoTick
+exampleEchoTick = handleIO (Proxy @'[Alg IO]) (ticker |> handleGetLine |> handlePutStrLn) echoTick
 ```
 When this is executed, it counts the number of lines received:
 ```console
@@ -101,7 +156,7 @@ We can also emulate the behaviour of `echo` by ignoring all the ticks by using
 the `unticker` handler:
 ```haskell
 exampleEchoNoTick :: IO ()
-exampleEchoNoTick = handleIO (Proxy @'[GetLine, PutStrLn]) unticker echoTick
+exampleEchoNoTick = handleIO (Proxy @'[Alg IO]) (unticker |> handleGetLine |> handlePutStrLn) echoTick
 ```
 Note that this is different to discarding the tick count by applying `fst`
 to the result of a program that counts ticks: the count is not even generated
@@ -1032,6 +1087,7 @@ import Data.HFunctor
 import System.CPUTime (getCPUTime)
 
 import Prelude hiding (putStrLn, getLine)
+import qualified Prelude
 ```
 
 <!--
