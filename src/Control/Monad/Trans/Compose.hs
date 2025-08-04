@@ -71,7 +71,7 @@ instance (Applicative (h (k f))) =>
 instance (Monad (t1 (t2 m))) => Monad (ComposeT t1 t2 m) where
     {-# INLINE return #-}
     return :: forall a . a -> ComposeT t1 t2 m a
-    return = coerce (return :: a -> t1 (t2 m) a)
+    return = pure
 
     {-# INLINE (>>=) #-}
     (>>=) :: forall a b . ComposeT t1 t2 m a -> (a -> ComposeT t1 t2 m b) -> ComposeT t1 t2 m b
@@ -79,7 +79,7 @@ instance (Monad (t1 (t2 m))) => Monad (ComposeT t1 t2 m) where
 
     {-# INLINE (>>) #-}
     (>>) :: forall a b . ComposeT t1 t2 m a -> ComposeT t1 t2 m b -> ComposeT t1 t2 m b
-    (>>) = coerce ((>>) :: t1 (t2 m) a -> t1 (t2 m) b -> t1 (t2 m) b)
+    (>>) = (*>)
 
 #if __GLASGOW_HASKELL__ <= 904
 instance (MonadTrans t1, MonadTrans t2, forall m . Monad m => Monad (t2 m)) =>
