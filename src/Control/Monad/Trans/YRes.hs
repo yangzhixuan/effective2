@@ -32,25 +32,25 @@ yield a k = resOp (YieldS a k)
 -- | @mapYield f g p@ is the coroutine that behaves like @p@ except that all values
 -- sent/received are processed by the functions @f@ and @g@ first.
 mapYield :: Monad m => (a -> a') -> (b' -> b) -> YResT a b m x -> YResT a' b' m x
-mapYield f g p = ResT $ 
+mapYield f g p = ResT $
   do xs <- unResT p
      case xs of
        Left x -> return (Left x)
-       Right (YieldS a k) -> return (Right (YieldS (f a) (mapYield f g .  k . g))) 
+       Right (YieldS a k) -> return (Right (YieldS (f a) (mapYield f g .  k . g)))
 
 -- | @pingpong p q@ runs the two coroutines @p@ and @q@ in the call and response
 -- way until one of them finishes. The coroutine @p@ runs first.
 pingpong :: Monad m => YResT a b m x -> (a -> YResT b a m y) -> m (Either y x)
 pingpong p q =
   do xs <- unResT p
-     case xs of 
+     case xs of
       Left x -> return (Right x)
       Right (YieldS a k) -> pongping k (q a)
 
 -- | @pongping p q@ runs the two coroutines @p@ and @q@ in the call and
 -- response way until one of them finishes. The coroutine @q@ runs first.
 pongping :: Monad m => (b -> YResT a b m x) -> YResT b a m y -> m (Either y x)
-pongping p q = fmap swap $ pingpong q p where 
+pongping p q = fmap swap $ pingpong q p where
     swap :: Either x y -> Either y x
     swap (Left x) = Right x
     swap (Right y) = Left y

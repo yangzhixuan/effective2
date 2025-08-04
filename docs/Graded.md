@@ -109,7 +109,7 @@ it is convenient if the programs `p` and `q` have the same type signature,
 sharing `sig` with the overall type.
 
 A more precise type to `catch` can be given where the two subprograms can have
-differing types, so long as they can be injected into the final type. 
+differing types, so long as they can be injected into the final type.
 ```haskell
 catch
   :: ( Member Catch sig''

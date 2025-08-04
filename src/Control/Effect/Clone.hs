@@ -6,15 +6,15 @@ License     : BSD-3-Clause
 Maintainer  : Zhixuan Yang
 Stability   : experimental
 
-This module provides an \'imitater\' effect that clones an existing effect. 
+This module provides an \'imitater\' effect that clones an existing effect.
 Currently the functionality of this module is very limited: you can only make
-one copy of an effect each time, and there is no way to copy an existing 
+one copy of an effect each time, and there is no way to copy an existing
 smart constructor.
 -}
 module Control.Effect.Clone (
   -- * Syntax
   Clone (..),
-  clone, 
+  clone,
   cloneJ,
   cloneK,
   cloneAlg,
@@ -35,7 +35,7 @@ import Control.Effect.Family.Scoped
 -- instances of the same effect are needed in a program.
 newtype Clone (eff :: Effect)
               (f   :: * -> *)
-              (k   :: *) 
+              (k   :: *)
               = Clone { unClone :: eff f k } deriving (Functor, HFunctor)
 
 instance Forward eff t => Forward (Clone eff) t where
@@ -44,7 +44,7 @@ instance Forward eff t => Forward (Clone eff) t where
 
 -- | Every handler of @effs@ gives rise to a handler of its clone.
 cloneHdl :: forall effs oeffs ts fs.
-            Handler effs oeffs ts fs 
+            Handler effs oeffs ts fs
          -> Handler (Map Clone effs) oeffs ts fs
 cloneHdl h = unsafeCoerce h  -- There is safer way to do this but this is quicker
 
@@ -61,9 +61,9 @@ clone x = call (Clone x)
 
 -- | @cloneK x k@ invokes the clone version of the operation @x@ (together with its
 -- continuation @k@).
-cloneK :: forall eff effs a x . 
+cloneK :: forall eff effs a x .
           (HFunctor eff, Member (Clone eff) effs )
-       => eff (Prog effs) x 
+       => eff (Prog effs) x
        -> (x -> Prog effs a)
        -> Prog effs a
 cloneK x k = callK (Clone x) k

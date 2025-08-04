@@ -7,7 +7,7 @@ Stability   : experimental
 
 This module provides a representation of effectful programs based on impredicative encoding,
 which provides good performance for monadic binding and deep handling, but is very bad at
-shallow handling (pattern matching). The @effective@ library emphasises deep handling, so  
+shallow handling (pattern matching). The @effective@ library emphasises deep handling, so
 the representation from this module is suitable for our purpose.
 -}
 
@@ -18,18 +18,18 @@ the representation from this module is suitable for our purpose.
 
 module Control.Effect.Internal.Prog.ProgImp (
   -- * Program datatype
-  Prog, 
+  Prog,
 
   -- * Program constructors
-  call, 
-  callJ, 
+  call,
+  callJ,
   callK,
-  progAlg, 
-  weakenProg, 
+  progAlg,
+  weakenProg,
 
   -- * Program eliminator
   eval,
-  ) 
+  )
   where
 import Control.Effect.Internal.Effs
 
@@ -48,29 +48,29 @@ newtype Prog (effs :: [Effect]) a = Prog { runProg :: forall m. Monad m => Algeb
 call :: forall eff effs a . (Member eff effs, HFunctor eff) => eff (Prog effs) a -> Prog effs a
 call x = Prog $ \(alg :: Algebra effs m) ->
   let r :: forall x. Prog effs x -> m x
-      r p = runProg p alg 
+      r p = runProg p alg
   in alg (inj (hmap r x))
 
 -- | A variant of `call` with an continuation argument given as return values.
--- Semantically, @callJ = join . `call`@. 
+-- Semantically, @callJ = join . `call`@.
 {-# INLINE callJ #-}
-callJ :: forall eff effs a . (Member eff effs, HFunctor eff) 
+callJ :: forall eff effs a . (Member eff effs, HFunctor eff)
      => eff (Prog effs) (Prog effs a) -> Prog effs a
 callJ = join . call
 
 -- | A variant of `call` with an continuation argument given as a function.
--- Semantically, @callK x k = `call` x >>= k@. 
+-- Semantically, @callK x k = `call` x >>= k@.
 {-# INLINE callK #-}
-callK :: forall eff effs a b . (Member eff effs, HFunctor eff) 
+callK :: forall eff effs a b . (Member eff effs, HFunctor eff)
       => eff (Prog effs) a -> (a -> Prog effs b) -> Prog effs b
 callK x k = call x >>= k
 
 -- | Construct a program from an operation in a union.
 {-# INLINE progAlg #-}
-progAlg :: forall effs. HFunctor (Effs effs) => Algebra effs (Prog effs) 
+progAlg :: forall effs. HFunctor (Effs effs) => Algebra effs (Prog effs)
 progAlg x = Prog $ \(alg :: Algebra effs m) ->
   let r :: forall x. Prog effs x -> m x
-      r p = runProg p alg 
+      r p = runProg p alg
   in alg (hmap r x)
 
 instance Functor (Prog sigs) where

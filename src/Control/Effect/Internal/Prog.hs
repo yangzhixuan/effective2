@@ -8,24 +8,24 @@ Maintainer  : Nicolas Wu
 Stability   : experimental
 
 This module exports the type of effectful programs. The library ships with more than one underlying
-representations (that provide the same interface) and are controlled by some CPP flags. 
+representations (that provide the same interface) and are controlled by some CPP flags.
 Currently the default is the impredicative encoding in "Control.Effect.Internal.Prog.ProgImp".
 -}
 
 
 module Control.Effect.Internal.Prog
-  ( 
+  (
     -- * Program datatypes
     Prog,
-    Progs, 
+    Progs,
     type (!),
 
     -- * Program constructors
-    call, 
-    callJ, 
+    call,
+    callJ,
     callK,
-    progAlg, 
-    weakenProg, 
+    progAlg,
+    weakenProg,
 
     -- * Program eliminator
     eval,

@@ -138,7 +138,7 @@ instance Functor (Effs '[] f) where
   {-# INLINE fmap #-}
   fmap f = absurdEffs
 
-instance (Functor f, Functor (eff f), Functor (Effs effs f), KnownNat (Length effs)) 
+instance (Functor f, Functor (eff f), Functor (Effs effs f), KnownNat (Length effs))
   => Functor (Effs (eff ': effs) f) where
   {-# INLINE fmap #-}
   fmap f e = case open e of
@@ -149,7 +149,7 @@ instance HFunctor (Effs '[]) where
   {-# INLINE hmap #-}
   hmap h = absurdEffs
 
-instance (HFunctor eff, HFunctor (Effs effs), KnownNat (Length effs)) 
+instance (HFunctor eff, HFunctor (Effs effs), KnownNat (Length effs))
   => HFunctor (Effs (eff ': effs)) where
   {-# INLINE hmap #-}
   hmap h e = case open e of

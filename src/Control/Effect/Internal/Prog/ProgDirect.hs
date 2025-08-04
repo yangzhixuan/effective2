@@ -13,14 +13,14 @@ Stability   : experimental
 
 module Control.Effect.Internal.Prog.ProgDirect (
   -- * Program datatype
-  Prog (..), 
+  Prog (..),
 
   -- * Program constructors
-  call, 
+  call,
   callJ,
   callK,
-  progAlg, 
-  weakenProg, 
+  progAlg,
+  weakenProg,
 
   -- * Program eliminator
   eval,
@@ -50,15 +50,15 @@ call :: forall eff effs a . Member eff effs => eff (Prog effs) a -> Prog effs a
 call x = Call (inj x) Return
 
 -- | A variant of `call` with an continuation argument given as return values.
--- Semantically, @callJ = join . `call`@. 
+-- Semantically, @callJ = join . `call`@.
 {-# INLINE callJ #-}
 callJ :: forall eff effs a . Member eff effs => eff (Prog effs) (Prog effs a) -> Prog effs a
 callJ x = Call (inj x) id
 
 -- | A variant of `call` with an continuation argument given as a function.
--- Semantically, @callK x k = `call` x >>= k@. 
+-- Semantically, @callK x k = `call` x >>= k@.
 {-# INLINE callK #-}
-callK :: forall eff effs a b . Member eff effs 
+callK :: forall eff effs a b . Member eff effs
       => eff (Prog effs) a -> (a -> Prog effs b) -> Prog effs b
 callK x k = Call (inj x) k
 
@@ -154,5 +154,5 @@ prjCall _           = Nothing
 
 -- | Construct a program from an operation in a union.
 {-# INLINE progAlg #-}
-progAlg :: Algebra effs (Prog effs) 
+progAlg :: Algebra effs (Prog effs)
 progAlg x = Call x return

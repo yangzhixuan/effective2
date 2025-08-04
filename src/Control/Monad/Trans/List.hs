@@ -20,7 +20,7 @@ import Control.Monad.Trans.Class ( MonadTrans(..) )
 newtype ListT m a = ListT { runListT :: m (Maybe (a, ListT m a)) }
   deriving Functor
 
--- | Exhaust all the @a@-values in a @ListT@ and perform the @m@-actions along the way. 
+-- | Exhaust all the @a@-values in a @ListT@ and perform the @m@-actions along the way.
 {-# INLINE runListT' #-}
 runListT' :: Monad m => ListT m a -> m [a]
 runListT' (ListT mmxs) =

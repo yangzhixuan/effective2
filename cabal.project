@@ -1,4 +1,4 @@
-packages: 
+packages:
     effective.cabal
 
 tests: True

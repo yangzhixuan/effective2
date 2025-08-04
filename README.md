@@ -449,7 +449,7 @@ operations `get` and `put` from a state containing a list of strings:
 ```haskell
 getLineState
   :: Handler '[GetLine] '[Get [String], Put [String]] '[] '[]
-getLineState = interpret1 $ \(Alg (GetLine k)) -> 
+getLineState = interpret1 $ \(Alg (GetLine k)) ->
   do xss <- get
      case xss of
        []        -> return (k "")
@@ -542,7 +542,7 @@ Now the task is to interpret all `putStrLn` operations in terms of the
 `tell` operation:
 ```haskell
 putStrLnTell :: Handler '[PutStrLn] '[Tell [String]] '[] '[]
-putStrLnTell = interpret1 $ \(Alg (PutStrLn str k)) -> 
+putStrLnTell = interpret1 $ \(Alg (PutStrLn str k)) ->
   do tell [str]
      return k
 ```
@@ -714,7 +714,7 @@ uncensors = hide (Proxy @'[Tell w]) (censors @w id |> writer_ @w)
 The key combinator here is `hide`:
 ```haskell ignore
 hide :: forall sigs effs oeffs f . (Injects (effs :\\ sigs) effs, Injects oeffs oeffs)
-     => Proxy sigs 
+     => Proxy sigs
      -> Handler effs            oeffs f
      -> Handler (effs :\\ sigs) oeffs f
 ```
@@ -739,7 +739,7 @@ It is easy enough to see how a variation of `retell` could be written,
 by interpreting `PutStrLn` operations:
 ```haskell
 rePutStrLn :: (String -> String) -> Handler '[PutStrLn] '[PutStrLn] '[] '[]
-rePutStrLn f = interpret1 $ \(Alg (PutStrLn str k)) -> 
+rePutStrLn f = interpret1 $ \(Alg (PutStrLn str k)) ->
   do putStrLn (f str)
      return k
 ```

@@ -5,14 +5,14 @@ License     : BSD-3-Clause
 Maintainer  : Zhixuan Yang
 Stability   : experimental
 
-Distributive effects on a monad @m@ are operations of the form 
-@forall x. r (m x) -> m (r x)@ for functors @r@, which are isomorphic to 
+Distributive effects on a monad @m@ are operations of the form
+@forall x. r (m x) -> m (r x)@ for functors @r@, which are isomorphic to
 functions of type @forall x. (exists b. (r (m b) , r b -> a)) -> m x@ by
 left Kan extension. A good example of operations in this form is
 @jpar :: forall x. (m x, m x) -> m (x, x)@ that runs two computations
 in paralell and wait until both of them finish (this is in contrast from
-the operation @par :: forall x. (m x, m x) -> m x@ from "Control.Effect.Distributive", 
-which only keeps the result from the first computation). 
+the operation @par :: forall x. (m x, m x) -> m x@ from "Control.Effect.Distributive",
+which only keeps the result from the first computation).
 
 These operations were called \'parallel effects\' in the paper "A framework for
 higher-order effects & handlers" by Birthe van den Berg and Tom Schrijvers, but
@@ -53,7 +53,7 @@ distrIso = Iso fwd bwd where
   fwd op rf = op (Distr rf id)
 
   bwd :: (forall a. r (f a) -> f (r a)) -> (forall a. Distr r f a -> f a)
-  bwd d (Distr rf c) = fmap c (d rf) 
+  bwd d (Distr rf c) = fmap c (d rf)
 
 instance Functor r => Functor (Distr r f) where
   fmap f (Distr p c) = Distr p (f . c)
