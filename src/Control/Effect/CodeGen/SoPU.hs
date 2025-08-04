@@ -30,10 +30,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 -}
 
 {-# LANGUAGE TypeFamilies, UnicodeSyntax, TemplateHaskell, BlockArguments #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE AllowAmbiguousTypes #-}
-
-
+{-# LANGUAGE UndecidableInstances, AllowAmbiguousTypes #-}
 
 module Control.Effect.CodeGen.SoPU where
 
@@ -141,7 +138,7 @@ pairₚₛ xs (Here ys)  = Here (pairₚ xs ys)
 pairₚₛ xs (There ys) = There (pairₚₛ xs ys)
 
 unpairₚₛ ∷ Sing a → Sing b → Elₛ (Prodₚₛ a b) → (Elₚ a, Elₛ b)
-unpairₚₛ a (SCons @bs _ bss) ys = case ys of
+unpairₚₛ a (SCons (_ :: Sing bs) bss) ys = case ys of
   Here ys  → (fstₚ @_ @bs a ys, Here (sndₚ @_ @bs a ys))
   There ys → case unpairₚₛ a bss ys of (x, y) → (x, There y)
 
@@ -158,15 +155,15 @@ sProdₛ (SCons a as) b = sProdₚₛ a b %++ sProdₛ as b
 
 pairₛ ∷ Sing a → Sing b → Elₛ a → Elₛ b → Elₛ (Prodₛ a b)
 pairₛ a (b ∷ Sing b) xs ys = case a of
-  SCons @as @a as a → case xs of
-    Here xs  → leftₛ  @(Prodₚₛ as b) @(Prodₛ a b) (pairₚₛ xs ys)
-    There xs → rightₛ @_ @(Prodₛ a b) (sProdₚₛ as b) (pairₛ a b xs ys)
+  SCons (as' :: Sing as') (a' :: Sing a') → case xs of
+    Here xs  → leftₛ  @(Prodₚₛ as' b) @(Prodₛ a' b) (pairₚₛ xs ys)
+    There xs → rightₛ @_ @(Prodₛ a' b) (sProdₚₛ as' b) (pairₛ a' b xs ys)
 
 unpairₛ ∷ Sing a → Sing bss → Elₛ (Prodₛ a bss) → (Elₛ a, Elₛ bss)
 unpairₛ a (b ∷ Sing b) xs = case a of
-  SCons @as @a as a → case eitherₛ @_ @(Prodₛ a b) (sProdₚₛ as b) xs of
-    Left x  → case unpairₚₛ as b x of (x, y) → (Here x, y)
-    Right x → case unpairₛ a b x   of (x, y) → (There x, y)
+  SCons (as' :: Sing as') (a' :: Sing a') → case eitherₛ @_ @(Prodₛ a' b) (sProdₚₛ as' b) xs of
+    Left x  → case unpairₚₛ as' b x of (x, y) → (Here x, y)
+    Right x → case unpairₛ a' b x   of (x, y) → (There x, y)
 
 -- Functions from P to Up
 --------------------------------------------------------------------------------
