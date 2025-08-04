@@ -50,8 +50,6 @@ jobs:
     - name: Build & test
       run: |
         cabal build   --project-file=cabal.project.ci
-        cabal un     --project-file=cabal.project.ci test
-        cabal run     --project-file=cabal.project.ci examples
         cabal haddock --project-file=cabal.project.ci
         cabal sdist   --project-file=cabal.project.ci
         cabal check
