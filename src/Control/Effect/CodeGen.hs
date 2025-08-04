@@ -12,7 +12,7 @@ handlers. Programming with the code-generation effect slightly changes the way
 of using the @effective@ library, so it deserves its own dedicated tutorial
 (to be written). The rough idea is that instead of handling effectful programs
 of type @Prog eff a@ at runtime, we only use @effective@ at compile time to
-generate (optimised) monadic programs (e.g. of type @StateT (ListT Identity) a@) 
+generate (optimised) monadic programs (e.g. of type @StateT (ListT Identity) a@)
 to be executed at runtime. There are some random small examples in @test/Staged.hs@
 and @test/StagedGen.hs@ of how this is done.
 

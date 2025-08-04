@@ -23,7 +23,7 @@ import Data.List (nub)
 -- | Step functor for choice and action
 data CStep a x = FailS | ChoiceS x x | ActS a x deriving Functor
 
--- | The monad `CResT m` is the coproduct of the monad `m` and the 
+-- | The monad `CResT m` is the coproduct of the monad `m` and the
 -- free monad over CStep. In other words, the algebraic theory
 -- corresponding to `CResT m` is the sum of the theory of `m`
 -- plus a nullary operation, a binary operation, and a unary operation
@@ -44,7 +44,7 @@ runAll = fmap ListActs . runAll' [] where
                              Left x -> return [(reverse as, x)]
                              Right (ActS a m') -> runAll' (a:as) m'
                              Right FailS -> return []
-                             Right (ChoiceS ml mr) -> 
+                             Right (ChoiceS ml mr) ->
                                do l <- runAll' as ml
                                   r <- runAll' as mr
                                   return (l ++ r)
@@ -57,10 +57,10 @@ runAllIO = fmap nub . runAll' "" [] where
      do x <- m
         case x of
           Left x ->
-             let ok = (reverse as, x) 
+             let ok = (reverse as, x)
              in do putStr indent; print ok; return [ok]
           Right (ActS a m') -> runAll' indent (a:as) m'
-          Right FailS -> 
+          Right FailS ->
             do putStrLn (indent ++ "Failed, backtracking")
                return []
           Right (ChoiceS ml mr) ->
@@ -79,13 +79,13 @@ newtype ActsMb a x = ActsMb { unActsMb :: ([a], Maybe x) } deriving (Functor, Sh
 runWith :: Monad m => [Bool] -> CResT a m x -> m (ActsMb a x)
 runWith = runWith' [] where
   runWith' :: Monad m => [a] -> [Bool] -> CResT a m x -> m (ActsMb a x)
-  runWith' as bs (ResT m) = 
+  runWith' as bs (ResT m) =
     do xs <- m
-       case xs of 
+       case xs of
          Left x      -> return (ActsMb (reverse as, Just x))
          Right FailS -> return (ActsMb (reverse as, Nothing))
          Right (ChoiceS l r) ->
-            let (b:bs') = bs 
+            let (b:bs') = bs
             in runWith' as bs' (if b then l else r)
          Right (ActS a m) -> runWith' (a:as) bs m
 
@@ -95,9 +95,9 @@ runWith = runWith' [] where
 runWithM :: forall a m x. Monad m => m Bool -> CResT a m x -> m (ActsMb a x)
 runWithM mb = runWithM' [] where
   runWithM' :: [a] -> CResT a m x -> m (ActsMb a x)
-  runWithM' as (ResT m) = 
+  runWithM' as (ResT m) =
     do xs <- m
-       case xs of 
+       case xs of
          Left x      -> return (ActsMb (reverse as, Just x))
          Right FailS -> return (ActsMb (reverse as, Nothing))
          Right (ChoiceS l r) ->
@@ -168,16 +168,16 @@ jparR x y = fmap (\(a,b) -> (b,a)) (jparL y x)
 jparCL :: (Action a, Monad m) => CResT a m x -> CResT a m y -> CResT a m (x, y)
 jparCL lhs rhs = ResT $
   do xs <- unResT lhs
-     case xs of 
+     case xs of
        Left x -> fail'
-       Right (ActS a m) -> 
+       Right (ActS a m) ->
          do ys <- unResT rhs
             case ys of
-              Right (ActS b n) -> 
+              Right (ActS b n) ->
                 case merge a b of
                   Nothing -> fail'
                   Just c -> prefix' c (jpar m n)
-              Right (ChoiceS l' r') -> 
+              Right (ChoiceS l' r') ->
                 jparCR (prefix a m) l' <|>: (jparCR (prefix a m) r')
               _ -> fail'
        Right FailS -> fail'

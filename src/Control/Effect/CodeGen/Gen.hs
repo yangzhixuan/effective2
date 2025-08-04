@@ -5,7 +5,7 @@ License     : BSD-3-Clause
 Maintainer  : Zhixuan Yang
 Stability   : experimental
 
-This module contains the code-generation monads `Gen`/`GenM` and some basic operations 
+This module contains the code-generation monads `Gen`/`GenM` and some basic operations
 for code generation, such as generating let-bindings.
 -}
 
@@ -25,7 +25,7 @@ import Control.Effect.State.Type
 newtype Gen a = Gen { unGen :: forall r. (a -> Up r) -> Up r }
 
 -- | The code-generation monad restricted to generate @m@-values.
-newtype GenM m a = GenM { unGenM :: forall r. (a -> Up (m r)) -> Up (m r) } 
+newtype GenM m a = GenM { unGenM :: forall r. (a -> Up (m r)) -> Up (m r) }
 
 -- | The final answer type of @t`GenM` m a@ must be some @m r@ while @t`Gen` a@ doesn't
 -- have this restriction, so @Gen a@ can be specialised to @GenM m a@.
@@ -79,7 +79,7 @@ runGen g = unGen g id
 -- | Reset code generation. For example, let @g@ be the function above, then
 --
 -- > resetGen (g b) = Gen $ \k -> k [|| if $$b then True else False ||]
--- 
+--
 -- This is different from @g b@ because @g b@ invokes the continuation @k@ in both
 -- branches of the @if@ while @resetGen (g b)@ invokes @k@ only once.
 resetGen :: Gen (Up a) -> Gen (Up a)
@@ -126,13 +126,13 @@ liftGenA :: Member CodeGen sig => Algebra sig m -> Gen a -> m a
 liftGenA alg o = callM' alg (Alg o)
 
 -- | Generate a let-binding on a monad @m@.
-genLetM :: forall sig m a . Member CodeGen sig 
-        => Algebra sig m -> Up a -> m (Up a) 
+genLetM :: forall sig m a . Member CodeGen sig
+        => Algebra sig m -> Up a -> m (Up a)
 genLetM alg = callM' alg . Alg .  genLet_
 
 -- | Generate a recursive let-binding on a monad @m@.
-genLetRecM :: forall sig n a . Member CodeGen sig 
-           => Algebra sig n -> (Up a -> Up a) -> n (Up a) 
+genLetRecM :: forall sig n a . Member CodeGen sig
+           => Algebra sig n -> (Up a -> Up a) -> n (Up a)
 genLetRecM alg = callM' alg . Alg .  genLetRec_
 
 -- | The effect of generating code of type @m a@.

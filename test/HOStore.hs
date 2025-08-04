@@ -40,8 +40,8 @@ goWrong = do iRef <- new @Int 0
 test3 = handle hstore goWrong      -- crash
 
 
-goWrong2 :: forall sig. 
-            Members '[ New, Get, Put, 
+goWrong2 :: forall sig.
+            Members '[ New, Get, Put,
                        Empty, Choose,
                        St.Put (Maybe (Ref Int)), St.Get (Maybe (Ref Int))
                      ] sig
@@ -56,7 +56,7 @@ goWrong2 = do iRef <- new @Int 0
 test3' :: [Int]
 test3' = handle (hstore |> nondet' |> St.state_ @(Maybe (Ref Int)) Nothing) goWrong2
 
-progS :: forall w sig. (Members '[Safe.Put w, Safe.Get w, Safe.New w] sig) 
+progS :: forall w sig. (Members '[Safe.Put w, Safe.Get w, Safe.New w] sig)
       => Prog sig Int
 progS = do iRef <- Safe.new @Int @w 1
            fRef <- Safe.new @(Int -> Int) @w (\i -> i * i)

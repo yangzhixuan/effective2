@@ -19,13 +19,13 @@ import Control.Effect
 -- * Types of actions
 
 -- | A typeclass for types that can serve as actions in the style
--- of _algebra of communicating processes_ (ACP). 
+-- of _algebra of communicating processes_ (ACP).
 class Eq a => Action a where
   -- `merge a b = Nothing` means the two actions `a` and `b` don't interact
   merge :: a -> a -> Maybe a
 
 -- | Asymmetric actions in the style of Calculus for Communicating Systems (CCS)
--- The silent action stores the name of completed internal action for debugging purposes.  
+-- The silent action stores the name of completed internal action for debugging purposes.
 data CCSAction a = Silent a | Action a | CoAction a deriving (Show, Eq, Ord)
 
 instance Eq a => Action (CCSAction a) where
@@ -40,7 +40,7 @@ instance Eq a => Action (CCSAction a) where
 -- | The dual of a ccs action.
 dualAction :: CCSAction a -> CCSAction a
 dualAction (Action a)   = CoAction a
-dualAction (CoAction a) = Action a 
+dualAction (CoAction a) = Action a
 dualAction (Silent a)   = Silent a
 
 -- | Getting the name of a ccs action.
@@ -55,7 +55,7 @@ getActionName (CoAction a) = a
 type Act a = Alg (Act_ a)
 
 -- | The underlying first-order signature for the operation of performaing an action (of type @a@).
-data Act_ a x = Act a x deriving Functor 
+data Act_ a x = Act a x deriving Functor
 
 -- | Perform an action of type @a@.
 {-# INLINE act #-}
@@ -78,7 +78,7 @@ type JPar = Distr JPar_
 -- | The underlying first-order signature for joined parallel composition.
 data JPar_ x = JPar x x deriving (Functor, Foldable, Traversable)
 
--- | Run two processes @l@ and @r@ in parallel and join them, returning the results from 
+-- | Run two processes @l@ and @r@ in parallel and join them, returning the results from
 -- both of them.
 -- Note that `jpar` is not a scoped operation but a distributive operation, so it
 -- is harder to forward along monad transformers compared to `par`. It is recommended
@@ -92,8 +92,8 @@ type Res a = Scp (Res_ a)
 -- | The underlying first-order signature for restriction.
 data Res_ a x = Res a x deriving Functor
 
--- | The process @res a p@ acts like @p@ except that @p@ cannot communicate with the 
--- external environment via action @a@ (@p@ can still use @a@ internally), so @res a@ is like  
+-- | The process @res a p@ acts like @p@ except that @p@ cannot communicate with the
+-- external environment via action @a@ (@p@ can still use @a@ internally), so @res a@ is like
 -- a firewall blocking action @a@.
 {-# INLINE res #-}
 res :: Member (Res a) sig => a -> Prog sig x -> Prog sig x

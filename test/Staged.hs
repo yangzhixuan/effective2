@@ -25,7 +25,7 @@ import Data.List.Kind
 import Control.Monad (join)
 
 {-
-Generated code: 
+Generated code:
     StateT
       (\ s_a4dv
          -> Identity
@@ -39,10 +39,10 @@ Generated code:
 -}
 
 countdown :: StateT Int Identity ()
-countdown = $$(stage 
-  (letPut @Int 
-  `fuseAT` upState @Int @Identity 
-  `fuseAT` stateAT @(Up Int)) 
+countdown = $$(stage
+  (letPut @Int
+  `fuseAT` upState @Int @Identity
+  `fuseAT` stateAT @(Up Int))
   (countdownGen [|| countdown ||]))
 
 {-
@@ -59,9 +59,9 @@ Generated code:
 
 catchProgram :: Int -> ExceptT () Identity ()
 catchProgram n = $$(stage
-  (upExcept @() @Identity `fuseAT` exceptAT @(Up ())) 
+  (upExcept @() @Identity `fuseAT` exceptAT @(Up ()))
   (catchGen [||n||] [||catchProgram||]))
-        
+
 
 {-
 The code generator catchGen can be used for generating different types of programs:
@@ -81,21 +81,21 @@ The code generator catchGen can be used for generating different types of progra
 catchProgram2 :: Int -> StateT Int (ExceptT () Identity) ()
 catchProgram2 n = $$(stage
     ( upState @Int @(ExceptT () Identity)
-      `fuseAT` upExcept @() @Identity 
-      `fuseAT` stateAT @(Up Int) 
-      `fuseAT` exceptAT @(Up ())) 
+      `fuseAT` upExcept @() @Identity
+      `fuseAT` stateAT @(Up Int)
+      `fuseAT` exceptAT @(Up ()))
     (catchGen [||n||] [||catchProgram||]))
 
 -- foldr (\ a_a56k ms_a56l -> (a_a56k : ms_a56l)) [] as_a4qa
 listExample :: [a] -> [a]
-listExample as = $$(stage 
+listExample as = $$(stage
   (pushWithUpAT @Identity)
   (up [||as||]))
 
 -- Generated code: as_a4XQ
 listExample' :: [a] -> [a]
-listExample' as = $$(downJoin $ 
-  evalGen 
+listExample' as = $$(downJoin $
+  evalGen
   (pushWithUpAT @Identity)
   (return [||as||]))
 
@@ -103,7 +103,7 @@ listExample' as = $$(downJoin $
 -- foldr (\ a_a57X ms_a57Y -> ((a_a57X + 1) : ms_a57Y)) [] as_a4qu
 listExample2 :: [Int] -> [Int]
 listExample2 as = $$(stage
-  (pushWithUpAT @Identity) 
+  (pushWithUpAT @Identity)
   do i <- up [||as||]
      return ([||$$i + 1||]))
 
@@ -116,7 +116,7 @@ listExample2 as = $$(stage
       [] as_a1BF
 -}
 listExample3 :: [Int] -> [Int]
-listExample3 as = $$(stage (pushWithUpAT @Identity) $ 
+listExample3 as = $$(stage (pushWithUpAT @Identity) $
   do i <- up [||as||]
      j <- up [||as||]
      return ([||$$i + $$j||]))
@@ -131,11 +131,11 @@ listExample3 as = $$(stage (pushWithUpAT @Identity) $
       [] as_a5Y5
 -}
 listExample4 :: (Int -> Int) -> (Int -> Int) -> [Int] -> [Int]
-listExample4 f g as = $$(stage (pushWithUpAT @Identity) $ 
+listExample4 f g as = $$(stage (pushWithUpAT @Identity) $
   do i <- fmap (\i -> [|| f $$i ||]) (up [||as||])
      j <- fmap (\i -> [|| g $$i ||]) (up [||as||])
      return ([||$$i + $$j||]))
-     
+
 
 {-
 ListT (StateT (\ s_afv1
@@ -155,7 +155,7 @@ ListT (StateT (\ s_afv1
                                                              (runListT
                                                                 (return
                                                                    ((s_afv1 + a_afv4) + a_afv9)
-                                                                   <|> ListT a_afvc), 
+                                                                   <|> ListT a_afvc),
                                                               b_afvd))
                                         nil_afv7 = StateT (\ s_afve -> runStateT ms_afv5 s_afve)
                                       in foldListT cons_afv8 nil_afv7 as_aa1R)
@@ -177,7 +177,7 @@ ListT (StateT (\ s_a9g9 ->
                                     -> case runIdentity (runStateT ms_a9gk (a_a9gd * a_a9gj))
                                         of (a_a9gm, b_a9gn) -> Identity
                                                 (runListT
-                                                    (return ((s_a9g9 + a_a9gd) + a_a9gj) <|> ListT a_a9gm), 
+                                                    (return ((s_a9g9 + a_a9gd) + a_a9gj) <|> ListT a_a9gm),
                                                   b_a9gn))
                             nil_a9gh = StateT (\ s_a9go -> runStateT ms_a9ge s_a9go)
                           in foldListT cons_a9gi nil_a9gh as_a25U
@@ -188,12 +188,12 @@ ListT (StateT (\ s_a9g9 ->
      (a_a9gq, b_a9gr) -> runStateT a_a9gq b_a9gr))
 -}
 listExample5 :: ListT (StateT Int Identity) Int -> ListT (StateT Int Identity) Int
-listExample5 as = $$(stage 
+listExample5 as = $$(stage
   (upCache @(ListT (StateT Int Identity))
-  `fuseAT` pushWithUpAT @(StateT Int Identity) 
+  `fuseAT` pushWithUpAT @(StateT Int Identity)
   `fuseAT` upCache @(StateT Int Identity)
   `fuseAT` upState @Int @Identity
-  `fuseAT` stateAT @(Up Int)) $ 
+  `fuseAT` stateAT @(Up Int)) $
   do s <- get
      i <- up [||as||]
      j <- up [||as||]
@@ -287,7 +287,7 @@ ioExample2 = $$(downTail $
              else return (Left [||()||])))
 
 {-
-StateT (\ s_abe7 -> 
+StateT (\ s_abe7 ->
   do x_abe8 <- putStrLn "Hello"
             runStateT (StateT
                 (\ s_abe9 -> runStateT (StateT
@@ -308,12 +308,12 @@ StateT (\ s_abe7 ->
               s_abe7)
 -}
 ioExample3 :: StateT Int IO ()
-ioExample3 = $$(stageM (Proxy @IO) 
+ioExample3 = $$(stageM (Proxy @IO)
     (upCache @(StateT Int IO) `fuseAT` upState @Int @IO `fuseAT` stateAT @(Up Int))
     (do up [|| putStrLn "Hello" ||]
         s <- get @(Up Int)
         b <- split [|| $$s > 0 ||]
-        if b then put [|| $$s - 1||] >> up [|| ioExample ||] 
+        if b then put [|| $$s - 1||] >> up [|| ioExample ||]
              else return [||()||]))
 
 {-
@@ -329,12 +329,12 @@ ioExample3 = $$(stageM (Proxy @IO)
                    return ((), s_abeg))
 -}
 ioExample4 :: StateT Int IO ()
-ioExample4 = $$(stageM (Proxy @IO) 
+ioExample4 = $$(stageM (Proxy @IO)
     (upFree @(StateT Int IO) `fuseAT` upState @Int @IO `fuseAT` stateAT @(Up Int))
     (do up [|| putStrLn "Hello" ||]
         s <- get @(Up Int)
         b <- split [|| $$s > 0 ||]
-        if b then put [|| $$s - 1||] >> up [|| ioExample ||] 
+        if b then put [|| $$s - 1||] >> up [|| ioExample ||]
              else return [||()||]))
 
 {-
@@ -346,9 +346,9 @@ ioExample4 = $$(stageM (Proxy @IO)
            return ((), s_abTh))
 -}
 ioExample5 :: StateT Int IO ()
-ioExample5 = $$(stageM (Proxy @IO) 
-  (upCache @(StateT Int IO) 
-  `fuseAT` upState @Int @IO 
+ioExample5 = $$(stageM (Proxy @IO)
+  (upCache @(StateT Int IO)
+  `fuseAT` upState @Int @IO
   `fuseAT` stateAT @(Up Int))
   (ioProg [|| ioExample ||]))
 
@@ -372,7 +372,7 @@ joinEx b = $$(stage
 
 
 {-
-    StateT (\ s_a4UP -> MaybeT (Identity 
+    StateT (\ s_a4UP -> MaybeT (Identity
       (case runIdentity (runStateT (StateT
          (\ s_a4UQ -> Identity
             (if b_a1Bc then
@@ -402,10 +402,10 @@ joinEx b = $$(stage
 -}
 joinEx1 :: Bool -> StateT Int (MaybeT Identity) ()
 joinEx1 b = $$(stage
-  (letPut @Int 
+  (letPut @Int
      `fuseAT` resetAT' @(StateT Int (MaybeT Identity))
      `fuseAT` weakenC @((~) Gen) (upState @Int @(MaybeT Identity)
-     `fuseAT` stateAT @(Up Int) 
+     `fuseAT` stateAT @(Up Int)
      `fuseAT` upMaybe @Identity
      `fuseAT` Mb.exceptAT))
   (resetProg [||b||]))
@@ -429,18 +429,18 @@ although `Monad m` /is/ implied by this big `CompC` constraint. I suspect that t
 is because `CompC` is defined using UndecidableSuperClasses and GHC only expands
 CompC up until a fixed step, so it failed to see that `Monad m` is implied. We
 overcome this by using `weakenC` to replace the above big @CompC@ constraint
-with the simpler and stronger constraint @(~) Gen@. 
+with the simpler and stronger constraint @(~) Gen@.
 
 Alternatively, we can use the combinator `fuseAT'` that keeps the constraints simple.
 -}
 
 joinEx1' :: Bool -> StateT Int (MaybeT Identity) ()
 joinEx1' b = $$(stage
-  (letPut @Int 
+  (letPut @Int
      `fuseAT'` resetAT' @(StateT Int (MaybeT Identity))
      `fuseAT`  upState @Int @(MaybeT Identity)
      `fuseAT'` upMaybe @Identity
-     `fuseAT'` stateAT @(Up Int) 
+     `fuseAT'` stateAT @(Up Int)
      `fuseAT'` Mb.exceptAT)
   (resetProg [||b||]))
 
@@ -461,9 +461,9 @@ joinEx1' b = $$(stage
                         let x_aaCJ = 20 :: Int in x_aaCF x_aaCJ)))
 -}
 joinEx2 :: Bool -> StateT Int (MaybeT Identity) ()
-joinEx2 b = $$(down $ evalAT' 
-  (letPut @Int 
-  `fuseAT'` upState @Int @Identity 
+joinEx2 b = $$(down $ evalAT'
+  (letPut @Int
+  `fuseAT'` upState @Int @Identity
   `fuseAT'` stateAT @(Up Int)
   `fuseAT'` Mb.exceptAT
   `fuseAT'` asAT (genAlg # joinGenAlg))
@@ -506,15 +506,15 @@ joinEx2 b = $$(down $ evalAT'
                                Nothing -> Nothing
                                Just a_a9UP -> Just a_a9UP))))
 
--- there are some unnecessary eta-expansion of @MaybeT Identity@ generated by 
+-- there are some unnecessary eta-expansion of @MaybeT Identity@ generated by
 -- @up . down@. Can we optimise this out?
 -- Yes, using @upCache@ like below.
 -}
 joinEx3 :: Bool -> StateT Int (ListT (MaybeT Identity)) ()
-joinEx3 b = $$(down $ evalAT' 
-  (letPut @Int 
+joinEx3 b = $$(down $ evalAT'
+  (letPut @Int
   `fuseAT'` stateAT @(Up Int)
-  `fuseAT'` caseATSameC' (joinPush @(MaybeT Identity)) 
+  `fuseAT'` caseATSameC' (joinPush @(MaybeT Identity))
                          (weakenOEffs pushWithUpAT)
   `fuseAT'` upMaybe @Identity
   `fuseAT'` (hideAT @'[Mb.Catch] Mb.exceptAT)
@@ -545,10 +545,10 @@ joinEx3 b = $$(down $ evalAT'
 
 -}
 joinEx4 :: Bool -> StateT Int (ListT (MaybeT Identity)) ()
-joinEx4 b = $$(down $ evalAT' 
-  (letPut @Int 
+joinEx4 b = $$(down $ evalAT'
+  (letPut @Int
   `fuseAT'` stateAT @(Up Int)
-  `fuseAT'` caseATSameC' (joinPush @(MaybeT Identity)) 
+  `fuseAT'` caseATSameC' (joinPush @(MaybeT Identity))
                          (weakenOEffs pushWithUpAT)
   `fuseAT'` upCache @(MaybeT Identity)
   `fuseAT'` upMaybe @Identity
@@ -566,7 +566,7 @@ shift f = Gen $ runGen . f
 -}
 
 testShift :: Up (Identity Int)
-testShift = down $ 
+testShift = down $
   do c <- resetGen (do ci <- shiftGen (\k -> do b' <- genLet_ (k [|| 5 ||])
                                                 return (k [|| 0 ||]))
                        return [|| $$ci + $$ci ||])
@@ -585,11 +585,11 @@ testShift = down $
           else
               Nothing))
 -}
-testShift2 :: Bool -> Bool -> MaybeT Identity Int 
-testShift2 b c = $$(down @(MaybeT Gen) $ 
+testShift2 :: Bool -> Bool -> MaybeT Identity Int
+testShift2 b c = $$(down @(MaybeT Gen) $
   do b' <- lift (genSplit [||b||] )
-     i <- case b' of 
-       True -> 
+     i <- case b' of
+       True ->
          do c' <- lift (genSplit [||c||])
             case c' of
               True -> return [||0||]
@@ -606,12 +606,12 @@ testShift2 b c = $$(down @(MaybeT Gen) $
           in
             if b_a1CR then if c_a1CS then x_a4Uj 0 else x_a4Uj 1 else x_a4Ui))
 -}
-testShift3 :: Bool -> Bool -> MaybeT Identity Int 
-testShift3 b c = $$(down @(MaybeT Gen) $ 
-  do i <- mergeMb $ 
+testShift3 :: Bool -> Bool -> MaybeT Identity Int
+testShift3 b c = $$(down @(MaybeT Gen) $
+  do i <- mergeMb $
        do b' <- lift (genSplit [||b||] )
-          case b' of 
-            True -> 
+          case b' of
+            True ->
               do c' <- lift (genSplit [||c||])
                  case c' of
                    True -> return [||0||]
@@ -631,13 +631,13 @@ testShift3 b c = $$(down @(MaybeT Gen) $
             Nothing -> Nothing
             Just a_a7tk -> let x_a7tl = (a_a7tk * a_a7tk) in Just x_a7tl))
 -}
-testShift4 :: Bool -> Bool -> MaybeT Identity Int 
-testShift4 b c = $$(down @(MaybeT Gen) $ 
+testShift4 :: Bool -> Bool -> MaybeT Identity Int
+testShift4 b c = $$(down @(MaybeT Gen) $
   do j <- resetMb (
-       do i <- mergeMb $ 
+       do i <- mergeMb $
             do b' <- lift (genSplit [||b||] )
-               case b' of 
-                 True -> 
+               case b' of
+                 True ->
                    do c' <- lift (genSplit [||c||])
                       case c' of
                         True -> return [||0||]
@@ -692,7 +692,7 @@ foldr (\ a_aaPR ms_aaPS -> (1 + ms_aaPS)) 0 xs_a7IH
 listExample6 :: [Int] -> Int
 listExample6 xs = $$(runGen $
   runPushT (evalGen pushGen (do i <- up [||xs||]; return [||$$i + $$i||]))
-    (\_ n -> do n' <- n; return [|| 1 + $$n' ||]) 
+    (\_ n -> do n' <- n; return [|| 1 + $$n' ||])
     (return [||0||]))
 
 main = return ()

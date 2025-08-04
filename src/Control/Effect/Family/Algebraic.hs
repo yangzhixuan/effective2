@@ -5,7 +5,7 @@ License     : BSD-3-Clause
 Maintainer  : Nicolas Wu
 Stability   : experimental
 
-This module defines The family of algebraic operations. For every functor 
+This module defines The family of algebraic operations. For every functor
 @sig :: Type -> Type@, an algebraic operation of signature @sig@ on a monad
 @m@ is a function @op :: forall a. sig (m a) -> m a@ satisfying the following
 property:
@@ -34,7 +34,7 @@ import Data.Kind ( Type )
 import Data.HFunctor
 import Control.Monad.Trans.Class
 
--- | @Alg sig@ is the (higher-order) signature of algebraic operations of 
+-- | @Alg sig@ is the (higher-order) signature of algebraic operations of
 -- (first-order) signature @sig@.
 
 newtype Alg (sig :: Type -> Type)
@@ -66,7 +66,7 @@ instance {-# INCOHERENT #-} MonadTrans t => Forward (Alg f) t where
 -- and they are in bijection with functions @op :: forall x. sig (m x) -> m x@ satisfying
 -- the equation @op x >>= k  ==  op (fmap (>>= k) x)@.
 algOpIso :: (Functor sig, Monad m)
-         => Iso (forall x. Alg sig m x -> m x) (forall x. sig (m x) -> m x) 
+         => Iso (forall x. Alg sig m x -> m x) (forall x. sig (m x) -> m x)
 algOpIso = Iso
   (\a sm -> a (Alg sm) >>= id)
   (\b (Alg s) -> b (fmap return s))

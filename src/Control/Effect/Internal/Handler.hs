@@ -43,7 +43,7 @@ type Handler
 
 data Handler effs oeffs ts fs =
   Handler
-  { -- | Given @oeffs@-effects on any monad @m@, running the monad transformer stack 
+  { -- | Given @oeffs@-effects on any monad @m@, running the monad transformer stack
     -- @ts m x@ into @m (fs x)@.
     hrun :: Runner oeffs ts fs Monad
 
@@ -120,7 +120,7 @@ weaken
   => Handler effs  oeffs  ts fs
   -> Handler effs' oeffs' ts fs
 weaken (Handler run halg)
-  = Handler (weakenR @_ @oeffs' run) (weakenEffs halg) 
+  = Handler (weakenR @_ @oeffs' run) (weakenEffs halg)
 
 type Hide# heffs effs oeffs = (Injects (effs :\\ heffs) effs, Injects oeffs oeffs)
 
@@ -131,16 +131,16 @@ type Hide# heffs effs oeffs = (Injects (effs :\\ heffs) effs, Injects oeffs oeff
 hide
   :: forall heffs effs oeffs ts fs
   . Hide# heffs effs oeffs
-  => Proxy heffs 
+  => Proxy heffs
   -> Handler effs oeffs ts fs
   -> Handler (effs :\\ heffs) oeffs ts fs
 hide _ h = weaken h
 
-type Bypass# beffs effs oeffs = 
+type Bypass# beffs effs oeffs =
   ( Append effs (beffs :\\ effs)
-  , Injects (beffs :\\ effs) beffs 
-  , Injects beffs beffs 
-  , Injects effs effs 
+  , Injects (beffs :\\ effs) beffs
+  , Injects beffs beffs
+  , Injects effs effs
   , Injects oeffs (oeffs `Union` beffs)
   , Injects beffs (oeffs `Union` beffs) )
 
@@ -151,7 +151,7 @@ bypass
   :: forall beffs effs oeffs ts fs
   . ( ForwardsM beffs ts
     , Bypass# beffs effs oeffs )
-  => Proxy beffs 
+  => Proxy beffs
   -> Handler effs oeffs ts fs
   -> Handler (effs `Union` beffs) (oeffs `Union` beffs) ts fs
 bypass _ (Handler run alg) = Handler (weakenR run) (LL.withFwds (Proxy @beffs) alg)
@@ -160,14 +160,14 @@ bypass _ (Handler run alg) = Handler (weakenR run) (LL.withFwds (Proxy @beffs) a
 -- regarded as a handler trivially.
 {-# INLINE fromAT #-}
 fromAT :: AlgTrans effs oeffs '[] Monad -> Handler effs oeffs '[] '[]
-fromAT at = handler (\_ -> id) (getAT at) 
+fromAT at = handler (\_ -> id) (getAT at)
 
 -- | Interpret @effs@-effects using @oeffs@-effects without transforming the carrier.
 -- This is done by using the supplied @rephrase :: Effs effs m x -> Prog oeffs x@
 -- parameter to translate @effs@ into a program that uses @oeffs@.
--- 
+--
 -- The function `interpret` is most useful for algebraic operations. For other families
--- of operations, `interpretM` is more useful. 
+-- of operations, `interpretM` is more useful.
 {-# INLINE interpret #-}
 interpret
   :: forall effs oeffs
@@ -230,20 +230,20 @@ interpretM1 mrephrase
   = handler @'[eff] @oeffs @'[] (const id) (\oalg (Eff op) -> mrephrase oalg op)
 
 -- | Case splitting on the union of two effect rows. Note that `Union` is defined
--- two be @effs1 ++ (effs2 :\\ effs1)@, so if an effect @e@ is both a member of @effs1@ 
+-- two be @effs1 ++ (effs2 :\\ effs1)@, so if an effect @e@ is both a member of @effs1@
 -- and @effs2@, it is consumed by the first handler.
 {-# INLINE caseHdl #-}
-caseHdl :: forall effs1 effs2 oeffs ts fs1 fs2. 
+caseHdl :: forall effs1 effs2 oeffs ts fs1 fs2.
           CaseTrans# effs1 effs2
        => Handler effs1 oeffs ts fs1
        -> Handler effs2 oeffs ts fs2
        -> Handler (effs1 `Union` effs2) oeffs ts fs1
-caseHdl (Handler r1 a1) (Handler _ a2) = Handler r1 (caseATSameC a1 a2) 
+caseHdl (Handler r1 a1) (Handler _ a2) = Handler r1 (caseATSameC a1 a2)
 
 {-# INLINE unionHdl #-}
 -- | Case splitting on the union of two effect rows, and the two handlers may output
 -- different effects.
-unionHdl :: forall effs1 effs2 oeffs1 oeffs2 ts fs1 fs2. 
+unionHdl :: forall effs1 effs2 oeffs1 oeffs2 ts fs1 fs2.
           UnionAT# effs1 effs2 oeffs1 oeffs2
        => Handler effs1 oeffs1 ts fs1
        -> Handler effs2 oeffs2 ts fs2
@@ -273,24 +273,24 @@ fuse, (|>)
     , ForwardsM effs2 ts1
     , ForwardsM (oeffs1 :\\ effs2) ts2
     , LL.FuseAT# effs1 effs2 oeffs1 oeffs2 ts1 ts2
-    , LL.FuseR# effs2 oeffs1 oeffs2 ts1 ts2 fs1 fs2 
+    , LL.FuseR# effs2 oeffs1 oeffs2 ts1 ts2 fs1 fs2
     )
   => Handler effs1 oeffs1 ts1 fs1   -- ^ @h1@
   -> Handler effs2 oeffs2 ts2 fs2   -- ^ @h2@
-  -> Handler (effs1 `Union` effs2)  
+  -> Handler (effs1 `Union` effs2)
              ((oeffs1 :\\ effs2) `Union` oeffs2)
              (ts1 :++ ts2)
              (fs2 :++ fs1)
 -- | Fusing handlers `h1 :: Handler effs1 oeffs1 ts1 fs1` and `h2 :: Handler effs2
--- oeffs2 ts2 fs2` results in a handler with the composed transformer stack @ts1 :++ ts2@ 
+-- oeffs2 ts2 fs2` results in a handler with the composed transformer stack @ts1 :++ ts2@
 -- that can deal with the effects of `effs1` and those of `effs2`, as well as deal
 -- with the effects @oeffs1@ produced by @h1@ using @h2@ appropriately. More
 -- precisely, if a member of @oeffs1@ is in `effs2`, then it is consumed by `h2`;
 -- if it is not in `effs2`, it can only be re-produced by the fused handler and in
 -- this case they have to be forwardable by @ts2@.
 --
--- Moreover, the effects @effs2@ are handled by @h2@ so they must be forwardable by @ts1@. 
-fuse (Handler run1 malg1) (Handler run2 malg2) 
+-- Moreover, the effects @effs2@ are handled by @h2@ so they must be forwardable by @ts1@.
+fuse (Handler run1 malg1) (Handler run2 malg2)
   = Handler (weakenRC (LL.fuseR malg2 run1 run2)) (weakenC (LL.fuseAT malg1 malg2))
 
 -- | A synonym for `fuse`.
@@ -303,24 +303,24 @@ infixr 9 `pipe`, ||>
 {-# INLINE (||>) #-}
 
 pipe, (||>)
-  :: forall effs1 effs2 oeffs1 oeffs2 ts1 ts2 fs1 fs2 
+  :: forall effs1 effs2 oeffs1 oeffs2 ts1 ts2 fs1 fs2
   . ( forall m . Monad m => MonadApply ts1 m
     , forall m . Monad m => MonadApply ts2 m
     , LL.PipeAT# effs2 oeffs1 oeffs2 ts1 ts2
-    , LL.FuseR# effs2 oeffs1 oeffs2 ts1 ts2 fs1 fs2 
+    , LL.FuseR# effs2 oeffs1 oeffs2 ts1 ts2 fs1 fs2
     , ForwardsM (oeffs1 :\\ effs2) ts2
     )
   => Handler effs1 oeffs1 ts1 fs1    -- ^ Handler @h1@
   -> Handler effs2 oeffs2 ts2 fs2    -- ^ Handler @h2@
-  -> Handler effs1 
-             ((oeffs1 :\\ effs2) `Union` oeffs2) 
+  -> Handler effs1
+             ((oeffs1 :\\ effs2) `Union` oeffs2)
              (ts1 :++ ts2)
              (fs2 :++ fs1)
--- Piping two handlers @h1@ and @h2@ is a relaxed version of composing two 
--- handlers (`comp`). The output effects of @h1@ doesn't have to exactly match the 
+-- Piping two handlers @h1@ and @h2@ is a relaxed version of composing two
+-- handlers (`comp`). The output effects of @h1@ doesn't have to exactly match the
 -- input effects of @h2@ (as required by `comp`). Instead, if an output effect
 -- produced by @h1@ is not handled by @h2@, it will be re-produced by @pipe h1 h2@.
-pipe (Handler run1 malg1)  (Handler run2 malg2) 
+pipe (Handler run1 malg1)  (Handler run2 malg2)
   = Handler (LL.weakenRC (LL.fuseR malg2 run1 run2)) (LL.weakenC (LL.pipeAT malg1 malg2))
 
 -- | A synonym for 'pipe'
@@ -342,8 +342,8 @@ pass :: forall effs1 effs2 oeffs1 oeffs2 ts1 ts2 fs1 fs2.
         , Pass# effs1 effs2 oeffs1 oeffs2 ts1 ts2 fs1 fs2 )
      => Handler effs1 oeffs1 ts1 fs1         -- ^ Handler @h1@
      -> Handler effs2 oeffs2 ts2 fs2         -- ^ Handler @h2@
-     -> Handler (effs1 `Union` effs2) 
-                (oeffs1 `Union` oeffs2) 
+     -> Handler (effs1 `Union` effs2)
+                (oeffs1 `Union` oeffs2)
                 (ts1 :++ ts2)
                 (fs2 :++ fs1)
 pass (Handler r1 a1) (Handler r2 a2)
@@ -354,8 +354,8 @@ pass (Handler r1 a1) (Handler r2 a2)
 -- @feffs@ and @ieffs@ such that
 --   1. @feffs@ is a subset of @effs2@ and it specifies the effects that we want to be
 --      forwarded along @ts1@ and exposed by the resulting handler;
---   2. @ieffs@ is a subset of @effs2@ and it specifies the effects that we want to 
---      use to intercept the effects produced by @h1@. 
+--   2. @ieffs@ is a subset of @effs2@ and it specifies the effects that we want to
+--      use to intercept the effects produced by @h1@.
 -- Therefore @generalFuse@ instantiates to
 --   1. `fuse` with @feffs ~ effs2@ and @ieffs ~ effs2@,
 --   2. `pipe` with @feffs ~ []@    and @ieffs ~ effs2@,
@@ -370,19 +370,19 @@ generalFuse
      , Injects ieffs effs2
      , ForwardsM feffs ts1
      , ForwardsM (oeffs1 :\\ ieffs) ts2
-     , GeneralFuseAT# feffs ieffs effs1 effs2 oeffs1 oeffs2 ts1 ts2 
-     , LL.FuseR# effs2 oeffs1 oeffs2 ts1 ts2 fs1 fs2 
+     , GeneralFuseAT# feffs ieffs effs1 effs2 oeffs1 oeffs2 ts1 ts2
+     , LL.FuseR# effs2 oeffs1 oeffs2 ts1 ts2 fs1 fs2
      , Injects oeffs2 oeffs2
      )
-  => Proxy feffs -> Proxy ieffs 
-  -> Handler effs1 oeffs1 ts1 fs1 
+  => Proxy feffs -> Proxy ieffs
+  -> Handler effs1 oeffs1 ts1 fs1
   -> Handler effs2 oeffs2 ts2 fs2
-  -> Handler (effs1 `Union` feffs) 
+  -> Handler (effs1 `Union` feffs)
              ((oeffs1 :\\ ieffs) `Union` oeffs2)
              (ts1 :++ ts2)
-             (fs2 :++ fs1) 
+             (fs2 :++ fs1)
 generalFuse p1 p2 (Handler r1 a1) (Handler r2 a2)
-  = Handler (LL.weakenRC (LL.fuseR (weakenIEffs @ieffs a2) r1 r2)) 
+  = Handler (LL.weakenRC (LL.fuseR (weakenIEffs @ieffs a2) r1 r2))
             (LL.weakenC (LL.generalFuseAT p1 p2 a1 a2))
 
 -- * Using handlers
@@ -400,15 +400,15 @@ handle :: forall effs ts fs a .
 handle (Handler run halg)
   = runIdentity . LL.run run absurdEffs . eval (getAT halg (absurdEffs @Identity))
 
-type HandleM# effs xeffs = 
+type HandleM# effs xeffs =
   ( Injects (xeffs :\\ effs) xeffs
   , Append effs (xeffs :\\ effs)
   , HFunctor (Effs (effs `Union` xeffs)))
 
--- | @handleM xalg h p@ uses the handler @h@ to evaluate the program @p@ into some 
+-- | @handleM xalg h p@ uses the handler @h@ to evaluate the program @p@ into some
 -- monad @m@ (e.g. the @IO@ monad). The monad @m@ may come with some effects @xeffs@
--- and the program can make use of these effects, in addition to the effects @effs@ 
--- handled by the handler @h@. The effects @xeffs@ on @m@ must be forwardable by 
+-- and the program can make use of these effects, in addition to the effects @effs@
+-- handled by the handler @h@. The effects @xeffs@ on @m@ must be forwardable by
 -- the transformer stack @ts@.
 -- (When an effect is both in @effs@ and @xeffs@, it is handled by @h@).
 handleM :: forall effs oeffs xeffs m ts fs a .
@@ -426,7 +426,7 @@ handleM xalg (Handler run halg)
   = getR run @m (xalg . injs)
   . eval (hunion @effs @xeffs (getAT halg (xalg . injs)) (getAT (fwds @_ @ts) xalg))
 
--- | A variant of @handleM@ where the program doesn't explictly use the effect 
+-- | A variant of @handleM@ where the program doesn't explictly use the effect
 -- @xeffs@ on the monad @m@, but may output some effects @oeffs@ ⊆ @xeffs@. Therefore
 -- the transformer stack @ts@ doesn't have to forward the effects @xeffs@.
 handleM' :: forall effs oeffs xeffs m ts fs a .
@@ -456,13 +456,13 @@ handleMFwds :: forall yeffs effs oeffs xeffs m ts fs a .
   -> Handler effs oeffs ts fs        -- ^ Handler @h@
   -> Prog (effs `Union` yeffs) a
   -> m (Apply fs a)
-handleMFwds _ xalg (Handler run halg) 
+handleMFwds _ xalg (Handler run halg)
   = getR run @m (xalg . injs)
-  . eval (hunion @effs @yeffs (getAT halg (xalg . injs)) 
+  . eval (hunion @effs @yeffs (getAT halg (xalg . injs))
                               (getAT (fwds @_ @ts) (xalg . injs)))
 
 type HandleP# effs xeffs =
-  ( HandleM# effs xeffs 
+  ( HandleM# effs xeffs
   , HFunctor (Effs xeffs)
   , Monad (Prog xeffs) )
 
@@ -485,7 +485,7 @@ handleP' :: forall effs oeffs xeffs ts fs a .
   ( Monad (Apply ts (Prog xeffs))
   , Forwards xeffs ts
   , Injects oeffs xeffs
-  , HFunctor (Effs effs) 
+  , HFunctor (Effs effs)
   , HFunctor (Effs xeffs) )
   => Handler effs oeffs ts fs        -- ^ Handler @h@
   -> Prog effs a                     -- ^ Program @p@ that contains @xeffs@
@@ -500,7 +500,7 @@ type HandleMApp# effs xeffs =
 
 -- | @handleMApp xalg h p@ is a variant of `handleM` where @effs `Union` xeffs@ is replaced
 -- by '(:++)'.
--- In most cases, you should just use `handleM` but sometimes limitations regarding class 
+-- In most cases, you should just use `handleM` but sometimes limitations regarding class
 -- constraints in GHC necessitate the use of @handleMApp@ (for example, in `Control.Effect.HOStore.Safe.handleHSM`.)
 
 handleMApp :: forall effs oeffs xeffs m ts fs a .
@@ -519,7 +519,7 @@ handleMApp xalg (Handler run halg)
 
 -- | @handleP' h p@ is a variant of `handleP` where @effs `Union` xeffs@ is replaced
 -- by simply '(:++)'.
--- In most cases, you should just use `handleP` but sometimes limitations regarding class 
+-- In most cases, you should just use `handleP` but sometimes limitations regarding class
 -- constraints in GHC necessitate the use of @handleP'@ (for example, in `Control.Effect.HOStore.Safe.handleHSM`.)
 handlePApp :: forall effs oeffs xeffs ts fs a .
   ( ForwardsM xeffs ts

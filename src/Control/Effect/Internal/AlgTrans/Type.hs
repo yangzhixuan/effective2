@@ -1,6 +1,6 @@
 {-|
 Module      : Control.Effect.Internal.AlgTrans.Type
-Description : 
+Description :
 License     : BSD-3-Clause
 Maintainer  : Nicolas Wu, Zhixuan Yang
 Stability   : experimental
@@ -28,13 +28,13 @@ type AlgTrans
 newtype AlgTrans effs oeffs ts cs = AlgTrans {
    getAT :: forall m . cs m => Algebra oeffs m -> Algebra effs (Apply ts m) }
 
--- * Constraints 
+-- * Constraints
 
 -- | The always true constraint.
 class    TruthC (m :: Type -> Type) where
 instance TruthC m where
 
--- | A constraint synonym that is frequently used when composing algebra transformers. 
+-- | A constraint synonym that is frequently used when composing algebra transformers.
 class    (cs2 m, cs1 (Apply ts2 m)) => CompC ts2 cs1 cs2 m where
 instance (cs2 m, cs1 (Apply ts2 m)) => CompC ts2 cs1 cs2 m where
 

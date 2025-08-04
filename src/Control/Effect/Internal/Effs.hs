@@ -48,20 +48,20 @@ import Data.Iso
 
 -- | A variant of `call` for which the effect is on a given monad rather than the `Prog` monad.
 {-# INLINE callM #-}
-callM :: forall eff effs a m . (Monad m, Member eff effs) 
+callM :: forall eff effs a m . (Monad m, Member eff effs)
       => Algebra effs m -> eff m (m a) -> m a
 callM oalg x = join (oalg (inj x))
 
 -- | A variant of `call'` for which the effect is on a given monad rather than the `Prog` monad.
 {-# INLINE callM' #-}
-callM' :: forall eff effs a m . 
-       Member eff effs 
+callM' :: forall eff effs a m .
+       Member eff effs
       => Algebra effs m -> eff m a -> m a
 callM' oalg x = oalg (inj x)
 
 -- | An obvious isomorphism between two representations of an algebra for a single effect @eff@.
 {-# INLINE singAlgIso #-}
-singAlgIso :: 
+singAlgIso ::
 #ifdef INDEXED
   forall eff m. HFunctor eff =>
 #endif

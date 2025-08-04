@@ -4,7 +4,7 @@ module Control.Effect.Yield where
 import Control.Effect
 import Control.Effect.Family.Algebraic
 import Control.Effect.Family.Scoped
-import Control.Monad.Trans.YRes 
+import Control.Monad.Trans.YRes
 import Data.HFunctor
 import Data.Functor.Unary
 import Data.List.Kind
@@ -15,7 +15,7 @@ import Data.List.Kind
 #endif
 
 type Yield a b = Alg (Yield_ a b)
-data Yield_ a b x = Yield a (b -> x) deriving Functor 
+data Yield_ a b x = Yield a (b -> x) deriving Functor
 
 type MapYield a b = Scp (MapYield_ a b)
 data MapYield_ a b x = MapYield (a -> a) (b -> b) x deriving Functor
@@ -28,7 +28,7 @@ yield :: Member (Yield a b) sig => a -> Prog sig b
 yield a = call (Alg (Yield a id))
 
 mapYield :: Member (MapYield a b) sig => (a -> a) -> (b -> b) -> Prog sig x -> Prog sig x
-mapYield f g p = call (Scp (MapYield f g p)) 
+mapYield f g p = call (Scp (MapYield f g p))
 
 yieldAlg :: Monad m => Algebra '[Yield a b, MapYield a b] (YResT a b m)
 yieldAlg eff
@@ -48,6 +48,6 @@ pingpongWith :: forall oeffs a b y .
              -> Handler '[Yield a b, MapYield a b] oeffs '[YResT a b] '[Either y]
 
 pingpongWith q = handler run (\_ -> yieldAlg) where
-  run :: forall m . Monad m => Algebra oeffs m 
+  run :: forall m . Monad m => Algebra oeffs m
       -> (forall x. YResT a b m x -> m (Either y x))
   run oalg p = pingpong p (eval (yieldAlg # getAT (fwds @_ @'[YResT b a]) oalg) . q)

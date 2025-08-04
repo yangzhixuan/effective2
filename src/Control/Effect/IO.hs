@@ -84,14 +84,14 @@ type IOEffects = IOAlgOps :++ '[Par, JPar]
 
 -- | Interprets IO algebraic operations using their standard semantics in `IO`.
 ioAlgAlg :: Algebra IOAlgOps IO
-ioAlgAlg = nativeAlg # getLineAlg # putStrLnAlg # putStrAlg # getCPUTimeAlg 
-             # newQSemAlg # signalQSemAlg # waitQSemAlg 
+ioAlgAlg = nativeAlg # getLineAlg # putStrLnAlg # putStrAlg # getCPUTimeAlg
+             # newQSemAlg # signalQSemAlg # waitQSemAlg
 
 -- | Interprets IO operations using their standard semantics in `IO`.
 ioAlg :: Algebra IOEffects IO
-ioAlg = ioAlgAlg # parAlg # jparAlg 
+ioAlg = ioAlgAlg # parAlg # jparAlg
 
--- | Treating an IO computation as an operation of signature `Alg IO`. 
+-- | Treating an IO computation as an operation of signature `Alg IO`.
 liftIO :: Members '[Alg IO] sig => IO a -> Prog sig a
 liftIO o = call (Alg o)
 
@@ -165,7 +165,7 @@ getCPUTimeAlg eff
       do time <- System.CPUTime.getCPUTime
          return (x time)
 
--- | Interprets t`Control.Effect.Concurrency.Par` using the native concurrency API. 
+-- | Interprets t`Control.Effect.Concurrency.Par` using the native concurrency API.
 -- from `Control.Concurrent`.
 parAlg :: Algebra '[Par] IO
 parAlg eff
@@ -173,8 +173,8 @@ parAlg eff
       do Control.Concurrent.forkIO (fmap (const ()) r)
          l
 
--- | Interprets t`Control.Effect.Concurrency.JPar` using the native concurrency API. 
--- from "Control.Concurrent". The result from the child thread is passed back to the 
+-- | Interprets t`Control.Effect.Concurrency.JPar` using the native concurrency API.
+-- from "Control.Concurrent". The result from the child thread is passed back to the
 -- main thread using @MVar@.
 jparAlg :: Algebra '[JPar] IO
 jparAlg eff
@@ -242,7 +242,7 @@ waitQSemAlg eff
 evalIO :: Prog IOEffects a -> IO a
 evalIO = eval ioAlg
 
-type HandleIO# effs oeffs xeffs = 
+type HandleIO# effs oeffs xeffs =
   ( Injects (xeffs :\\ effs) xeffs
   , Append effs (xeffs :\\ effs)
   , HFunctor (Effs (effs `Union` xeffs)))
@@ -252,7 +252,7 @@ type HandleIO# effs oeffs xeffs =
 -- the program may also use a subset @xeffs@ of the IO effects (which must
 -- be forwardable through the monad transformer @ts@).
 -- The type argument @xeffs@ usually can't be inferred and needs given
--- explicitly. 
+-- explicitly.
 handleIO
   :: forall xeffs effs oeffs ts fs a
   . ( Injects oeffs IOEffects
@@ -271,7 +271,7 @@ handleIO'
   :: forall effs oeffs ts fs a
   . ( Injects oeffs IOEffects
     , Monad (Apply ts IO)
-    , HFunctor (Effs effs) ) 
+    , HFunctor (Effs effs) )
   => Handler effs oeffs ts fs
   -> Prog effs a -> IO (Apply fs a)
 handleIO' = handleM' @effs @oeffs ioAlg

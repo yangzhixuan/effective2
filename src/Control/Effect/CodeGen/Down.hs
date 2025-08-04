@@ -1,6 +1,6 @@
 {-|
 Module      : Control.Effect.CodeGen.Down
-Description : Transforming meta-level types to object-level types 
+Description : Transforming meta-level types to object-level types
 License     : BSD-3-Clause
 Maintainer  : Zhixuan Yang
 Stability   : experimental
@@ -29,14 +29,14 @@ import Control.Monad.Trans.Reader
 import Control.Monad.Trans.List
 import Control.Monad.Trans.Resump
 import Control.Monad.Trans.ResumpUp
-import Control.Monad.Trans.CRes 
+import Control.Monad.Trans.CRes
 import Control.Monad.Trans.YRes
 import Control.Monad.Trans.Push
 import Control.Effect.Alternative ( (<|>) )
 
 -- | @n $~> m@ iff the type constructor @n@ at compile time lowers to the type
 -- constructor @m@ at runtime. For example, the functor (Up a ->) lowers to (a ->).
--- 
+--
 -- The instances of this type class are rather mechanical, and in the future we may
 -- try to derive them generically.
 class n $~> m where
@@ -56,7 +56,7 @@ instance Maybe $~> Maybe where
   down (Just x) = [|| Just $$x ||]
 
 instance (,) (Up a)  $~>  (,) a where
-  down (ua, ux) = [|| ($$ua, $$ux) ||] 
+  down (ua, ux) = [|| ($$ua, $$ux) ||]
 
 instance Either (Up e)  $~>  Either e where
   down (Left e)  = [|| Left $$e ||]
@@ -80,7 +80,7 @@ instance CStep (Up a)  $~>  CStep a where
 instance YStep (Up a) (Up b)  $~>  YStep a b where
   down (YieldS ca ck) = [|| YieldS $$ca $$(down ck) ||]
 
--- * Lowering instances for some basic monad transformers. 
+-- * Lowering instances for some basic monad transformers.
 --
 -- It's basically recursively lowering down using the down functions for basic functors.
 -- If these instances look cryptic, try working out one of them explicitly without using
@@ -101,7 +101,7 @@ instance (Monad n, n $~> m) => LS.StateT (Up s) n $~> LS.StateT s m where
 instance (Monad n, n $~> m) => ReaderT (Up r) n $~> ReaderT r m where
   down (ReaderT g) = [|| ReaderT \r -> $$(down (g [||r||])) ||]
 
-instance (Monad n, n $~> m) => MaybeT n $~> MaybeT m where 
+instance (Monad n, n $~> m) => MaybeT n $~> MaybeT m where
   down (MaybeT nMb) = [|| MaybeT $$(down (fmap down nMb))||]
 
 instance (Monad n, n $~> m) => ExceptT (Up e) n $~> ExceptT e m where
@@ -110,27 +110,27 @@ instance (Monad n, n $~> m) => ExceptT (Up e) n $~> ExceptT e m where
 instance (Monad n, n $~> m) => ListT n $~> ListT m where
   down g = [|| ListT $$((down . fmap (down . fmap (down . fmap down))) (runListT g)) ||]
 
-instance (Functor s, Monad n, n $~> m, s $~> t) => ResT s n $~> ResT t m where 
+instance (Functor s, Monad n, n $~> m, s $~> t) => ResT s n $~> ResT t m where
   down g = [|| ResT $$((down . fmap (down . fmap (down . fmap down))) (unResT g)) ||]
 
 -- | @ListT Identity a@ is the same as @[a]@, but @[a]@ is of course preferable.
 instance PushT Gen $~> [] where
-  down p = runGen $ runPushT p (\ca -> fmap (\cas -> [|| ($$ca : $$cas) ||])) 
+  down p = runGen $ runPushT p (\ca -> fmap (\cas -> [|| ($$ca : $$cas) ||]))
                                (return [|| [] ||])
 
 pushMatch ::(Monad n, Monad m, n $~> m) => PushT n (Up x) -> n (Up (Maybe (x, ListT m x)))
-pushMatch p = runPushT p (\ca -> fmap (\cas -> [|| Just ($$ca, ListT (return $$cas)) ||])) 
+pushMatch p = runPushT p (\ca -> fmap (\cas -> [|| Just ($$ca, ListT (return $$cas)) ||]))
                          (return [|| Nothing ||])
 
 instance (Monad n, Monad m, n $~> m) => PushT n $~> ListT m where
   down :: forall x. PushT n (Up x) -> Up (ListT m x)
   down p = [|| ListT $$(down (pushMatch p)) ||]
 
-resUpMatch :: forall n m s l x. (Monad n, Functor l, n $~> m, l $~> s) 
+resUpMatch :: forall n m s l x. (Monad n, Functor l, n $~> m, l $~> s)
            => ResUpT l n (Up x) -> n (Up (Either x (s (ResT s m x))))
-resUpMatch p = runResUpT p 
-                 (\cx -> return [|| Left $$cx ||]) 
-                 (\ln -> return [|| Right $$(down @l @s 
+resUpMatch p = runResUpT p
+                 (\cx -> return [|| Left $$cx ||])
+                 (\ln -> return [|| Right $$(down @l @s
                    (fmap (\c -> [|| ResT $$c ||]) (fmap (down @n @m) ln))) ||])
 
 instance (Monad n, Functor l, Functor s, n $~> m, l $~> s) => ResUpT l n $~> ResT s m where
@@ -140,8 +140,8 @@ instance (Monad n, Functor l, Functor s, n $~> m, l $~> s) => ResUpT l n $~> Res
 -- * Generating tail-recursive code.
 
 -- | The class $n $~>> m$ provides functions `downTail` and `downJoin` that are variations
--- of the function `down :: n (Up a) -> Up (m a)` for generating better code with tail recursion. 
--- When using the @CodeGen@ effect to generate a tail-recursive program, for example, 
+-- of the function `down :: n (Up a) -> Up (m a)` for generating better code with tail recursion.
+-- When using the @CodeGen@ effect to generate a tail-recursive program, for example,
 -- @
 --   ioExample :: StateT Int IO ()
 --   ioExample = $$(down $
@@ -149,7 +149,7 @@ instance (Monad n, Functor l, Functor s, n $~> m, l $~> s) => ResUpT l n $~> Res
 --        (do up [|| putStrLn "Hello" ||]
 --            s <- get @(Up Int)
 --            b <- split [|| $$s > 0 ||]
---            if b then put [|| $$s - 1||] >> up [|| ioExample ||] 
+--            if b then put [|| $$s - 1||] >> up [|| ioExample ||]
 --                 else return [||()||]))
 -- @
 -- The final `up`-operation for the tail-recursive call @up [|| ioExample ||]@ generates
@@ -165,28 +165,28 @@ instance (Monad n, Functor l, Functor s, n $~> m, l $~> s) => ResUpT l n $~> Res
 --       (do up [|| putStrLn "Hello" ||]
 --           s <- get @(Up Int)
 --           b <- split [|| $$s > 0 ||]
---           if b then put [|| $$s - 1||] >> return [|| ioExample ||] 
+--           if b then put [|| $$s - 1||] >> return [|| ioExample ||]
 --                else return [||return ()||]))
 -- @
--- 
--- A limitation of the function `downJoin` is that it forces all branches to return 
+--
+-- A limitation of the function `downJoin` is that it forces all branches to return
 -- a piece of object-level monadic code, even for those branches that could return a pure
 -- value, like the branch that returns a unit () above. This makes the generated code
 -- suboptimal and we solve this by introducing `downTail`, which is the common generalisation
 -- of `downJoin` and `down`.
--- 
--- The functions `downTail` and `downJoin` can be mutually defined, but the default 
+--
+-- The functions `downTail` and `downJoin` can be mutually defined, but the default
 -- `downTail` in terms of `downJoin` is not optimal. Moreover, there is an instance
 -- of @n $~>> m@ from @n $~> m@, which solves the problem of tail recursion but the
 -- generated code is not optimal.
 --
--- Finally, you don't need to call @downTail@ or @downJoin@ manually. There is an 
+-- Finally, you don't need to call @downTail@ or @downJoin@ manually. There is an
 -- algebra transformer "Control.Effect.CodeGen.Up.upCache" that deals with tail recursion
 -- in a transparent way (by invoking `downTail` under the hood).
 
 class (Functor n, Monad m) => n $~>> m where
   downTail :: n (Either (Up x) (Up (m x))) -> Up (m x)
-  downTail = downJoin . fmap (\case 
+  downTail = downJoin . fmap (\case
     Left x  -> [|| return $$x ||]
     Right y -> y)
 
@@ -200,12 +200,12 @@ instance {-# OVERLAPPABLE #-} (Monad m, Functor n, n $~> m) => n $~>> m where
     p' = fmap (either (\x -> [|| return $$x ||]) id) p
 
 instance Gen $~>> Identity where
-  downTail g = unGen g \case 
+  downTail g = unGen g \case
     Left x  -> [|| Identity $$x ||]
     Right m -> m
 
 instance Monad m => GenM m $~>> m where
-  downTail g = unGenM g \case 
+  downTail g = unGenM g \case
     Left x  -> [|| return $$x ||]
     Right m -> m
 
@@ -244,7 +244,7 @@ instance (Monad n, n $~>> m) => MaybeT n $~>> MaybeT m where
 
 instance PushT Gen $~>> [] where
   downTail p = runGen $ runPushT p f (return [|| [] ||]) where
-    f :: Either (Up x) (Up [x]) -> Gen (Up [x]) -> Gen (Up [x]) 
+    f :: Either (Up x) (Up [x]) -> Gen (Up [x]) -> Gen (Up [x])
     f (Left cx)  gxs = do xs <- gxs; return [||$$cx : $$xs||]
     f (Right cl) gxs = do xs <- gxs; return (codeApp cl xs)
 
@@ -252,22 +252,22 @@ instance PushT Gen $~>> [] where
 -- `downTail`. This is because the monad transformer `PushT` is defined to be
 --
 -- > forall t. (a -> n (Up t) -> n (Up t)) -> n (Up t) -> n (Up t)
--- 
+--
 -- so we aren't able to define @tmp@ below to have type
--- 
--- > p' :: n (Either (Up (Maybe (x, ListT m x))) 
+--
+-- > p' :: n (Either (Up (Maybe (x, ListT m x)))
 -- >                 (Up (m (Maybe (x, ListT m x)))))
 --
--- We can fix this problem if we generalise `PushT` to be 
+-- We can fix this problem if we generalise `PushT` to be
 --
 -- > forall t. isSOP t => (a -> n t -> n t) -> n t -> n t
 --
--- But this seems a bit over-engineering so it is not done, at least for now. 
+-- But this seems a bit over-engineering so it is not done, at least for now.
 
 instance (Monad n, Monad m, n $~>> m) => PushT n $~>> ListT m where
   downJoin :: forall x. PushT n (Up (ListT m x)) -> Up (ListT m x)
   downJoin p = let p' :: n (Up (m (Maybe (x, ListT m x))))
-                   p' = runPushT p (\cxs -> fmap (\cys -> [|| runListT ($$cxs <|> ListT $$cys) ||])) 
+                   p' = runPushT p (\cxs -> fmap (\cys -> [|| runListT ($$cxs <|> ListT $$cys) ||]))
                                     (return [|| return Nothing ||])
                in [|| ListT $$(downJoin p') ||]
 
@@ -276,7 +276,7 @@ instance (Monad n, Monad m, Functor s, Functor l, n $~>> m, l $~> s)
   downJoin :: forall x. ResUpT l n (Up (ResT s m x)) -> Up (ResT s m x)
   downJoin p = [|| ResT $$(downJoin @n @m p') ||] where
     p' :: n (Up (m (Either x (s (ResT s m x)))))
-    p' = runResUpT p 
+    p' = runResUpT p
             (\cr -> return [|| unResT $$cr ||])
             (\ln -> let g = down @l @s (fmap (\c -> [||ResT $$c||]) (fmap (downJoin @n @m) ln))
                     in return [|| return (Right $$g) ||])

@@ -13,18 +13,18 @@ and @s@-computations. The datatype @ResT s m@ has universal properties:
   1. It carries the initial algebra of the functor @μ x. m (a + s x)@. This is
   how we define @ResT s m a@ below.
 
-  2. As a monad @ResT s m@ over @Type@ is that it is the coproduct of 
+  2. As a monad @ResT s m@ over @Type@ is that it is the coproduct of
   @m@ and the @Free s@ in the category of monads, evidenced by `elimRes` below.
 
   3. In the Kleisli category @Kl(m)@ of the monad @m@, the object @a + s (ResT s m a)@
-  carries an initial algebra for the endofunctor @F_m . (a + s -) . U_m)@, where 
+  carries an initial algebra for the endofunctor @F_m . (a + s -) . U_m)@, where
   @F_m ⊣ U_m : Kl(m) -> Type@ is the Kleisli adjunction for the monad @m@. This
   is evidenced by `sresAlg` and `foldSRes` below.
   Moreover, @ResT s m a@ also carries an algebra of this functor (`resAlg` below) and
   there is a homomorphism from `resAlg` to `sresAlg`, making `resAlg` as a weak
   initial algebra.
   (In general, for every functor @s@ over @Type@, the datatype @s (μ x. m (s
-  x))@, which is isomorphic to simply @μ x. s (m x)@ carries an initial algebra for 
+  x))@, which is isomorphic to simply @μ x. s (m x)@ carries an initial algebra for
   the functor @F_m . s . U_m : Kl(m) -> Kl(m)@ over the Kleisli category.)
 -}
 module Control.Monad.Trans.Resump  where
@@ -102,16 +102,16 @@ resAlg (Right b) = (return . resOp . fmap (ResT . join . fmap unResT)) b
 
 -- | The fold in the Kleisli category evidencing the weak initiality of @resAlg@.
 -- The resulting morphism @ResT s m a -> m t@ is an algebra homomorphism in the Kleisli
--- category but it may not be the unique one. In particular, 
+-- category but it may not be the unique one. In particular,
 --
 -- > foldRes (resAlg . Left) (resAlg . Right) :: ResT s m a -> m (ResT s m a)
 --
--- is not the identity homomorphism in @Kl(m)@. To see this, we notice that 
+-- is not the identity homomorphism in @Kl(m)@. To see this, we notice that
 -- the morphism above  \'forces\' the outermost layer of @m@ of the supplied
--- @ResT s m a@, while the identity homomorphism is just a 
+-- @ResT s m a@, while the identity homomorphism is just a
 -- @return :: ResT s m a -> m (ResT s m a)@.
 foldRes :: (Functor s, Monad m) => (a -> m t) -> (s (m t) -> m t) -> (ResT s m a -> m t)
-foldRes ret salg r = 
+foldRes ret salg r =
   do e <- unResT r
      case e of
        Left  x -> ret x
@@ -119,18 +119,18 @@ foldRes ret salg r =
 
 
 -- | The carrier of the initial algebra of the functor @F_m . (a + s -) . U_m@.
--- This can be alternatively defined as 
+-- This can be alternatively defined as
 -- > newtype SResT s m a = SResT (Either a (s (m (SResT s m a)))).
 type SResT s m a = Either a (s (ResT s m a))
 
 -- | The initial algebra carried by @SResT@.
-sresAlg :: (Functor s, Monad m) 
+sresAlg :: (Functor s, Monad m)
         => Either a (s (m (SResT s m a))) -> m (SResT s m a)
 sresAlg (Left a)  = return (Left a)
 sresAlg (Right b) = return (Right (fmap ResT b))
 
--- | The inverse of the initial algebra in the Kleisli category 
-sresAlgInv :: (Functor s, Monad m) 
+-- | The inverse of the initial algebra in the Kleisli category
+sresAlgInv :: (Functor s, Monad m)
            => SResT s m a -> m (Either a (s (m (SResT s m a))))
 sresAlgInv (Left a) = return (Left a)
 sresAlgInv (Right b) = return (Right (fmap unResT b))
@@ -140,7 +140,7 @@ foldSRes :: (Functor s, Monad m)
          => (a -> m t)             -- ^ @ret@
          -> (s (m t) -> m t)       -- ^ @salg@
          -> (SResT s m a -> m t)   -- ^ An algebra homomorphism from @sresAlg@ to @either ret salg@.
-foldSRes ret salg = 
-  sresAlgInv 
-  >=> (return . fmap (fmap (>>= foldSRes ret salg))) 
+foldSRes ret salg =
+  sresAlgInv
+  >=> (return . fmap (fmap (>>= foldSRes ret salg)))
   >=> either ret salg
