@@ -304,7 +304,7 @@ pattern Tick p <- (prj -> Just (Alg (Tick_ p)))
 A smart constructor `tick` is defined that allows programs to be written
 that uses this operation:
 ```haskell
-tick :: Member Tick sig => Prog sig ()
+tick :: () ! '[Tick]
 tick = call (Alg (Tick_ ()))
 ```
 The signature of `tick` uses a `Member` constraint to describe how `tick` can be
@@ -354,8 +354,8 @@ by `h2`. Here are the types involved:
 (||>) :: ...
   => Handler effs1 oeffs1 ts1 fs1    -- h1
   -> Handler effs2 oeffs2 ts2 fs2    -- h2
-  -> Handler effs1 
-             ((oeffs1 :\\ effs2) `Union` oeffs2) 
+  -> Handler effs1
+             ((oeffs1 :\\ effs2) `Union` oeffs2)
              (ts1 :++ ts2)
              (fs2 :++ fs1)
 ```
@@ -647,7 +647,7 @@ operations in that program. For example, the `Censor` effect is
 introduced by the accompanying `censor` operation, and is handled
 using the `censors` handler:
 ```
-censor  :: Member (Censor w) sig => (w -> w) -> Prog sig a -> Prog sig
+censor  :: Member (Censor w) sig => (w -> w) -> Prog sig a -> Prog sig a
 censors :: Monoid w => (w -> w) -> Handler '[Tell w, Censor w] '[Tell w] '[]
 ```
 The result of the `censors cipher` handler is to first apply the `cipher`
