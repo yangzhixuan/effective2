@@ -358,7 +358,7 @@ passAT :: forall effs1 effs2 oeffs1 oeffs2 ts1 ts2 cs1 cs2.
                    (oeffs1 `Union` oeffs2)
                    (ts1 :++ ts2)
                    (CompC ts2 cs1 cs2)
-passAT at1 at2 = AlgTrans $ \(oalg :: Algebra _ m) ->
+passAT at1 at2 = AlgTrans $ \(oalg :: Algebra (oeffs1 `Union` oeffs2) m) ->
   hunion @effs1 @effs2
     (getAT at1 @(Apply ts2 m) (getAT (fwds @oeffs1 @ts2) @m (oalg . injs)))
     (getAT (fwds @effs2 @ts1) (getAT at2 (oalg . injs)))
@@ -387,7 +387,7 @@ passAT' :: forall effs1 effs2 oeffs1 oeffs2 ts1 ts2 cs1 cs2.
                     (oeffs1 `Union` oeffs2)
                     (ts1 :++ ts2)
                     (CompC ts2 cs1 cs2)
-passAT' at1 at2 = AlgTrans $ \(oalg :: Algebra _ m) ->
+passAT' at1 at2 = AlgTrans $ \(oalg :: Algebra (oeffs1 `Union` oeffs2) m) ->
   hunion @effs2 @effs1
       (getAT (fwds @effs2 @ts1) (getAT at2 (oalg . injs)))
       (getAT at1 (getAT (fwds @oeffs1 @ts2) (oalg . injs)))
