@@ -11,6 +11,7 @@ import Control.Effect.Clone
 import Control.Effect.Yield
 
 import Data.Proxy
+import qualified Control.Concurrent.QSem as QSem
 
 main :: IO ()
 main = return ()
@@ -53,17 +54,17 @@ test33 = handle (fuse (resumpWith (False : False : True : True : [])) (writer @S
 test34 :: (String, ActsMb HS ())
 test34 = handle (fuse (resumpWith (False : False : True : False : [])) (writer @String)) prog
 
-prog2 :: Members '[NewQSem, SignalQSem, WaitQSem, Par, PutStr] sig => Prog sig ()
+prog2 :: Members '[Par, PutStr, Alg IO] sig => Prog sig ()
 prog2 =
-  do p <- newQSem 0
-     q <- newQSem 0
+  do p <- io (QSem.newQSem 0)
+     q <- io (QSem.newQSem 0)
      par (do replicateM_ 5 (putStr "A")
-             waitQSem p
-             signalQSem q
+             io (QSem.waitQSem p)
+             io (QSem.signalQSem q)
              replicateM_ 5 (putStr "C"))
          (do replicateM_ 5 (putStr "B")
-             signalQSem p
-             waitQSem q
+             io (QSem.signalQSem p)
+             io (QSem.waitQSem q)
              replicateM_ 5 (putStr "D"))
 
 test4 :: IO ()
@@ -82,7 +83,7 @@ test5 :: (String, ListActs HS (String, ()))
 test5 = handle (cloneHdl writer |> resump |> writer) prog3
 
 prog4 :: Member (Alg IO) sig => Prog sig ()
-prog4 = liftIO (putChar 'x')
+prog4 = io (putChar 'x')
 
 test6 :: IO ()
 test6 = handleIO (Proxy @IOEffects) (identity @'[]) prog4

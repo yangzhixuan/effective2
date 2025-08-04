@@ -42,7 +42,7 @@ module Control.Effect.Writer (
 import Control.Effect
 import Control.Effect.Family.Algebraic
 import Control.Effect.Family.Scoped
-import Control.Effect.IO (liftIO)
+import Control.Effect.IO (io)
 
 import qualified Data.Functor.Unary as U
 import Data.Tuple (swap)
@@ -95,7 +95,7 @@ writer_ = handler' (fmap fst . W.runWriterT) writerAlg
 -- physical IO printing.
 writerIO :: Handler '[Tell String] '[Alg IO] '[] '[]
 writerIO = interpret $
-  \(Tell w k) -> do liftIO (putStr w)
+  \(Tell w k) -> do io (putStr w)
                     return k
 
 -- | Signature for 'censor'.

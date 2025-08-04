@@ -47,11 +47,12 @@ import Control.Effect.Family.Algebraic
 import Control.Effect.Family.Scoped
 import Control.Effect.Family.Distributive
 import Control.Effect.Concurrency.Type
-import Control.Effect.IO (NewQSem, SignalQSem, WaitQSem, newQSem, signalQSem, waitQSem)
+import Control.Effect.IO (io)
 import qualified Control.Effect.Reader as R
 import qualified Control.Effect.Except as E
 import qualified Control.Monad.Trans.CRes as C
 import Control.Concurrent.QSem (QSem)
+import qualified Control.Concurrent.QSem as QSem
 import Control.Monad.Trans.CRes
 import qualified Data.Map as M
 import Data.HFunctor
@@ -122,33 +123,32 @@ type QSemMap a = M.Map a (QSem, QSem)
 -- so they don't need to be handled here.
 ccsByQSem :: forall n. Ord n
           => Handler '[Act (CCSAction n), Res (CCSAction n)]
-                     '[NewQSem, WaitQSem, SignalQSem]
+                     '[Alg IO]
                      '[R.ReaderT (QSemMap n), E.ExceptT String]
                      '[Either String]
 ccsByQSem = (interpretM alg ||> R.reader M.empty) ||> E.except where
   alg :: Monad m => Algebra '[ R.Ask (QSemMap n), R.Local (QSemMap n)
-                             , NewQSem, WaitQSem, SignalQSem
-                             , E.Throw String
+                             , E.Throw String, Alg IO
                              ] m
                  -> Algebra '[Act (CCSAction n), Res (CCSAction n)] m
   alg oalg op
     | Just (Alg (Act (Action n) p))   <- prj op =
         eval oalg $ do m <- R.ask @(QSemMap n)
                        case M.lookup n m of
-                         Just (s1, s2) -> do waitQSem s1; signalQSem s2
+                         Just (s1, s2) -> do io (QSem.waitQSem s1); io (QSem.signalQSem s2)
                          Nothing  -> E.throw "Channel used before creation!"
                        return p
     | Just (Alg (Act (CoAction n) p)) <- prj op =
         eval oalg $ do m <- R.ask @(QSemMap n)
                        case M.lookup n m of
-                         Just (s1, s2) -> do signalQSem s1; waitQSem s2
+                         Just (s1, s2) -> do io (QSem.signalQSem s1); io (QSem.waitQSem s2)
                          Nothing  -> E.throw "Channel used before creation!"
                        return p
     | Just (Scp (Res a p)) <- prj op =
         do (m, s1, s2) <- eval oalg $
               do m <- R.ask @(QSemMap n)
-                 s1 <- newQSem 0
-                 s2 <- newQSem 0
+                 s1 <- io (QSem.newQSem 0)
+                 s2 <- io (QSem.newQSem 0)
                  return (m, s1, s2)
            let m' = M.insert (getActionName a) (s1, s2) m
            callM' oalg (Scp (R.Local (const m') p))

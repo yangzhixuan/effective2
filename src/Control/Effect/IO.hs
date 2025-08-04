@@ -17,7 +17,7 @@ Stability   : experimental
 module Control.Effect.IO (
   -- * Syntax
   -- ** Operations
-  liftIO, getLine, putStrLn, putStr, getCPUTime, newQSem, signalQSem, waitQSem,
+  io, getLine, putStrLn, putStr, getCPUTime,
 
   -- ** Signatures
   IOEffects, IOAlgOps,
@@ -25,9 +25,6 @@ module Control.Effect.IO (
   PutStrLn, PutStrLn_(..),
   PutStr, PutStr_(..),
   GetCPUTime, GetCPUTime_(..),
-  NewQSem, NewQSem_(..),
-  SignalQSem, SignalQSem_(..),
-  WaitQSem, WaitQSem_(..),
 
   -- * Semantics
   -- * Evaluation
@@ -45,9 +42,6 @@ module Control.Effect.IO (
   getCPUTimeAlg,
   parAlg,
   jparAlg,
-  newQSemAlg,
-  signalQSemAlg,
-  waitQSemAlg,
 )
   where
 
@@ -60,7 +54,6 @@ import Control.Effect.Concurrency.Type (Par, Par_(..), JPar, JPar_(..))
 
 import qualified System.CPUTime
 import qualified Control.Concurrent
-import qualified Control.Concurrent.QSem as QSem
 import qualified Control.Concurrent.MVar as MVar
 import Data.List.Kind
 import Data.HFunctor
@@ -74,9 +67,6 @@ type IOAlgOps = '[ Alg IO
                   , PutStrLn
                   , PutStr
                   , GetCPUTime
-                  , NewQSem
-                  , SignalQSem
-                  , WaitQSem
                   ]
 
 -- | All effectful operations that the IO monad supports natively
@@ -85,15 +75,14 @@ type IOEffects = IOAlgOps :++ '[Par, JPar]
 -- | Interprets IO algebraic operations using their standard semantics in `IO`.
 ioAlgAlg :: Algebra IOAlgOps IO
 ioAlgAlg = nativeAlg # getLineAlg # putStrLnAlg # putStrAlg # getCPUTimeAlg
-             # newQSemAlg # signalQSemAlg # waitQSemAlg
 
 -- | Interprets IO operations using their standard semantics in `IO`.
 ioAlg :: Algebra IOEffects IO
 ioAlg = ioAlgAlg # parAlg # jparAlg
 
 -- | Treating an IO computation as an operation of signature `Alg IO`.
-liftIO :: Members '[Alg IO] sig => IO a -> Prog sig a
-liftIO o = call (Alg o)
+io :: Members '[Alg IO] sig => IO a -> Prog sig a
+io o = call (Alg o)
 
 -- | Algebra for the generic algebraic IO effect
 nativeAlg :: Algebra '[Alg IO] IO
@@ -186,56 +175,6 @@ jparAlg eff
          y' <- MVar.takeMVar m
          return (c (JPar x y'))
 
--- | Signature for the operation of creating new semaphores.
-type NewQSem = Alg (NewQSem_)
--- | Underlying first-order signature for creating new semaphores.
-data NewQSem_ k = NewQSem Int (QSem.QSem -> k) deriving Functor
-
--- | Create a new quantity semaphore with the given initial quantity,
--- which should be non-negative.
-newQSem :: Members '[NewQSem] sig => Int -> Prog sig QSem.QSem
-newQSem n = call (Alg (NewQSem n id))
-
--- | Interprets t`Control.Effect.IO.NewQSem` using `Control.Concurrent.QSem.newQSem`.
-newQSemAlg :: Algebra '[NewQSem] IO
-newQSemAlg eff
-  | Just (Alg (NewQSem n x)) <- prj eff =
-      do q <- QSem.newQSem n
-         return (x q)
-
--- | Signature for the operation of signalling a semaphore.
-type SignalQSem = Alg (SignalQSem_)
-
--- | Underlying first-order signature for the operation of signalling a semaphore.
-data SignalQSem_ k = SignalQSem QSem.QSem k deriving Functor
-
--- | Signal that a unit of the semaphore is available
-signalQSem :: Members '[SignalQSem] sig => QSem.QSem -> Prog sig ()
-signalQSem q = call (Alg (SignalQSem q ()))
-
--- | Interprets t`Control.Effect.IO.SignalQSem` using `Control.Concurrent.QSem.signalQSem`.
-signalQSemAlg :: Algebra '[SignalQSem] IO
-signalQSemAlg eff
-  | Just (Alg (SignalQSem q x)) <- prj eff =
-      do QSem.signalQSem q
-         return x
-
--- | Signature for the operation of waiting for a semaphore.
-type WaitQSem = Alg (WaitQSem_)
-
--- | Underlying first-order signature for waiting for semaphores.
-data WaitQSem_ k = WaitQSem QSem.QSem k deriving Functor
-
--- | Wait for the semaphore to be available.
-waitQSem :: Members '[WaitQSem] sig => QSem.QSem -> Prog sig ()
-waitQSem q = call (Alg (WaitQSem q ()))
-
--- | Interprets t`Control.Effect.IO.WaitQSem` using `Control.Concurrent.QSem.waitQSem`.
-waitQSemAlg :: Algebra '[WaitQSem] IO
-waitQSemAlg eff
-  | Just (Alg (WaitQSem q x)) <- prj eff =
-      do QSem.waitQSem q
-         return x
 
 -- | @`evalIO` p@ evaluates all IO operations in @p@ in the `IO` monad
 -- using their standard semantics.
