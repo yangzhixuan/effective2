@@ -1,4 +1,4 @@
-[![Build Status](https://github.com/effective/effective/actions/workflows/ci.yml/badge.svg)](https://github.com/effective/effective/actions)
+[![Build Status](https://github.com/zenzike/effective/actions/workflows/ci.yml/badge.svg)](https://github.com/zenzike/effective/actions)
 
 Effective
 ==========
