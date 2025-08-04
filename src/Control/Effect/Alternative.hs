@@ -12,6 +12,7 @@ Stability   : experimental
 {-# LANGUAGE MonoLocalBinds #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE GADTs #-}
 
 module Control.Effect.Alternative (
   -- * Syntax
