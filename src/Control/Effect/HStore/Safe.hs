@@ -54,6 +54,7 @@ import qualified Data.Map as M
 import qualified Control.Monad.Trans.State as St
 import Data.HFunctor
 import Data.List.Kind
+import Data.Kind (Type)
 #ifdef INDEXED
 import GHC.TypeNats
 #endif
@@ -66,7 +67,7 @@ newtype Ref w a = Ref { unRef :: Loc }
 
 -- | Signature for the operation of allocating a new memory cell of type @a@ in
 -- world @w@.
-data New w (f :: * -> *) (x :: *) where
+data New w (f :: Type -> Type) (x :: Type) where
   New :: a -> (Ref w a -> x) -> New w f x
 
 instance Functor f => Functor (New w f) where
@@ -81,7 +82,7 @@ new a = call (New a id)
 
 -- | Signature for the operation of updating a memory reference
 -- to a new value.
-data Put w (f :: * -> *) (x :: *) where
+data Put w (f :: Type -> Type) (x :: Type) where
   Put :: Ref w a -> a -> x -> Put w f x
 
 instance Functor f => Functor (Put w f) where
@@ -95,7 +96,7 @@ put :: forall a w sig. Member (Put w) sig => Ref w a -> a -> Prog sig ()
 put r a = call (Put r a ())
 
 -- | Signature for the operation of reading a memory reference.
-data Get w (f :: * -> *) (x :: *) where
+data Get w (f :: Type -> Type) (x :: Type) where
   Get :: Ref w a -> (a -> x) -> Get w f x
 
 instance Functor f => Functor (Get w f) where

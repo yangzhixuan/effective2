@@ -49,7 +49,7 @@ class Forward (eff :: Effect) (t :: (Type -> Type) -> (Type -> Type)) where
   type FwdConstraint eff t = Monad
 
   -- | @fwd@ constructs an @eff@-algebra on @t m@ given an @eff@-algebra on @m@, for every
-  -- @m :: * -> *@ satisfying the constraint @FwdConstraint eff t@.
+  -- @m :: Type -> Type@ satisfying the constraint @FwdConstraint eff t@.
   fwd :: forall m . FwdConstraint eff t m
        => (forall x . eff m x     -> m x)
        -> (forall x . eff (t m) x -> t m x)

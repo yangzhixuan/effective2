@@ -45,6 +45,7 @@ import Control.Monad.Trans.CRes
 import Control.Monad.Trans.YRes
 import Control.Monad.Trans.ResumpUp as RUp
 
+import Data.Kind (Type)
 import Data.HFunctor
 import Data.Iso
 
@@ -52,7 +53,7 @@ import Data.Iso
 -- operation family.
 
 -- | Signature for the restricted par operation
-data ParUp (f :: * -> *) x where
+data ParUp (f :: Type -> Type) x where
   ParUp :: forall y x f. f (Up y) -> f (Up y) -> (Up y -> x) -> ParUp f x
 
 instance Functor (ParUp f) where

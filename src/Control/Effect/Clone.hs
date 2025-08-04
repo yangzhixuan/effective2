@@ -30,12 +30,13 @@ import Data.HFunctor
 import Unsafe.Coerce
 import Control.Effect.Family.Algebraic
 import Control.Effect.Family.Scoped
+import Data.Kind (Type)
 
 -- | Make a copy of an effect signature, which is useful when more than one
 -- instances of the same effect are needed in a program.
 newtype Clone (eff :: Effect)
-              (f   :: * -> *)
-              (k   :: *)
+              (f   :: Type -> Type)
+              (k   :: Type)
               = Clone { unClone :: eff f k } deriving (Functor, HFunctor)
 
 instance Forward eff t => Forward (Clone eff) t where

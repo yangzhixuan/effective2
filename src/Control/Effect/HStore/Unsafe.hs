@@ -82,6 +82,7 @@ import Unsafe.Coerce
 import qualified Data.Map as M
 import qualified Control.Monad.Trans.State as St
 import Data.HFunctor ( HFunctor(..) )
+import Data.Kind (Type)
 
 -- | Internally locations in the store are just integers.
 type Loc = Int
@@ -93,7 +94,7 @@ newtype Ref a = Ref { unRef :: Loc }
 -- | Signature for the operation of allocating a new memory cell of type @a@.
 -- Note that this is not an ordinary algebraic operation because of the
 -- polymorphic @a@.
-data New (f :: * -> *) (x :: *) where
+data New (f :: Type -> Type) (x :: Type) where
   New :: a -> (Ref a -> x) -> New f x
 
 instance Functor f => Functor (New f) where
@@ -108,7 +109,7 @@ new a = call (New a id)
 
 -- | Signature for the operation of updating a memory reference
 -- to a new value.
-data Put (f :: * -> *) (x :: *) where
+data Put (f :: Type -> Type) (x :: Type) where
   Put :: Ref a -> a -> x -> Put f x
 
 instance Functor f => Functor (Put f) where
@@ -122,7 +123,7 @@ put :: forall a sig. Member Put sig => Ref a -> a -> Prog sig ()
 put r a = call (Put r a ())
 
 -- | Signature for the operation of reading a memory reference.
-data Get (f :: * -> *) (x :: *) where
+data Get (f :: Type -> Type) (x :: Type) where
   Get :: Ref a -> (a -> x) -> Get f x
 
 instance Functor f => Functor (Get f) where

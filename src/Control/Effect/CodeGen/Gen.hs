@@ -21,7 +21,7 @@ import Control.Effect.State.Type
 -- * The code-generation monads and their operations
 
 -- | The code-generation monad, which is the codensity monad transformer applied to
--- the type constructor @`Up` :: * -> *@ for code.
+-- the type constructor @`Up` :: Type -> Type@ for code.
 newtype Gen a = Gen { unGen :: forall r. (a -> Up r) -> Up r }
 
 -- | The code-generation monad restricted to generate @m@-values.

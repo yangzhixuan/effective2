@@ -37,6 +37,7 @@ import Control.Monad.Trans.Push as P
 import Control.Monad.Trans.List
 import Control.Monad.Trans.ResumpUp
 
+import Data.Kind (Type)
 import Data.Iso as Iso
 import Data.HFunctor
 import Data.Functor ((<&>))
@@ -56,11 +57,11 @@ import Control.Monad.Trans.Class
 -- a function @forall x. exists. (Up (m a), Up a -> x) -> n x@, witnessed by `upIso`
 -- below. The type of the domain of this function doesn't mention @n@ at all, so this
 -- is an algebraic operation on @n@.
-type UpOp :: (* -> *) -> Effect
+type UpOp :: (Type -> Type) -> Effect
 type UpOp m = Alg (UpOp_ m)
 
 -- | The (first-order) signature functor for the (algebraic) operation @up@.
-data UpOp_ (m :: * -> *) (x :: *) where
+data UpOp_ (m :: Type -> Type) (x :: Type) where
   -- | Using left-Kan extension, functions @forall x. Up (m x) -> n (Up x)@
   -- are in bijection with @forall x. exists. (Up (m a), Up a -> x) -> n x@.
   UpOp_   :: Up (m a) -> (Up a -> x) -> UpOp_ m x
@@ -285,7 +286,7 @@ upRes = algTrans1 (\oalg -> bwd upIso (upResAlg oalg))
 -- more compact code (at the cost of being much more complex).
 
 -- | Signature functor for the reset operation
-data Reset (f :: * -> *) x where
+data Reset (f :: Type -> Type) x where
   Reset :: forall y x f. f (Up y) -> (Up y -> x)  -> Reset f x
 
 instance Functor (Reset f) where

@@ -48,6 +48,7 @@ import Control.Effect.CodeGen.Up
 import Control.Effect.CodeGen.Gen
 import Control.Effect.CodeGen.SoPU
 
+import Data.Kind (Type)
 import Data.HFunctor
 import qualified Data.Iso as Iso
 
@@ -61,7 +62,7 @@ import Control.Monad.Trans.Push
 import Control.Monad.Trans.ResumpUp
 
 -- | Signature for the `joinFlow` operation.
-data JoinFlow (f :: * -> *) x where
+data JoinFlow (f :: Type -> Type) x where
   JoinFlow :: forall y x f. IsSOP y => f y -> (y -> x)  -> JoinFlow f x
 
 instance Functor (JoinFlow f) where
