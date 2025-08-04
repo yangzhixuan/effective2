@@ -1,4 +1,4 @@
-{-# LANGUAGE BlockArguments, TemplateHaskell, ImpredicativeTypes, PartialTypeSignatures, LambdaCase, TypeFamilies #-}
+{-# LANGUAGE BlockArguments, TemplateHaskell, ImpredicativeTypes, PartialTypeSignatures, LambdaCase, TypeFamilies, PackageImports #-}
 module StagedGen where
 
 import Control.Effect
@@ -11,7 +11,7 @@ import Control.Effect.Except
 import qualified Control.Effect.Maybe as Mb
 import Control.Effect.Alternative
 import Control.Monad.Trans.Push
-import Control.Monad.Trans.List
+import "effective" Control.Monad.Trans.List
 import Control.Effect.Yield
 import Data.Functor.Identity
 import Data.Iso

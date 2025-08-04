@@ -1,4 +1,4 @@
-{-# LANGUAGE BlockArguments, TemplateHaskell, ImpredicativeTypes, LambdaCase, TypeFamilies #-}
+{-# LANGUAGE BlockArguments, TemplateHaskell, ImpredicativeTypes, LambdaCase, TypeFamilies, PackageImports #-}
 module Main where
 
 import Control.Effect
@@ -17,7 +17,7 @@ import qualified Control.Monad.Trans.State.Strict as S
 import StagedGen
 import Control.Effect.Except
 import Control.Monad.Trans.Push
-import Control.Monad.Trans.List
+import "effective" Control.Monad.Trans.List
 import Control.Monad.Trans.YRes
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Maybe

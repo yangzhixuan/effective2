@@ -106,13 +106,13 @@ library
     src
 
   build-depends:
-    base               >= 4.18   && < 4.22,
+    base               >= 4.17   && < 4.22,
     transformers       >= 0.4    && < 0.7,
     array              >= 0.5    && < 0.6,
     containers         >= 0.6    && < 0.9,
-    ghc-prim           >= 0.10   && < 0.14,
+    ghc-prim           >= 0.9    && < 0.14,
     logict             >= 0.8.2  && < 0.9,
-    template-haskell   >= 2.20   && < 2.24,
+    template-haskell   >= 2.19   && < 2.24,
 
 test-suite readme
   type:          exitcode-stdio-1.0
@@ -122,10 +122,10 @@ test-suite readme
   default-language: GHC2021
   hs-source-dirs:  .
   build-depends:
-    base         >= 4.18 && < 4.22,
+    base               >= 4.17 && < 4.22,
     effective,
-    hedgehog     >= 1.5  && < 1.6,
-    transformers >= 0.4  && < 0.7,
+    hedgehog           >= 1.5  && < 1.6,
+    transformers       >= 0.4  && < 0.7,
   build-tool-depends: markdown-unlit:markdown-unlit
 
 test-suite concur
@@ -136,10 +136,10 @@ test-suite concur
   default-extensions: DataKinds
   hs-source-dirs:  test
   build-depends:
-    base         >= 4.18 && < 4.22,
+    base               >= 4.17 && < 4.22,
     effective,
-    containers   >= 0.6  && < 0.9,
-    transformers >= 0.4  && < 0.7,
+    containers         >= 0.6  && < 0.9,
+    transformers       >= 0.4  && < 0.7,
 
 test-suite hostore
   type:          exitcode-stdio-1.0
@@ -149,10 +149,10 @@ test-suite hostore
   default-extensions: DataKinds
   hs-source-dirs:  test
   build-depends:
-    base         >= 4.18 && < 4.22,
+    base               >= 4.17 && < 4.22,
     effective,
-    containers   >= 0.6  && < 0.9,
-    transformers >= 0.4  && < 0.7,
+    containers         >= 0.6  && < 0.9,
+    transformers       >= 0.4  && < 0.7,
 
 test-suite staged
   type:          exitcode-stdio-1.0
@@ -162,11 +162,11 @@ test-suite staged
   default-extensions: DataKinds TemplateHaskell ImpredicativeTypes AllowAmbiguousTypes
   hs-source-dirs:  test
   build-depends:
-    base             >= 4.18 && < 4.22,
+    base               >= 4.17 && < 4.22,
     effective,
-    containers       >= 0.6  && < 0.9,
-    template-haskell >= 2.20 && < 2.24,
-    transformers     >= 0.4  && < 0.7,
+    containers         >= 0.6  && < 0.9,
+    template-haskell   >= 2.19 && < 2.24,
+    transformers       >= 0.4  && < 0.7,
 
   other-modules:
     StagedGen
