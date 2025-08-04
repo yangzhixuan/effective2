@@ -138,12 +138,17 @@ The signature of the handler tells us how it behaves:
 * **Output effects**: The output effects will be produced by this handler.
   In `ticker` the output effects are empty.
 * **Transformers**: The transformer are used to provide semantics to the input effects.
-  In `ticker` there is only one transformer `StateT Int`.
+  In `ticker` there is only one transformer `StateT Int`. The transformer
+  list is applied to a monad `m` using `Apply`, so that
+  `'Apply [t3, t2, t1] m a = t3 (t2 (t1 m a))`.
 * **Wrappers**: The wrappers are used to wrap the final computation when the handler
   is applied.
   When `ticker` is used to handle a program of type `Prog effs a`,
   the output will be the wrapper `((,) s)` applied to the value of the program
   `a`, which is simply `(s, a)`.
+  The wrapper list is applied to a value of type `a` using `Apply`,
+  so that the wrapper, so that
+  `Apply [f3, f2, f1] a = f3 (f2 (f1 a))`.
 
 A handler is applied to a program using a `handle` function. In `exampleEchoTick`,
 the `handleIO` function is used because `GetLine` and `PutStrLn` are operations
@@ -228,10 +233,10 @@ return value of the program.
 A variation of the `state` handler is `state_`,
 which does not return the final state:
 ```haskell ignore
-state_ :: s -> Handler [Put s, Get s] '[StateT s] '[]
+state_ :: s -> Handler [Put s, Get s] '[StateT s] '[] '[]
 ```
-Here the final output wrapper is `Identity`, and so applying this to a program
-of type `Prog sig a` will simply return a value of type `a`, since `Apply Identity a = a`.
+Here the final wrapper is `'[]`, and so applying this to a program
+of type `Prog sig a` will simply return a value of type `a`.
 ```console
 ghci> handle (state_ "Hello!") getStringLength
 6
