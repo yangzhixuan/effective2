@@ -27,7 +27,6 @@ module Control.Effect.IO (
 
   -- * Algebras
   ioAlg,
-  nativeAlg,
 )
   where
 
@@ -81,7 +80,7 @@ handleIO'
     , Monad (Apply ts IO)
     , Injects xeffs ioeff
     , HandleIO# effs oeffs xeffs )
-  => Proxy xeffs 
+  => Proxy xeffs
   -> Algebra ioeff IO
   -> Handler effs oeffs ts fs
   -> Prog (effs `Union` xeffs) a -> IO (Apply fs a)
