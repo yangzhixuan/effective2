@@ -33,8 +33,11 @@ module Control.Effect.Concurrency (
   jresump,
   jresumpWith,
 
+
   -- ** IO-based handlers
   ccsByQSem,
+  parIOAlg,
+  jparIOAlg,
 
   -- ** Re-exported types used by handlers
   Control.Monad.Trans.CRes.ListActs (..),
@@ -51,7 +54,9 @@ import Control.Effect.IO (io)
 import qualified Control.Effect.Reader as R
 import qualified Control.Effect.Except as E
 import qualified Control.Monad.Trans.CRes as C
-import Control.Concurrent.QSem (QSem)
+
+import Control.Concurrent ( forkIO, QSem )
+import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.QSem as QSem
 import Control.Monad.Trans.CRes
 import qualified Data.Map as M
@@ -152,3 +157,24 @@ ccsByQSem = (interpretM alg ||> R.reader M.empty) ||> E.except where
                  return (m, s1, s2)
            let m' = M.insert (getActionName a) (s1, s2) m
            callM' oalg (Scp (R.Local (const m') p))
+
+-- | Interprets t`Control.Effect.Concurrency.Par` using the native concurrency API.
+-- from `Control.Concurrent`.
+parIOAlg :: Algebra '[Par] IO
+parIOAlg eff
+  | Just (Scp (Par l r)) <- prj eff =
+      do Control.Concurrent.forkIO (fmap (const ()) r)
+         l
+
+-- | Interprets t`Control.Effect.Concurrency.JPar` using the native concurrency API.
+-- from "Control.Concurrent". The result from the child thread is passed back to the
+-- main thread using @MVar@.
+jparIOAlg :: Algebra '[JPar] IO
+jparIOAlg eff
+  | Just (Distr (JPar l r) c) <- prj eff =
+      do m <- MVar.newEmptyMVar
+         Control.Concurrent.forkIO $
+           do y <- r; MVar.putMVar m y
+         x <- l
+         y' <- MVar.takeMVar m
+         return (c (JPar x y'))
