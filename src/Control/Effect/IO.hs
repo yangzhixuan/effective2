@@ -34,9 +34,6 @@ module Control.Effect.IO (
 import Control.Effect
 import Control.Effect.Internal.Handler
 import Control.Effect.Family.Algebraic
-import Control.Effect.Family.Scoped
-import Control.Effect.Family.Distributive
-import Control.Effect.Concurrency.Type (Par, Par_(..), JPar, JPar_(..))
 import Data.List.Kind
 import Data.HFunctor
 
