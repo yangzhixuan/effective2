@@ -73,7 +73,7 @@ handler'
 handler' run alg = Handler (Runner (\_ -> run)) (AlgTrans (\oalg -> alg oalg))
 
 runner
-  :: (forall m a . Monad m => Apply ts m a -> m (Apply fs a))
+  :: forall ts fs . (forall m a . Monad m => Apply ts m a -> m (Apply fs a))
   -> Handler '[] '[] ts fs
 runner run = Handler (Runner (\_ -> run)) (AlgTrans (const absurdEffs))
 

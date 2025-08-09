@@ -98,6 +98,10 @@ module Control.Effect
   -- * Auxiliary types
   , Apply
   , Proxy (..)
+
+  -- * Template Haskell
+  , makeAlg, makeAlgType, makeAlgPattern, makeAlgSmart
+  , makeScp, makeScpType, makeScpPattern, makeScpSmart
   ) where
 
 import Control.Effect.Internal.Prog
@@ -106,6 +110,7 @@ import Control.Effect.Internal.Handler
 import Control.Effect.Internal.AlgTrans
 import Control.Effect.Internal.AlgTrans.Type
 import Control.Effect.Internal.Forward
+import Control.Effect.Internal.TH
 import Control.Effect.Family.Scoped
 import Control.Effect.Family.Algebraic
 

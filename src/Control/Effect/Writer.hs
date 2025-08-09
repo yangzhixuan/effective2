@@ -10,6 +10,7 @@ Stability   : experimental
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Control.Effect.Writer (
   -- * Syntax
@@ -43,6 +44,7 @@ import Control.Effect
 import Control.Effect.Family.Algebraic
 import Control.Effect.Family.Scoped
 import Control.Effect.IO (io)
+import Control.Effect.Internal.TH
 
 import qualified Data.Functor.Unary as U
 import Data.Tuple (swap)
@@ -50,12 +52,16 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Reader
 import qualified Control.Monad.Trans.Writer as W
 
--- | Signature for `tell`.
-type Tell w = Alg (Tell_ w)
 -- | Underlying signature for `tell`.
 data Tell_ w k where
   Tell_ :: w -> k -> Tell_ w k
   deriving Functor
+
+$(makeAlg ''Tell_)
+
+{-
+-- | Signature for `tell`.
+type Tell w = Alg (Tell_ w)
 
 pattern Tell :: (Member (Tell w) sig, Monoid w) => w -> k -> Effs sig m k
 pattern Tell w k <- (prj -> Just (Alg (Tell_ w k)))
@@ -65,6 +71,7 @@ pattern Tell w k <- (prj -> Just (Alg (Tell_ w k)))
 {-# INLINE tell #-}
 tell :: (Member (Tell w) sig, Monoid w) => w -> Prog sig ()
 tell w = call (Alg (Tell_ w ()))
+-}
 
 -- | The algebra transformer for the `writer` handler.
 writerAT :: Monoid w => AlgTrans '[Tell w] '[] '[W.WriterT w] Monad

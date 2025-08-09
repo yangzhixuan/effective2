@@ -10,6 +10,7 @@ Stability   : experimental
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Control.Effect.Reader (
   -- * Syntax
@@ -43,15 +44,21 @@ import Control.Effect.Internal.AlgTrans
 import Control.Effect.Family.Algebraic
 import Control.Effect.Family.Scoped
 import Data.Functor.Unary
+import Control.Effect.Internal.TH
 
 import qualified Control.Monad.Trans.Reader as R
 
--- | Signature for asking for the environment.
-type Ask r = Alg (Ask_ r)
 -- | Underlying signature for asking for the environment.
 data Ask_ r k where
   Ask_ :: (r -> k) -> Ask_ r k
   deriving Functor
+
+-- The following can be generated with:
+$(makeAlg ''Ask_)
+
+{-
+-- | Signature for asking for the environment.
+type Ask r = Alg (Ask_ r)
 
 pattern Ask :: Member (Ask r) sig => (r -> k) -> Effs sig m k
 pattern Ask k <- (prj -> Just (Alg (Ask_ k)))
@@ -61,6 +68,8 @@ pattern Ask k <- (prj -> Just (Alg (Ask_ k)))
 {-# INLINE ask #-}
 ask :: Member (Ask r) sig => Prog sig r
 ask = call (Alg (Ask_ id))
+-}
+
 
 -- | Retrieve a function of the current environment.
 {-# INLINE asks #-}
@@ -93,6 +102,7 @@ local f p = call (Scp (Local f p))
 {-# INLINE reader #-}
 reader :: r -> Handler [Ask r, Local r] '[] '[R.ReaderT r] '[]
 reader r = handler' (flip R.runReaderT r) (\_ -> readerAlg)
+--       = (\_ -> readerAlg) #: runner (flip R.runReaderT r)
 
 -- | The `reader'` handler supplies an environment @r@ computed using the
 -- output effects to the program that can be accessed with `ask`, and

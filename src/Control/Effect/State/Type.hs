@@ -9,18 +9,24 @@ Stability   : experimental
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Control.Effect.State.Type where
 
 import Control.Effect
 import Control.Effect.Family.Algebraic
+import Control.Effect.Internal.TH
 
--- | Signature for putting a value into the state.
-type Put s = Alg (Put_ s)
 -- | Underlying signature for putting a value into the state.
 data Put_ s k where
   Put_ :: s -> k -> Put_ s k
   deriving Functor
+
+$(makeAlg ''Put_)
+
+{-
+-- | Signature for putting a value into the state.
+type Put s = Alg (Put_ s)
 
 pattern Put :: Member (Put s) effs => s -> k -> Effs effs m k
 pattern Put s k <- (prj -> Just (Alg (Put_ s k)))
@@ -30,14 +36,19 @@ pattern Put s k <- (prj -> Just (Alg (Put_ s k)))
 {-# INLINE put #-}
 put :: Member (Put s) sig => s -> Prog sig ()
 put s = call (Alg (Put_ s ()))
-
--- | Signature for getting a value from the state.
-type Get s = Alg (Get_ s)
+-}
 
 -- | Underlying signature for getting a value from the state.
 newtype Get_ s k where
   Get_ :: (s -> k) -> Get_ s k
   deriving Functor
+
+$(makeAlg ''Get_)
+
+
+{-
+-- | Signature for getting a value from the state.
+type Get s = Alg (Get_ s)
 
 pattern Get :: Member (Get s) effs => (s -> k) -> Effs effs m k
 pattern Get k <- (prj -> Just (Alg (Get_ k)))
@@ -47,3 +58,4 @@ pattern Get k <- (prj -> Just (Alg (Get_ k)))
 {-# INLINE get #-}
 get :: Member (Get s) sig => Prog sig s
 get = call (Alg (Get_ id))
+-}
