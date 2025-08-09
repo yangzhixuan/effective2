@@ -25,27 +25,202 @@ cabal repl readme
 This should test some properties and then bring you into `ghci` where you can follow the examples.[^Imports]
 
 
+A Tiny Calculator
+-----------------
+
+Effect handlers are used to annotate a program with the operations it uses,
+and to allow those operations to be interpreted using different effects.
+
+For example, suppose we are trying to implement a calculator that
+evaluates a tiny expression language:
+```haskell
+data Expr = Lit Int | Var String | Add Expr Expr
+  deriving Show
+```
+The calculator program takes these expressions and, using an operation
+`lookup` that finds the value of a literal, will output the result:
+```haskell
+calc :: Expr -> Progs '[Lookup String Int] Int
+calc (Lit n)   = return n
+calc (Var x)   = lookup x
+calc (Add a b) = do x <- calc a ; y <- calc b ; return (x + y)
+```
+This `calc` program relies on an implementation of `lookup` to
+provide the values of the variables.
+
+The `lookup` operation is created by the user simply by writing:
+```haskell ignore
+data Lookup_ key val k = Lookup_ key (val -> k)
+  deriving Functor
+$(makeAlg ''Lookup)
+```
+This has the effect of creating the following code:
+```haskell
+-- Underlying signature functor
+data Lookup_ key val k = Lookup_ key (val -> k)
+  deriving Functor
+
+-- Effect synonym
+type Lookup key val = Alg (Lookup_ key val)
+
+-- Bidirectional pattern for matching/injecting Lookup operations
+pattern Lookup :: Member (Lookup key val) eff
+               => key -> (val -> k) -> Effs eff m k
+pattern Lookup k f <- (prj -> Just (Alg (Lookup_ k f)))
+  where
+    Lookup k f = inj (Alg (Lookup_ k f))
+
+-- Smart constructor: request the value of a key
+lookup :: Member (Lookup key val) sig => key -> Prog sig val
+lookup k = call (Alg (Lookup_ k id))
+```
+We can give a pure interpretation of `lookup` directly, by passing
+in an environment association list:
+```haskell
+lookupEnv :: [(String, Int)] -> Handler '[Lookup String Int] '[] '[] '[]
+lookupEnv env = interpret $ \(Lookup var k) ->
+  return (k (maybe 0 id (Prelude.lookup var env)))
+```
+
+```haskell
+runEval :: [(String, Int)] -> Expr -> Int
+runEval env e = handle (lookupEnv env) (calc e)
+```
+
+A different handler to interact with `Lookup` can use `State`:
+```haskell
+freeVars :: Handler '[Lookup String Int] '[Get [String], Put [String]] '[] '[]
+freeVars = interpret $ \(Lookup x k) -> do
+  xs <- get @[String]
+  put (if elem x xs then xs else (insert x xs))
+  return (k (0 :: Int))
+```
+But this is not very satisfactory: we had to return 0 into each
+continuation, and the output value is not the calculation we want.
+```haskell
+exampleVars :: ([String], Int)
+exampleVars = handle (freeVars |> state [])
+                     (calc (Add (Var "x") (Var "y")))
+
+-- ghci> exampleVars
+-- (["x","y"],0)
+```
+A better solution is to find an appropriate value for the continuation `k`,
+and so another lookup can be performed:
+```haskell
+freeVars' :: Handler '[Lookup String Int] '[Get [String], Put [String], Lookup String Int] '[] '[]
+freeVars' = interpret $ \(Lookup x k) -> do
+  n <- lookup x
+  xs <- get @[String]
+  put (if elem x xs then xs else (insert x xs))
+  return (k (n :: Int))
+```
+This new `lookup` inside the code block is not the one that is handled by
+`freeVars'`, but will instead be picked up by whatever handler follows.
+
+For instance, we can feed in the environment we want as before:
+```haskell
+exampleVars' :: ([String], Int)
+exampleVars' = handle (freeVars' |> state [] |> lookupEnv [("x", 18), ("y", 24)])
+                      (calc (Add (Var "x") (Var "y")))
+
+exampleVars'' :: ([String], Int)
+exampleVars'' = handle (freeVars' |> lookupEnv [("x", 18), ("y", 24)] |> state [])
+                       (calc (Add (Var "x") (Var "y")))
+
+-- ghci> exampleVars'
+-- (["x","y"],42)
+```
+Better still we, can now create a new handler that uses the result
+of the free variables in the state to query the user for the values they want:
+```haskell
+queryVars :: Handler '[Lookup String Int] '[Get [(String, Int)], Put [(String, Int)], Alg IO] '[] '[]
+queryVars = interpret $ \(Lookup var k) -> do
+  env <- get
+  case Prelude.lookup var env of
+    Nothing  -> do io (Prelude.putStrLn ("Enter a value for " ++ var))
+                   (val :: Int) <- read <$> io (Prelude.getLine)
+                   put (insert (var, val) env)
+                   return (k val)
+    Just val -> return (k val)
+```
+
+```haskell
+exampleVars''' :: IO ([(String, Int)], Int)
+exampleVars''' = handleIO (queryVars |> state ([] :: [(String, Int)]))
+                          (calc (Add (Var "x") (Var "y")))
+
+-- ghci> exampleVars'''
+-- Enter a value for x
+-- 18
+-- Enter a value for y
+-- 24
+-- ([("x",18),("y",24)],42)
+```
+
 Working with IO
 ----------------
 
-The `Teletype` example is a rite of passage for monadic IO [^Gordon1992] where
-the challenge is to show how IO of reading from and writing to the terminal can
-be achieved. A program that interacts with the terminal is `echo`. This is a
-simple program that will continue to echo the input obtained by `getLine` is
-output to the terminal using `putStrLn` until a blank line is received by
+A core idea of effect handlers is to produce a program with an
+*effect signature* that describes the kinds of operations that the
+program makes use of.
+
+For example, creating a `Teletype` program is a rite of passage for monadic IO
+[^Gordon1992] where the challenge is to show how IO of reading from and writing
+to the terminal can be achieved. A program that interacts with the terminal is
+`echo`. This is a simple program that will continue to echo the input obtained
+by `getLine` is output to the terminal using `putStrLn` until a blank line is
+received by
 `getLine`:
 ```haskell
-echo :: () ! [GetLine, PutStrLn]
+echo :: Progs [GetLine, PutStrLn] ()
 echo = do str <- getLine
           case str of
             [] -> return ()
             _  -> do putStrLn str
                      echo
 ```
-The type signature says that this is a program that requires
-both `GetLine` and `PutStrLn` operations, where the
-usual `getLine` and `putStrLn` from `Prelude` are hidden,
-and replaced by syntactic operations:
+The type signature stipulates that `echo` is a family of programs whose effect
+signature contains `[GetLine, PutStrLn]`, and returns a result of type `()`.
+The effect signature says that this is a program that may require
+the corresponding `getLine` and `putStrLn` operations.
+
+In this example, `getLine` and `putStrLn` are user-defined operations
+with the following types:
+```haskell ignore
+getLine  :: Member GetLine sig  => Prog sig String
+putStrLn :: Member PutStrLn sig => String -> Prog sig ()
+```
+This states that they are programs whose signature `sig` contain
+`GetLine` and `PutStrLn`, respectively. Later, we will see
+how these are defined.
+
+In `effective`, a program is an entirely syntactic construction. To give
+it a semantics, a *handler* must be invoked that provides the interpretation
+of the syntax.
+
+The most obvious interpretation of `getLine` and `putLine` is to invoke their
+corresponding values from the prelude:
+```haskell
+getLineIO :: Handler '[GetLine] '[Alg IO] '[] '[]
+getLineIO = interpret (\(GetLine k) -> do x <- io (Prelude.getLine); return (k x))
+
+putStrLnIO :: Handler '[PutStrLn] '[Alg IO] '[] '[]
+putStrLnIO = interpret (\(PutStrLn xs k) -> do x <- io (Prelude.putStrLn xs); return k)
+
+teletypeIO :: Handler '[GetLine, PutStrLn] '[Alg IO] '[] '[]
+teletypeIO = interpret
+  (\case (GetLine k)     -> do x <- io (Prelude.getLine); return (k x)
+         (PutStrLn xs k) -> do x <- io (Prelude.putStrLn xs); return k)
+```
+Later we will look at all the parameters of a `Handler` more carefully,
+but for the present purposes, the first parameter indicates the
+*input* effects that are consumed (`GetLine` and `PutStrLn`),
+and the second parameter indicates the *output* effects
+that are produced (`Alg IO`).
+
+
+
 ```haskell
 type GetLine = Alg GetLine_
 data GetLine_ k  = GetLine_ (String -> k) deriving Functor
@@ -65,20 +240,6 @@ putStrLn str = call (Alg (PutStrLn_ str ()))
 ```
 Much of this is standard boilerplate code.
 
-The most obvious interpretation of `getLine` and `putLine` is to invoke their
-corresponding values from the prelude:
-```haskell
-getLineIO :: Handler '[GetLine] '[Alg IO] '[] '[]
-getLineIO = interpret (\(GetLine k) -> do x <- io (Prelude.getLine); return (k x))
-
-putStrLnIO :: Handler '[PutStrLn] '[Alg IO] '[] '[]
-putStrLnIO = interpret (\(PutStrLn xs k) -> do x <- io (Prelude.putStrLn xs); return k)
-
-teletypeIO :: Handler '[GetLine, PutStrLn] '[Alg IO] '[] '[]
-teletypeIO = interpret
-  (\case (GetLine k)     -> do x <- io (Prelude.getLine); return (k x)
-         (PutStrLn xs k) -> do x <- io (Prelude.putStrLn xs); return k)
-```
 
 Now to execute the program all that remains is `handleIO`:
 ```haskell
@@ -977,15 +1138,8 @@ getLineProfile = interpret $ \(GetLine k) ->
   profile "getLine" (getLine >>= return . k)
 ```
 
-Working with IO
----------------
 
-Opening a file can be done with an operation:
 
-```
-do file <- call (Alg (openFile "hello.txt"))
-   ...
-```
 
 
 
@@ -1020,6 +1174,8 @@ particular order in which certain effects should be handled, the `effective`
 library leaves this choice entirely to the handler.
 
 
+
+
 Language Extensions
 --------------------
 
@@ -1047,7 +1203,7 @@ Imports
 This file has a number of imports:
 
 ```haskell top
-import Control.Effect
+import Control.Effect hiding (Lookup)
 import Control.Effect.Family.Algebraic
 import Control.Effect.Family.Scoped
 import Control.Effect.IO
@@ -1058,15 +1214,17 @@ import Control.Monad.Trans.Identity
 import Control.Monad.Trans.Compose
 import Control.Monad.Trans.State.Strict (StateT)
 import Control.Monad.Trans.Reader (ReaderT)
-import Control.Monad.Trans.Writer (WriterT)
 
-import Data.List.Kind
+import Control.Effect.Reader (asker, Ask, ask)
+
+import Data.List (insert)
+import Data.List.Kind hiding (Lookup)
 import Data.Char (toUpper)
 import Data.HFunctor
 
 import System.CPUTime (getCPUTime)
 
-import Prelude hiding (putStrLn, getLine)
+import Prelude hiding (putStrLn, getLine, lookup)
 import qualified Prelude
 import Control.Effect.Internal.TH
 ```
@@ -1075,20 +1233,20 @@ import Control.Effect.Internal.TH
 We will hide the following from the README, because it is
 only for testing the documentaton itself.
 ```haskell top
-import Hedgehog hiding (test, evalIO, eval)
-import Hedgehog.Main
-import Hedgehog.Gen hiding (map)
+import Hedgehog (Property, Group(..), discover, property, forAll, checkParallel, (===))
+import Hedgehog.Main (defaultMain)
+import Hedgehog.Gen hiding (map, maybe)
 import Hedgehog.Range
 
 props :: Group
-props = $$(discover)
--- props = Group "README properties"
---   [ ("teletypePure", prop_teletypePure)
---   , ("teletypeTick", prop_teletypeTick)
---   , ("esiotrot",     prop_esiotrot)
---   , ("uncensors",    prop_uncensors)
---   , ("rePutStrLn",   prop_rePutStrLn)
---   ]
+-- props = $$(discover)
+props = Group "README properties"
+  [ ("teletypePure", prop_teletypePure)
+  , ("teletypeTick", prop_teletypeTick)
+  , ("esiotrot",     prop_esiotrot)
+  , ("uncensors",    prop_uncensors)
+  , ("rePutStrLn",   prop_rePutStrLn)
+  ]
 
 main :: IO ()
 main = defaultMain $ fmap checkParallel [props]

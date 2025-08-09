@@ -14,6 +14,7 @@ Stability   : experimental
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ImpredicativeTypes #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Control.Effect.Internal.Handler where
 
@@ -22,6 +23,7 @@ import Control.Effect.Internal.AlgTrans as LL hiding (weaken)
 import Control.Effect.Internal.Runner as LL
 import Control.Effect.Internal.Prog
 import Control.Effect.Internal.Effs
+import Control.Effect.Internal.Effs.Sum
 import Control.Effect.Internal.Forward
 
 import Data.Kind
@@ -384,6 +386,32 @@ generalFuse
 generalFuse p1 p2 (Handler r1 a1) (Handler r2 a2)
   = Handler (LL.weakenRC (LL.fuseR (weakenIEffs @ieffs a2) r1 r2))
             (LL.weakenC (LL.generalFuseAT p1 p2 a1 a2))
+
+recall
+  :: forall reffs effs oeffs ts fs.
+     ( Append reffs (effs :\\ reffs)
+     , Injects oeffs (reffs `Union` oeffs)
+     , Injects reffs (reffs `Union` oeffs)
+     , Injects reffs effs
+     , Injects (effs :\\ reffs) effs
+     , ForwardsM reffs ts
+     , forall m . Monad m => MonadApply ts m
+     )
+  => Proxy reffs -> Handler effs oeffs ts fs
+  -> Handler (reffs `Union` effs) (reffs `Union` oeffs) ts fs
+recall _ (Handler run halg) =
+  Handler (weakenR @_ @(reffs `Union` oeffs) run)
+          (AlgTrans $ \(oalg :: Algebra (reffs `Union` oeffs) m) ->
+              heither @reffs @(effs :\\ reffs)
+                -- sticky branch: consume via h, then recall downstream
+                (\opR -> do
+                    r <- getAT halg (weakenAlg @oeffs oalg) (injs @reffs @effs opR)
+                    _ <- getAT (fwds @reffs @ts) (weakenAlg @reffs oalg) opR
+                    pure r)
+                -- non-sticky: just delegate to h
+                (\opE -> getAT halg (weakenAlg @oeffs oalg)
+                                 (injs @(effs :\\ reffs) @effs opE)))
+
 
 -- * Using handlers
 
