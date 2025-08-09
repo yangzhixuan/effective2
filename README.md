@@ -19,9 +19,10 @@ This README is a literate Haskell file and therefore can be executed:
 ```console
 git clone effective
 cd effective
+cabal test readme
 cabal repl readme
 ```
-This should bring you into `ghci` where you can follow the examples.[^Imports]
+This should test some properties and then bring you into `ghci` where you can follow the examples.[^Imports]
 
 
 Working with IO
@@ -267,7 +268,7 @@ return value of the program.
 A variation of the `state` handler is `state_`,
 which does not return the final state:
 ```haskell ignore
-state_ :: s -> Handler [Put s, Get s] '[StateT s] '[] '[]
+state_ :: s -> Handler [Put s, Get s] '[] '[StateT s] '[]
 ```
 Here the final wrapper is `'[]`, and so applying this to a program
 of type `Prog sig a` will simply return a value of type `a`.
@@ -723,7 +724,7 @@ the ciphers have been accumulated.
 ```haskell
 prop_esiotrot :: Property
 prop_esiotrot = property $ do
-  handle (censors @[String] id |> writer) hoppy === (["Hello Alfie!","esiotrot","!REGGIB TEG","Goodbye!"],())
+  (handle (censors @[String] id |> writer) hoppy :: ([String], ())) === (["Hello Alfie!","esiotrot","!REGGIB TEG","Goodbye!"],())
 ```
 -->
 
@@ -738,7 +739,7 @@ uncensors :: forall w . Monoid w => Handler '[Censor w] '[] '[] '[]
 This handler removes all censorship from the program. The type promises that no other
 effects are generated, and that the result is pure.
 ```console
-ghci> handle (uncensors @[String] |> writer @[String]) hello
+ghci> handle (uncensors @[String] |> writer @[String]) hoppy
 (["Hello world!","tortoise","get bigger!","Goodbye!"],())
 ```
 One way to define `uncensors` is to process all `censor` operations with
@@ -765,7 +766,7 @@ is therefore more efficient.
 ```haskell
 prop_uncensors :: Property
 prop_uncensors = property $ do
-  handle (uncensors @[String] |> writer) hoppy === (["Hello Alfie!","tortoise","get bigger!","Goodbye!"],())
+  (handle (uncensors @[String] |> writer) hoppy :: ([String], ())) === (["Hello Alfie!","tortoise","get bigger!","Goodbye!"],())
 ```
 -->
 
@@ -957,7 +958,7 @@ A new `profiler f instrument p` will inject the `instrument` before and after
 executed. These are then combined by the given function `f` and emitted using
 `ask`.
 ```haskell
-profiler :: forall oeffs a b . (HFunctor (Effs oeffs), Injects oeffs (Tell [(String, b)] ': oeffs))
+profiler :: (HFunctor (Effs oeffs), Injects oeffs (Tell [(String, b)] ': oeffs))
   => (a -> a -> b) -> Prog oeffs a -> Handler '[Profile] (Tell [(String, b)] ': oeffs) '[] '[]
 profiler f instrument = interpretM $ \oalg (Eff (Scp (Profile name p))) ->
   do t  <- eval oalg (weakenProg instrument)
@@ -1031,11 +1032,12 @@ this is used to keep track of effect signatures.
 {-# LANGUAGE PatternSynonyms #-}  -- Used for syntax
 {-# LANGUAGE ViewPatterns    #-}  -- Used for syntax
 {-# LANGUAGE LambdaCase      #-}  -- Used for syntax
+{-# LANGUAGE TemplateHaskell #-}  -- Used for syntax
 ```
 <!--
 The following pragma is only needed for the testing framework.
 ```haskell top
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE OverloadedStrings #-}
 ```
 -->
 
@@ -1066,6 +1068,7 @@ import System.CPUTime (getCPUTime)
 
 import Prelude hiding (putStrLn, getLine)
 import qualified Prelude
+import Control.Effect.Internal.TH
 ```
 
 <!--
@@ -1079,6 +1082,13 @@ import Hedgehog.Range
 
 props :: Group
 props = $$(discover)
+-- props = Group "README properties"
+--   [ ("teletypePure", prop_teletypePure)
+--   , ("teletypeTick", prop_teletypeTick)
+--   , ("esiotrot",     prop_esiotrot)
+--   , ("uncensors",    prop_uncensors)
+--   , ("rePutStrLn",   prop_rePutStrLn)
+--   ]
 
 main :: IO ()
 main = defaultMain $ fmap checkParallel [props]
