@@ -112,7 +112,7 @@ import GHC.Utils.Outputable qualified as O
 import GHC.Clock
 import Data.List.NonEmpty (NonEmpty(..))
 
-#if __GLASGOW_HASKELL__ <= 912
+#if __GLASGOW_HASKELL__ <= 912 && __GLASGOW_HASKELL__ > 902
 import GHC.Driver.Config.Finder
 #endif
 
@@ -170,7 +170,9 @@ plugin :: Plugin
 plugin = defaultPlugin
   { tcPlugin = \_ -> Just TcPlugin
     { tcPluginInit = initPlugin
+#if __GLASGOW_HASKELL__ > 902
     , tcPluginRewrite = \_ -> emptyUFM
+#endif
     , tcPluginSolve = disambiguateAll
     , tcPluginStop = pluginStopHook
     }
@@ -194,21 +196,52 @@ initPlugin = do
         Found _ md -> pure md
         _ -> errorWithoutStackTrace ("effective-plugin: can't find module " ++ show modName)
 
+#if __GLASGOW_HASKELL__ == 902
+
+type TcPluginSolveResult = TcPluginResult
+
+(|>) :: TcPluginSolveResult -> TcPluginSolveResult -> TcPluginSolveResult
+TcPluginOk ys zs |> TcPluginOk ys' zs' = TcPluginOk (ys ++ ys') (zs ++ zs')
+r1 |> r2 = r1
+
+mkSolveResult :: [Ct] -> TcPluginSolveResult 
+mkSolveResult xs = TcPluginOk [] xs
+
+#else
+
+(|>) :: TcPluginSolveResult -> TcPluginSolveResult -> TcPluginSolveResult
+(TcPluginSolveResult xs ys zs) |> (TcPluginSolveResult xs' ys' zs') =
+    TcPluginSolveResult (xs ++ xs') (ys ++ ys') (zs ++ zs')
+
+mkSolveResult :: [Ct] -> TcPluginSolveResult 
+mkSolveResult xs = TcPluginSolveResult [] [] xs
+
+#endif
+
+#if __GLASGOW_HASKELL__ == 902
+disambiguateAll
+  :: PluginData
+  -> [Ct]
+  -> [Ct]
+  -> [Ct]
+  -> TcPluginM TcPluginSolveResult
+disambiguateAll pd allGivens _ allWanteds = timed pd $ do
+
+#else
+
 disambiguateAll
   :: PluginData
   -> EvBindsVar
   -> [Ct]
   -> [Ct]
   -> TcPluginM TcPluginSolveResult
-disambiguateAll pd ev allGivens allWanteds = timed pd $ do
+disambiguateAll pd _ allGivens allWanteds = timed pd $ do
+#endif
+
   r1 <- resolveEagerly pd pd.downClass allGivens allWanteds
   r2 <- resolveEagerly pd pd.downTailClass allGivens allWanteds
-  r3 <- disambiguateEffects pd ev allGivens allWanteds
+  r3 <- disambiguateEffects pd allGivens allWanteds
   return (r1 |> (r2 |> r3))
-  where
-    (|>) :: TcPluginSolveResult -> TcPluginSolveResult -> TcPluginSolveResult
-    (TcPluginSolveResult xs ys zs) |> (TcPluginSolveResult xs' ys' zs') =
-        TcPluginSolveResult (xs ++ xs') (ys ++ ys') (zs ++ zs')
 
 -- | If there is no instance matching the wanted constraint but a unique instance
 -- that can be unified with the wanted constraint, we commit to this instance eagerly.
@@ -232,10 +265,21 @@ resolveEagerly pd cls allGivens allWanteds = timed pd $ do
   cts <- forM wanteds $ \wanted -> do
     printSingle "Wanted" wanted
     case lookupInstEnv False instEnvs cls (snd wanted) of
+#if __GLASGOW_HASKELL__ == 902
+      ([], [uniqUnifyingInst], []) ->
+#elif __GLASGOW_HASKELL__ == 904 || __GLASGOW_HASKELL__ == 906
+      ([], OneOrMoreUnifiers [uniqUnifyingInst], []) ->
+#else
       ([], OneOrMoreUnifiers (uniqUnifyingInst :| []), []) ->
+#endif
         do let (vars, _, tys) = instanceHead uniqUnifyingInst
            vars' <- forM vars (\v -> newFlexiTyVar (tyVarKind v))
-           let sub = extendTvSubstList emptySubst (zipWith (\v v' -> (v, mkTyVarTy v')) vars vars')
+           let 
+#if __GLASGOW_HASKELL__ < 906
+               sub = extendTvSubstList  emptyTCvSubst vars (map mkTyVarTy vars')
+#else
+               sub = extendTvSubstList emptySubst (zipWith (\v v' -> (v, mkTyVarTy v')) vars vars')
+#endif
                tys' = map (substTy sub) tys
 #if __GLASGOW_HASKELL__ <= 912
                cs = zipWith mkPrimEqPred (snd wanted) tys'
@@ -245,15 +289,14 @@ resolveEagerly pd cls allGivens allWanteds = timed pd $ do
            es <- forM cs (newWanted (fst wanted))
            return (map mkNonCanonical es) 
       _ -> pure []
-  pure (TcPluginSolveResult [] [] (concat cts))
+  pure (mkSolveResult (concat cts))
 
 disambiguateEffects
   :: PluginData
-  -> EvBindsVar
   -> [Ct]
   -> [Ct]
   -> TcPluginM TcPluginSolveResult
-disambiguateEffects pd _ allGivens allWanteds = timed pd $ do
+disambiguateEffects pd allGivens allWanteds = timed pd $ do
   printList "Givens" allGivens
   printList "EffGivens" effGivens
   printList "OtherGivens" otherGivens
@@ -279,7 +322,7 @@ disambiguateEffects pd _ allGivens allWanteds = timed pd $ do
             emitEqConstraint solutions wanted given
           Multiple -> printLn "Multiple candidates left"
   printLn ""
-  TcPluginSolveResult [] [] <$> tcPluginIO (readIORef solutions)
+  mkSolveResult <$> tcPluginIO (readIORef solutions)
   where
     (otherGivens, effGivens)
       = second (extendEffGivens effWanteds)
@@ -346,7 +389,7 @@ disambiguateEffects pd _ allGivens allWanteds = timed pd $ do
 
 findPluginModuleCompat :: HscEnv -> ModuleName -> TcPluginM FindResult
 findPluginModuleCompat hsc_env mod_name = do
-#if __GLASGOW_HASKELL__ <= 912
+#if __GLASGOW_HASKELL__ <= 912 && __GLASGOW_HASKELL__ > 902
   let dflags = hsc_dflags hsc_env
       fopts = initFinderOpts dflags
       fc = hsc_FC hsc_env
