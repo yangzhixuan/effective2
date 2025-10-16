@@ -44,9 +44,9 @@ instance Forward eff t => Forward (Clone eff) t where
   fwd alg (Clone op) = fwd (alg . Clone) op
 
 -- | Every handler of @effs@ gives rise to a handler of its clone.
-cloneHdl :: forall effs oeffs ts fs.
-            Handler effs oeffs ts fs
-         -> Handler (Map Clone effs) oeffs ts fs
+cloneHdl :: forall effs oeffs ts a b.
+            Handler effs oeffs ts a b
+         -> Handler (Map Clone effs) oeffs ts a b
 cloneHdl h = unsafeCoerce h  -- There is safer way to do this but this is quicker
 
 -- | Every algebra transformer of @effs@ gives rise to one of its clone.

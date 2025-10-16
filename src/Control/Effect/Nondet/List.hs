@@ -37,10 +37,17 @@ import Control.Effect.Alternative
 import Control.Effect.Nondet.Type
 import Control.Monad.Trans.List
 
-list :: Handler [Empty, Choose] '[] '[ListT] '[[]]
+list :: Handler [Empty, Choose] '[] '[ListT] a [a]
 list = alternative runListT'
 
-nondet' :: Handler [Empty, Choose, Nondet] '[] '[ListT] '[[]]
+list' :: Handler [Search, Empty, Choose] '[] '[ListT] a [a]
+list' = searchListAlg #: list
+
+searchListAlg :: AlgTrans '[Search] '[] '[ListT] Monad
+searchListAlg = algTrans1 $ \oalg (Scp (Search_ xs)) -> xs
+
+
+nondet' :: Handler [Empty, Choose, Nondet] '[] '[ListT] a [a]
 nondet' = handler' runListT' (\oalg -> nondet'Alg oalg)
 
 {-# INLINE nondet'Alg #-}
@@ -56,7 +63,7 @@ nondet'Alg oalg eff
 -- | The `nondet` handler transforms nondeterministic effects t`Empty` and t`Choose`
 -- into the t`ListT` monad transformer, which collects all possible results.
 {-# INLINE nondet #-}
-nondet :: Handler [Empty, Nondet] '[] '[ListT] '[[]]
+nondet :: Handler [Empty, Nondet] '[] '[ListT] a [a]
 nondet = handler' runListT' nondetAlg
 
 {-# INLINE nondetAlg #-}
@@ -78,7 +85,7 @@ nondetAT = AlgTrans nondetAlg
 -- | `backtrack` is a handler that transforms nondeterministic effects
 -- t`Empty`, t`Choose`, and t`Once` into the t`ListT` monad transformer,
 -- supporting backtracking.
-backtrack :: Handler [Empty, Choose, Nondet, Once] '[] '[ListT] '[[]]
+backtrack :: Handler [Empty, Choose, Nondet, Once] '[] '[ListT] a [a]
 backtrack = handler' runListT' (\oalg -> alternativeAlg oalg # nondetAlg' # onceAlg')
 
 nondetAlg' :: Monad m => Algebra '[Nondet]  (ListT m)
@@ -90,10 +97,12 @@ onceAlg' eff | Just (Scp (Once_ xs)) <- prj eff =
              case mx of Nothing       -> return Nothing
                         Just (x, mxs) -> return Nothing
 
+
+
 -- | `backtrack'` is a handler that transforms nondeterministic effects
 -- t`Empty`, t`Choose`, and t`Once` into the t`ListT` monad transformer,
 -- supporting backtracking.
-backtrack' :: Handler [Empty, Nondet, Once] '[] '[ListT] '[[]]
+backtrack' :: Handler [Empty, Nondet, Once] '[] '[ListT] a [a]
 backtrack' = handler' runListT' backtrackAlg
 
 -- | `backtrackAlg` defines the semantics of backtracking for the t`Empty`,
@@ -115,7 +124,7 @@ backtrackAlg oalg op
 -- | `backtrackOnce` is a handler that transforms nondeterministic effect
 -- t`Once` into the t`ListT` monad transformer,
 -- supporting backtracking.
-backtrackOnce :: Handler '[Once] '[] '[ListT] '[[]]
+backtrackOnce :: Handler '[Once] '[] '[ListT] a [a]
 backtrackOnce = handler' runListT' backtrackOnceAlg
 
 -- | `backtrackOnceAlg` defines the semantics of backtracking for the t`Once`

@@ -89,11 +89,11 @@ cutListAT :: AlgTrans [Empty, Choose, CutFail, CutCall] '[] '[CutListT] Monad
 cutListAT = AlgTrans cutListAlg
 
 -- | A handler for the t`CutListT` monad transformer.
-cutList :: Handler [Empty, Choose, CutFail, CutCall] '[] '[CutListT] '[[]]
+cutList :: Handler [Empty, Choose, CutFail, CutCall] '[] '[CutListT] a [a]
 cutList = handler' fromCutListT cutListAlg
 
 -- | A handler for the t`Once` effect using t`CutCall` and t`CutFail`.
-onceCut :: Handler '[Once] '[CutCall, CutFail, Empty, Choose] '[] '[]
+onceCut :: Handler '[Once] '[CutCall, CutFail, Empty, Choose] '[] a a
 onceCut = interpretM onceCutAlg
 
 -- | Transforming the operation t`Once` to t`CutCall`, t`CutFail`, and `Choose`.
@@ -112,5 +112,5 @@ onceCutAlg oalg op
                                     return x))
 
 -- | A combined handler for t`Once`, t`Empty`, t`Choose`, t`CutFail`, and t`CutCall` effects.
-onceNondet :: Handler '[Once, Empty, Choose, CutFail, CutCall] '[] '[CutListT] '[[]]
+onceNondet :: Handler '[Once, Empty, Choose, CutFail, CutCall] '[] '[CutListT] a [a]
 onceNondet = onceCut |> cutList

@@ -100,7 +100,7 @@ local f p = call (Scp (Local f p))
 -- | The `reader` handler supplies a static environment @r@ to the program
 -- that can be accessed with `ask`, and locally transformed with `local`.
 {-# INLINE reader #-}
-reader :: r -> Handler [Ask r, Local r] '[] '[R.ReaderT r] '[]
+reader :: r -> Handler [Ask r, Local r] '[] '[R.ReaderT r] a a
 reader r = handler' (flip R.runReaderT r) (\_ -> readerAlg)
 --       = (\_ -> readerAlg) #: runner (flip R.runReaderT r)
 
@@ -108,11 +108,11 @@ reader r = handler' (flip R.runReaderT r) (\_ -> readerAlg)
 -- output effects to the program that can be accessed with `ask`, and
 -- locally transformed with `local`.
 {-# INLINE reader' #-}
-reader' :: forall oeffs r. (forall m . Monad m => Algebra oeffs m -> m r)
-        -> Handler [Ask r, Local r] oeffs '[R.ReaderT r] '[]
+reader' :: forall oeffs r a . (forall m . Monad m => Algebra oeffs m -> m r)
+        -> Handler [Ask r, Local r] oeffs '[R.ReaderT r] a a
 reader' mr = handler run (\_ -> readerAlg) where
   run :: forall m . Monad m => Algebra oeffs m
-      -> (forall x. R.ReaderT r m x -> m x)
+      -> (R.ReaderT r m a -> m a)
   run oalg rmx = do r <- mr oalg
                     x <- R.runReaderT rmx r
                     return x
@@ -134,8 +134,8 @@ readerAT = AlgTrans (\_ -> readerAlg)
 readerAskAT :: AlgTrans '[Ask r] '[] '[R.ReaderT r] Monad
 readerAskAT = weakenIEffs readerAT
 
-readerAsk :: r -> Handler '[Ask r] '[] '[R.ReaderT r] '[]
+readerAsk :: r -> Handler '[Ask r] '[] '[R.ReaderT r] a a
 readerAsk r = handler' (flip R.runReaderT r) (getAT readerAskAT)
 
-asker :: r -> Handler '[Ask r] '[] '[] '[]
+asker :: r -> Handler '[Ask r] '[] '[] a a
 asker r = interpret (\(Ask k) -> return (k r))

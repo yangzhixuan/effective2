@@ -173,3 +173,15 @@ test-suite staged
   other-modules:
     StagedGen
 
+test-suite eval
+  type:          exitcode-stdio-1.0
+  ghc-options:   -threaded
+  main-is:       Eval.hs
+  default-language: GHC2021
+  default-extensions: DataKinds
+  hs-source-dirs:  test
+  build-depends:
+    base               >= 4.16 && < 4.22,
+    effective,
+    containers         >= 0.6  && < 0.9,
+    transformers       >= 0.4  && < 0.7,

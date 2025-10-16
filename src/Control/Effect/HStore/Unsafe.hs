@@ -144,7 +144,7 @@ type Mem = M.Map Loc Any
 -- | The handler for the effect of higher-order store. This handler is not safe
 -- and may cause unexpected runtime crashes. Please read the documentation in
 -- the beginning of this module when using it.
-hstore :: Handler [Put, Get, New] '[] '[St.StateT Mem] '[]
+hstore :: Handler [Put, Get, New] '[] '[St.StateT Mem] a a
 hstore = handler' (flip St.evalStateT M.empty) hstoreAlg
 
 hstoreAlg
