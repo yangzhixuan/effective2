@@ -57,7 +57,7 @@ library
     Control.Effect.Family.Algebraic
     Control.Effect.Family.Scoped
     Control.Effect.Family.Distributive
-    Control.Effect.Clone
+    Control.Effect.WithName
     Control.Effect.HStore.Unsafe
     Control.Effect.HStore.Safe
 
@@ -190,6 +190,20 @@ test-suite plugin
 
   other-modules:
     StagedGen
+
+test-suite misc
+  type:          exitcode-stdio-1.0
+  main-is:       Misc.hs
+  default-language: GHC2021
+  default-extensions: DataKinds TemplateHaskell ImpredicativeTypes AllowAmbiguousTypes
+  hs-source-dirs:  test
+  build-depends:
+    base               >= 4.16 && < 4.22,
+    effective,
+    hedgehog           >= 1.5  && < 1.6,
+    containers         >= 0.6  && < 0.9,
+    template-haskell   >= 2.18 && < 2.24,
+    transformers       >= 0.4  && < 0.7,
 
 test-suite eval
   type:          exitcode-stdio-1.0
