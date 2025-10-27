@@ -161,13 +161,13 @@ class Member sig sigs where
   -- when @eff@ is in @effs@.
   prj :: Effs sigs f a -> Maybe (sig f a)
 
-instance {-# OVERLAPPING #-} Member sig (sig ': sigs) where
+instance {-# OVERLAPPING #-} Member sig (sig : sigs) where
   {-# INLINE inj #-}
-  inj :: sig f a -> Effs (sig ': sigs) f a
+  inj :: sig f a -> Effs (sig : sigs) f a
   inj x = Eff x
 
   {-# INLINE prj #-}
-  prj :: Effs (sig : sigs) f a -> Maybe (sig f a)
+  prj :: Effs (sig : sigs) f a -> Maybe (sig f a)   -- Should we Church-encode the Maybe for better inlining
   prj (Eff x) = Just x
   prj _       = Nothing
 
