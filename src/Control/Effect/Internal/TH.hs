@@ -58,7 +58,7 @@ $(makeScp ''Once_)
 module Control.Effect.Internal.TH (
     makeAlg, makeAlgType, makeAlgPattern, makeAlgSmart,
     makeScp, makeScpType, makeScpPattern, makeScpSmart,
-    makeAlgSimple, makeAlg'
+    makeAlgSimple,
   ) where
 
 import Control.Effect.Internal.Prog
@@ -266,42 +266,11 @@ makeAlgSimple opNameStr paramTy arityTy =
   do let sigName = mkName (opNameStr ++ "_")
          conName = mkName opNameStr
          mkNormalField ty = (Bang NoSourceUnpackedness NoSourceStrictness, ty)
-     kName <- newName "k"
+         kName = mkName "k"
      let d = DataD [] sigName [PlainTV kName BndrReq] Nothing
                [NormalC conName
                   [(mkNormalField $ ConT paramTy)
                   ,(mkNormalField $ AppT (AppT ArrowT (ConT arityTy)) (VarT kName))]]
-               [DerivClause Nothing [ConT ''Functor]]
-     pieces <- makeAlgPiecesFromD sigName d
-     pure (d : toDecs pieces)
-
--- | Generate an algebraic operation from a parameter type and an arity type
--- (aka answer type), and the operation may have type parameters.
--- For example, @$(makeAlg' "MyPut" ["s"] (\[s] -> ([t| $s |], [t| () |]) ))@
--- generates the following data type:
--- @
--- data MyPut_ s k = MyPut s (() -> k) deriving Functor
--- @
--- as well as smart constructors for this operation (using `makeAlg`).
---
--- Because the parameter type and arity type have free variables, they are
--- given as a function taking the newly bound type variable(s) as arguments.
-makeAlg' :: String -> [String] -> ([Q Type] -> (Q Type, Q Type)) -> Q [Dec]
-makeAlg' opNameStr tyParamsStrs paramArityTys =
-  do let sigName = mkName (opNameStr ++ "_")
-         conName = mkName opNameStr
-         mkNormalField ty = (Bang NoSourceUnpackedness NoSourceStrictness, ty)
-     kName <- newName "k"
-     tyParamNames <- forM tyParamsStrs newName
-     let allTyParams = map (\n -> PlainTV n BndrReq) (tyParamNames ++ [kName])
-         tys = map VarT tyParamNames
-         (paramTyQ, arityTyQ) = paramArityTys (fmap pure tys)
-     paramTy <- paramTyQ
-     arityTy <- arityTyQ
-     let d = DataD [] sigName allTyParams Nothing
-               [NormalC conName
-                  [(mkNormalField $ paramTy)
-                  ,(mkNormalField $ AppT (AppT ArrowT arityTy) (VarT kName))]]
                [DerivClause Nothing [ConT ''Functor]]
      pieces <- makeAlgPiecesFromD sigName d
      pure (d : toDecs pieces)
