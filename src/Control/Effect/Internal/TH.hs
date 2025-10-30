@@ -22,60 +22,16 @@ __pattern synonym__, or only the __smart constructor(s)__.
 
 === Examples
 
-Given the following data type,
 @
 -- Alg-style base functors
 data Put_ s k = Put_ s k
   deriving Functor
 newtype Get_ s k = Get_ (s -> k)
   deriving Functor
-@
-Putting the following TemplateHaskell splicing at the top level of a module
-@
+
 $(makeAlg ''Put_)
 $(makeAlg ''Get_)
-@
-generates the following declarations:
-@
-type Put s = Alg (Put_ s)
 
-pattern Put :: Member (Put s) effs => s -> k -> Effs effs m k
-pattern Put s k <- (prj -> Just (Alg (Put_ s k)))
-  where Put s k = inj (Alg (Put_ s k))
-
-{-# INLINE put #-}
-put :: Member (Put s) sig => s -> Prog sig ()
-put s = call (Alg (Put_ s ()))
-
-{-# INLINE putP #-}
-putP :: Member (WithName n (Put s)) sig => Proxy n -> s -> Prog sig ()
-putP p s = callP p (Alg (Put_ s ()))
-
-type Get s = Alg (Get_ s)
-
-pattern Get :: Member (Get s) effs => (s -> k) -> Effs effs m k
-pattern Get k <- (prj -> Just (Alg (Get_ k)))
-  where Get k = inj (Alg (Get_ k))
-
-{-# INLINE get #-}
-get :: Member (Get s) sig => Prog sig s
-get = call (Alg (Get_ id))
-
-{-# INLINE getP #-}
-getP :: Member (WithName n (Get s)) sig => Proxy n -> Prog sig s
-getP p = callP p (Alg (Get_ id))
-@
-If the extension RequiredTypeArguments is available (GHC >= 9.10.1), smart constructors
-for named operation calls with names passed as explicit type arguments are also generated:
-@
-putN :: forall n -> Member (WithName n (Put s)) sig => s -> Prog sig ()
-putN p s = callN p (Alg (Put_ s ()))
-
-getN :: forall n -> Member (WithName n (Get s)) sig => Prog sig s
-getN p = callN p (Alg (Get_ id))
-@
-
-@
 -- Scp-style base functor
 newtype Once_ k = Once_ k
   deriving Functor
@@ -101,7 +57,8 @@ $(makeScp ''Once_)
 
 module Control.Effect.Internal.TH (
     makeAlg, makeAlgType, makeAlgPattern, makeAlgSmart,
-    makeScp, makeScpType, makeScpPattern, makeScpSmart
+    makeScp, makeScpType, makeScpPattern, makeScpSmart,
+    makeAlgSimple, makeAlg'
   ) where
 
 import Control.Effect.Internal.Prog
@@ -168,11 +125,16 @@ instance ToDecs AlgPieces where
 makeAlgPieces :: Name -> Q AlgPieces
 makeAlgPieces baseName = do
   info <- reify baseName
-  (tvbs, conName, argTys) <- case info of
-    TyConI (DataD    _ _ tvbs _ [con] _) -> pure (tvbs, conNameOf con, conArgTys con)
-    TyConI (NewtypeD _ _ tvbs _  con  _) -> pure (tvbs, conNameOf con, conArgTys con)
-    _ -> fail "makeAlg: expected data/newtype with a single constructor"
+  case info of
+    TyConI d -> makeAlgPiecesFromD baseName d
+    _ -> fail "makeAlg: expected the name of a data/newtype with a single constructor"
 
+makeAlgPiecesFromD :: Name -> Dec -> Q AlgPieces
+makeAlgPiecesFromD baseName dec = do
+  (tvbs, conName, argTys) <- case dec of
+    (DataD    _ _ tvbs _ [con] _) -> pure (tvbs, conNameOf con, conArgTys con)
+    (NewtypeD _ _ tvbs _  con  _) -> pure (tvbs, conNameOf con, conArgTys con)
+    _ -> fail "makeAlg: expected data/newtype with a single constructor"
   let tvNames = map tvbName tvbs
   when (null tvNames) $ fail "makeAlg: the base functor must be at least unary (… k)"
   let (paramNames, kName) = (init tvNames, last tvNames)
@@ -292,6 +254,58 @@ makeAlgPieces baseName = do
 #endif
                 }
 
+-- | Generate an algebraic operation from (the names of) a parameter type and an
+-- arity type (aka answer type). For example, @$(makeGenOp "Throw" ''String ''Void)@
+-- generates the following functor
+-- @
+-- data Throw_ k = Throw String (Void -> k)
+-- @
+-- as well as the smart constructors for the operation (using 'makeAlg').
+makeAlgSimple :: String -> Name -> Name -> Q [Dec]
+makeAlgSimple opNameStr paramTy arityTy =
+  do let sigName = mkName (opNameStr ++ "_")
+         conName = mkName opNameStr
+         mkNormalField ty = (Bang NoSourceUnpackedness NoSourceStrictness, ty)
+     kName <- newName "k"
+     let d = DataD [] sigName [PlainTV kName BndrReq] Nothing
+               [NormalC conName
+                  [(mkNormalField $ ConT paramTy)
+                  ,(mkNormalField $ AppT (AppT ArrowT (ConT arityTy)) (VarT kName))]]
+               [DerivClause Nothing [ConT ''Functor]]
+     pieces <- makeAlgPiecesFromD sigName d
+     pure (d : toDecs pieces)
+
+-- | Generate an algebraic operation from a parameter type and an arity type
+-- (aka answer type), and the operation may have type parameters.
+-- For example, @$(makeAlg' "MyPut" ["s"] (\[s] -> ([t| $s |], [t| () |]) ))@
+-- generates the following data type:
+-- @
+-- data MyPut_ s k = MyPut s (() -> k) deriving Functor
+-- @
+-- as well as smart constructors for this operation (using `makeAlg`).
+--
+-- Because the parameter type and arity type have free variables, they are
+-- given as a function taking the newly bound type variable(s) as arguments.
+makeAlg' :: String -> [String] -> ([Q Type] -> (Q Type, Q Type)) -> Q [Dec]
+makeAlg' opNameStr tyParamsStrs paramArityTys =
+  do let sigName = mkName (opNameStr ++ "_")
+         conName = mkName opNameStr
+         mkNormalField ty = (Bang NoSourceUnpackedness NoSourceStrictness, ty)
+     kName <- newName "k"
+     tyParamNames <- forM tyParamsStrs newName
+     let allTyParams = map (\n -> PlainTV n BndrReq) (tyParamNames ++ [kName])
+         tys = map VarT tyParamNames
+         (paramTyQ, arityTyQ) = paramArityTys (fmap pure tys)
+     paramTy <- paramTyQ
+     arityTy <- arityTyQ
+     let d = DataD [] sigName allTyParams Nothing
+               [NormalC conName
+                  [(mkNormalField $ paramTy)
+                  ,(mkNormalField $ AppT (AppT ArrowT arityTy) (VarT kName))]]
+               [DerivClause Nothing [ConT ''Functor]]
+     pieces <- makeAlgPiecesFromD sigName d
+     pure (d : toDecs pieces)
+
 --------------------------------------------------------------------------------
 -- makeAlg: generate Alg-style effect boilerplate from a base functor
 --------------------------------------------------------------------------------
@@ -308,6 +322,10 @@ makeAlgPieces baseName = do
 --   * a smart constructor (lower-cased name):
 --       - if the continuation is @k@, returns @Prog sig ()@ and passes @()@
 --       - if the continuation is @(r -> k)@, returns @Prog sig r@ and uses @id@
+--   * a smart constructor for making _named_ operation calls (c.f. `Control.Effect.WithName`),
+--     where the name is passed as a proxy argument
+--   * if the extension @RequiredTypeArguments@ is available (GHC >= 9.10.1), a smart constructor
+--     for named operation calls with names passed as explicit type arguments
 --
 -- Example:
 -- @
@@ -326,6 +344,15 @@ makeAlgPieces baseName = do
 -- {-# INLINE put #-}
 -- put :: Member (Put s) sig => s -> Prog sig ()
 -- put s = call (Alg (Put_ s ()))
+--
+-- {-# INLINE putP #-}
+-- putP :: Member (WithName n (Put s)) sig => Proxy n -> s -> Prog sig ()
+-- putP p s = callP p (Alg (Put_ s ()))
+--
+-- -- If GHC >= 9.10.1, we have also
+-- {-# INLINE putN #-}
+-- putN :: forall n -> Member (WithName n (Put s)) sig => s -> Prog sig ()
+-- putN p s = callN p (Alg (Put_ s ()))
 -- @
 makeAlg :: Name -> Q [Dec]
 makeAlg baseName = fmap toDecs $ makeAlgPieces baseName
@@ -359,13 +386,12 @@ makeAlgSmart baseName = do
 data ScpPieces = ScpPieces
   { spTySyn  :: Dec
   , spPat    :: Dec
-  , spPragma :: Dec
-  , spSig    :: Dec
-  , spFun    :: Dec
-  , spMPragma :: Dec
-  , spMSig    :: Dec
-  , spMFun    :: Dec
+  , spSmart  :: FunPieces
+  , spSmartM :: FunPieces
   }
+
+instance ToDecs ScpPieces where
+  toDecs (ScpPieces{..}) = [spTySyn] ++ [spPat] ++ toDecs spSmart ++ toDecs spSmartM
 
 makeScpPieces :: Name -> Q ScpPieces
 makeScpPieces baseName = do
@@ -451,9 +477,10 @@ makeScpPieces baseName = do
       smartMFun = FunD funNameM [Clause [VarP algVar, VarP pArgM] bodyM []]
       pragmaM   = PragmaD (InlineP funNameM Inline FunLike AllPhases)
 
-  pure ScpPieces{ spTySyn = effTySyn, spPat = patDecl, spPragma = pragma
-                , spSig = smartSig, spFun = smartFun
-                , spMPragma = pragmaM, spMSig = smartMSig, spMFun = smartMFun }
+  pure ScpPieces{ spTySyn   = effTySyn, spPat = patDecl
+                , spSmart   = FunPieces pragma smartSig smartFun
+                , spSmartM  = FunPieces pragmaM smartMSig smartMFun 
+                }
 
 
 --------------------------------------------------------------------------------
@@ -475,9 +502,7 @@ makeScpPieces baseName = do
 --       - @tM :: (Monad m, Member T sig)
 --             => (forall x. Effs sig m x -> m x) -> m a -> m a@
 makeScp :: Name -> Q [Dec]
-makeScp baseName = do
-  ScpPieces{..} <- makeScpPieces baseName
-  pure [spTySyn, spPat, spPragma, spSig, spFun, spMPragma, spMSig, spMFun]
+makeScp baseName = fmap toDecs $ makeScpPieces baseName
 
 -- | Generate only the Scp-style /type synonym/.
 makeScpType :: Name -> Q [Dec]
@@ -496,7 +521,7 @@ makeScpPattern baseName = do
 makeScpSmart :: Name -> Q [Dec]
 makeScpSmart baseName = do
   ScpPieces{..} <- makeScpPieces baseName
-  pure [spPragma, spSig, spFun, spMPragma, spMSig, spMFun]
+  pure (toDecs spSmart ++ toDecs spSmartM)
 
 --------------------------------------------------------------------------------
 -- Helpers
