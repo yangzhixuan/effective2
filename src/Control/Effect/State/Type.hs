@@ -17,14 +17,15 @@ import Control.Effect
 import Control.Effect.Family.Algebraic
 import Control.Effect.Internal.TH
 
--- | Underlying signature for putting a value into the state.
+$(makeGenOp [e| put :: forall s. s -> () |])
+
+-- The Template-Haskell splicing above generates the following code.
+{-
+-- | First-order signature
 data Put_ s k where
   Put_ :: s -> k -> Put_ s k
   deriving Functor
 
-$(makeAlg ''Put_)
-
-{-
 -- | Signature for putting a value into the state.
 type Put s = Alg (Put_ s)
 
@@ -46,15 +47,14 @@ putN :: forall n -> Member (WithName n (Put s)) sig => s -> Prog sig ()
 putN p s = callN p (Alg (Put_ s ()))
 -}
 
+$(makeGenOp [e| get :: forall s. s |])
+
+{-
 -- | Underlying signature for getting a value from the state.
 newtype Get_ s k where
   Get_ :: (s -> k) -> Get_ s k
   deriving Functor
 
-$(makeAlg ''Get_)
-
-
-{-
 -- | Signature for getting a value from the state.
 type Get s = Alg (Get_ s)
 
