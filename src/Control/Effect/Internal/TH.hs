@@ -2,7 +2,7 @@
 Module      : Control.Effect.Internal.TH
 Description : Template Haskell helpers to generate Alg/Scp effect boilerplate
 License     : BSD-3-Clause
-Maintainer  : Nicolas Wu
+Maintainer  : Nicolas Wu, Zhixuan Yang
 Stability   : experimental
 
 This module provides Template Haskell splices that generate common
@@ -39,34 +39,18 @@ newtype Once_ k = Once_ k
 $(makeScp ''Once_)
 @
 -}
-
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE ViewPatterns #-}
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE CPP, LambdaCase, TemplateHaskell, RecordWildCards #-}
 #if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
 {-# LANGUAGE RequiredTypeArguments #-}
 #endif
 
 module Control.Effect.Internal.TH (
-    makeAlg, makeAlgType, makeAlgPattern, makeAlgSmart,
+    makeAlg, makeGenOp, makeAlgType, makeAlgPattern, makeAlgSmart,
     makeScp, makeScpType, makeScpPattern, makeScpSmart,
-    makeAlgSimple,
   ) where
 
 import Control.Effect.Internal.Prog
 import Control.Effect.Internal.Effs
-import Control.Effect.Internal.Handler
-import Control.Effect.Internal.AlgTrans
-import Control.Effect.Internal.AlgTrans.Type
-import Control.Effect.Internal.Forward
 import Control.Effect.Family.Algebraic
 import Control.Effect.Family.Scoped
 import Control.Effect.WithName
@@ -132,9 +116,9 @@ makeAlgPieces baseName = do
 makeAlgPiecesFromD :: Name -> Dec -> Q AlgPieces
 makeAlgPiecesFromD baseName dec = do
   (tvbs, conName, argTys) <- case dec of
-    (DataD    _ _ tvbs _ [con] _) -> pure (tvbs, conNameOf con, conArgTys con)
-    (NewtypeD _ _ tvbs _  con  _) -> pure (tvbs, conNameOf con, conArgTys con)
-    _ -> fail "makeAlg: expected data/newtype with a single constructor"
+    (DataD    [] _ tvbs _ [con] _) -> pure (tvbs, conNameOf con, conArgTys con)
+    (NewtypeD [] _ tvbs _  con  _) -> pure (tvbs, conNameOf con, conArgTys con)
+    _ -> fail "makeAlg: expected data/newtype with a single constructor and without any constraints"
   let tvNames = map tvbName tvbs
   when (null tvNames) $ fail "makeAlg: the base functor must be at least unary (… k)"
   let (paramNames, kName) = (init tvNames, last tvNames)
@@ -254,27 +238,6 @@ makeAlgPiecesFromD baseName dec = do
 #endif
                 }
 
--- | Generate an algebraic operation from (the names of) a parameter type and an
--- arity type (aka answer type). For example, @$(makeGenOp "Throw" ''String ''Void)@
--- generates the following functor
--- @
--- data Throw_ k = Throw String (Void -> k)
--- @
--- as well as the smart constructors for the operation (using 'makeAlg').
-makeAlgSimple :: String -> Name -> Name -> Q [Dec]
-makeAlgSimple opNameStr paramTy arityTy =
-  do let sigName = mkName (opNameStr ++ "_")
-         conName = mkName opNameStr
-         mkNormalField ty = (Bang NoSourceUnpackedness NoSourceStrictness, ty)
-         kName = mkName "k"
-     let d = DataD [] sigName [PlainTV kName BndrReq] Nothing
-               [NormalC conName
-                  [(mkNormalField $ ConT paramTy)
-                  ,(mkNormalField $ AppT (AppT ArrowT (ConT arityTy)) (VarT kName))]]
-               [DerivClause Nothing [ConT ''Functor]]
-     pieces <- makeAlgPiecesFromD sigName d
-     pure (d : toDecs pieces)
-
 --------------------------------------------------------------------------------
 -- makeAlg: generate Alg-style effect boilerplate from a base functor
 --------------------------------------------------------------------------------
@@ -347,6 +310,70 @@ makeAlgSmart baseName = do
 #else
   pure (toDecs apSmart ++ toDecs apProxySmart)
 #endif
+
+-- | Generate an algebraic operation from the type signature of a generic
+-- operation (operations whose types have the shape @a1 -> ... -> an -> m b@).
+-- For example, the following
+-- @
+-- $(makeAlg' [e| put :: forall s. s -> () |])
+-- @
+-- generates all the boilerplate for the usual @put@ operation.
+--
+-- Note that the arugment should be the signature of the operation _as if it
+-- were a pure operation_.  There is no need to include @Member@ constraints or
+-- the monad @Prog@ in the signature. The argument isn't really the type of the
+-- generated smart constructor, but is just for giving all the needed
+-- information of an operation. The geneated smart constructor of course will
+-- have the @Member@ constraint and the monad, such as
+-- @
+-- put :: Member Put sig => s -> Prog sig ()
+-- @
+--
+-- Note also that if the operation has type parameters (like the @put@ example above),
+-- the given signature should have an explicit forall quantifier of all the type
+-- variables (like @s@ above).
+--
+-- The following are some more examples:
+--  $(makeAlg' [e| get :: forall s. s |])
+--  $(makeAlg' [e| flip :: Bool |])
+--  $(makeAlg' [e| op1 :: forall s. s -> (s,s) -> Int |])
+--  $(makeAlg' [e| op2 :: forall a b. (a,b) -> b |])
+--
+-- Operations of the form @Prog a -> Prog a -> Prog a@, such as @choose@, are not
+-- yet supported, and they should be supported in the future.
+
+makeGenOp :: Q Exp -> Q [Dec]
+makeGenOp sigQ =
+  do sig <- sigQ
+     (opName, ty) <- case sig of
+       SigE (UnboundVarE opName) ty -> pure (opName, ty)
+       _ -> fail "the argument should be of the form \"op :: ...\" for some (unbound) name op"
+     let (tvBndrs, ctx, ty') =
+            case ty of
+              ForallT tvs ctx ty' -> (tvs, ctx, ty');
+              _ -> ([], [], ty)
+     when (not (null ctx)) $
+       fail "constraints on type arguments are not yet supported"
+     kName <- newName "k"
+     let (argTys, resTy) = splitArrs ty'
+         sigName = mkName (upperHead (nameBase opName ++ "_"))
+         conName = sigName
+         tyParams = fmap (fmap (const BndrReq)) tvBndrs ++ [PlainTV kName BndrReq]
+         mkNormalField ty = (Bang NoSourceUnpackedness NoSourceStrictness, ty)
+         paramFields = map mkNormalField argTys
+         contField = mkNormalField $
+           if resTy == TupleT 0
+             then VarT kName
+             else AppT (AppT ArrowT resTy) (VarT kName)
+         d = DataD [] sigName tyParams Nothing
+               [NormalC conName (paramFields ++ [contField])]
+               [DerivClause Nothing [ConT ''Functor]]
+     pieces <- makeAlgPiecesFromD sigName d
+     pure (d : toDecs pieces)
+  where
+    splitArrs :: Type -> ([Type], Type)
+    splitArrs ((ArrowT `AppT` a) `AppT` b) = let (as, r) = splitArrs b in (a:as, r)
+    splitArrs r = ([], r)
 
 --------------------------------------------------------------------------------
 -- Scp generators
@@ -529,6 +556,11 @@ applyExp = foldl AppE
 lowerHead :: String -> String
 lowerHead []     = []
 lowerHead (c:cs) = toLower c : cs
+
+-- Uppercase the first character of a name
+upperHead :: String -> String
+upperHead []     = []
+upperHead (c:cs) = toUpper c : cs
 
 -- TyVarBndr name extraction across TH versions
 #if MIN_VERSION_template_haskell(2,17,0)

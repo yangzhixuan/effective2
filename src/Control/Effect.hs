@@ -107,6 +107,7 @@ module Control.Effect
   -- * Template Haskell
   , makeAlg, makeAlgType, makeAlgPattern, makeAlgSmart
   , makeScp, makeScpType, makeScpPattern, makeScpSmart
+  , makeGenOp
   ) where
 
 import Control.Effect.Internal.Prog
