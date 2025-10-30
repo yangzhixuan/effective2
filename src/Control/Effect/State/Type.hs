@@ -36,6 +36,14 @@ pattern Put s k <- (prj -> Just (Alg (Put_ s k)))
 {-# INLINE put #-}
 put :: Member (Put s) sig => s -> Prog sig ()
 put s = call (Alg (Put_ s ()))
+
+{-# INLINE putP #-}
+putP :: Member (WithName n (Put s)) sig => Proxy n -> s -> Prog sig ()
+putP p s = callP p (Alg (Put_ s ()))
+
+{-# INLINE putN #-}
+putN :: forall n -> Member (WithName n (Put s)) sig => s -> Prog sig ()
+putN p s = callN p (Alg (Put_ s ()))
 -}
 
 -- | Underlying signature for getting a value from the state.
@@ -58,4 +66,12 @@ pattern Get k <- (prj -> Just (Alg (Get_ k)))
 {-# INLINE get #-}
 get :: Member (Get s) sig => Prog sig s
 get = call (Alg (Get_ id))
+
+{-# INLINE getP #-}
+getP :: Member (WithName n (Get s)) sig => Proxy n -> Prog sig s
+getP p = callP p (Alg (Get_ id))
+
+{-# INLINE getN #-}
+getN :: forall n -> Member (WithName n (Get s)) sig => Prog sig s
+getN p = callN p (Alg (Get_ id))
 -}

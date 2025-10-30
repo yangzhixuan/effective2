@@ -1,5 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, QuantifiedConstraints, TypeFamilies #-}
-{-# LANGUAGE UndecidableInstances, AllowAmbiguousTypes #-}
 {-|
 Module      : Control.Effect.WithName
 Description : Making copies of existing effects with names
@@ -12,6 +10,12 @@ The effect @WithName name eff@ is simply a newtype wrapper of @eff@, so the
 existing handlers of @eff@ can be transported to be handlers of @WithName name eff@.
 A typical use case of this effect is for having multiple instances of mutable state.
 -}
+{-# LANGUAGE GeneralizedNewtypeDeriving, QuantifiedConstraints, TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances, CPP #-}
+#if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
+{-# LANGUAGE RequiredTypeArguments #-}
+#endif
+
 module Control.Effect.WithName (
   -- * Syntax
   WithName (..),
@@ -25,12 +29,18 @@ module Control.Effect.WithName (
   renameEffs, renameEffsAT,
   renameOEffs, renameOEffsAT,
   renameIOEffs, renameIOEffsAT,
-  callWithName,
-  callWithNameAlg,
-  callWithNameScp,
+  callP, callPAlg, callPScp,
+#if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
+  callN, callNAlg, callNScp,
+#endif
 ) where
 
-import Control.Effect
+import Control.Effect.Internal.Effs
+import Control.Effect.Internal.Forward
+import Control.Effect.Internal.Handler
+import Control.Effect.Internal.AlgTrans.Type
+import Control.Effect.Internal.Prog
+import Data.Proxy
 import Data.List.Kind
 import Data.HFunctor
 import Unsafe.Coerce
@@ -124,18 +134,34 @@ renameIOEffsAT :: Proxy name -> AlgTrans effs oeffs ts cs
              -> AlgTrans (RenameAll name effs) (RenameAll name oeffs) ts cs
 renameIOEffsAT p = unsafeCoerce
 
--- Call an operation with a given name. The name parameger typically needs to be
--- passed explicitly.
-callWithName :: forall name eff effs a . (HFunctor eff, Member (WithName name eff) effs)
+-- Call an operation with a given name. The name is given by a @Proxy@ argument.
+callP :: forall name eff effs a . (HFunctor eff, Member (WithName name eff) effs)
+      => Proxy name -> eff (Prog effs) a -> Prog effs a
+callP _ x = call (WithName @name x)
+
+-- | Special case of `callP` for algebraic operations
+callPAlg :: forall name f effs a.(Member (WithName name (Alg f)) effs, Functor f)
+         => Proxy name -> f a -> Prog effs a
+callPAlg p f = callP p (Alg f)
+
+-- | Special case of `callP` for scoped operations
+callPScp :: forall name f effs a. (Member (WithName name (Scp f)) effs, Functor f)
+         => Proxy name -> f (Prog effs a) -> Prog effs a
+callPScp p f = callP p (Scp f)
+
+#if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
+-- Call an operation with a given name. The name is given by a required type argument.
+callN :: forall name -> forall eff effs a . (HFunctor eff, Member (WithName name eff) effs)
       => eff (Prog effs) a -> Prog effs a
-callWithName x = call (WithName @name x)
+callN n x = call (WithName @n x)
 
--- | Special case of `callWithName` for algebraic operations
-callWithNameAlg :: forall name f effs a. (Member (WithName name (Alg f)) effs, Functor f)
-                => f a -> Prog effs a
-callWithNameAlg f = callWithName @name (Alg f)
+-- | Special case of `callN` for algebraic operations
+callNAlg :: forall name -> forall f effs a. (Member (WithName name (Alg f)) effs, Functor f)
+         => f a -> Prog effs a
+callNAlg n f = callN n (Alg f)
 
--- | Special case of `callWithName` for scoped operations
-callWithNameScp :: forall name f effs a. (Member (WithName name (Scp f)) effs, Functor f) 
-                => f (Prog effs a) -> Prog effs a
-callWithNameScp f = callWithName @name (Scp f)
+-- | Special case of `callN` for scoped operations
+callNScp :: forall name -> forall f effs a. (Member (WithName name (Scp f)) effs, Functor f)
+         => f (Prog effs a) -> Prog effs a
+callNScp n f = callN n (Scp f)
+#endif

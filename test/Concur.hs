@@ -76,7 +76,7 @@ test4 :: IO ()
 test4 = handleIO' (Proxy @IOPar) ioPar (identity @'[]) prog2
 
 tell' :: forall w sig. (Member ("t2" :@ (Tell w)) sig, Monoid w) => w -> Prog sig ()
-tell' w = callWithNameAlg @"t2" (Tell_ w ())
+tell' w = callPAlg (Proxy @"t2") (Tell_ w ())
 
 prog3 :: Members '[Par, Act HS, Res HS, Tell String, "t2" :@ (Tell String)] sig => Prog sig ()
 prog3 = resHS (par (do tell "A"; handshake; tell' "C")
