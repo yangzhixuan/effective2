@@ -22,16 +22,60 @@ __pattern synonym__, or only the __smart constructor(s)__.
 
 === Examples
 
+Given the following data type,
 @
 -- Alg-style base functors
 data Put_ s k = Put_ s k
   deriving Functor
 newtype Get_ s k = Get_ (s -> k)
   deriving Functor
-
+@
+Putting the following TemplateHaskell splicing at the top level of a module
+@
 $(makeAlg ''Put_)
 $(makeAlg ''Get_)
+@
+generates the following declarations:
+@
+type Put s = Alg (Put_ s)
 
+pattern Put :: Member (Put s) effs => s -> k -> Effs effs m k
+pattern Put s k <- (prj -> Just (Alg (Put_ s k)))
+  where Put s k = inj (Alg (Put_ s k))
+
+{-# INLINE put #-}
+put :: Member (Put s) sig => s -> Prog sig ()
+put s = call (Alg (Put_ s ()))
+
+{-# INLINE putP #-}
+putP :: Member (WithName n (Put s)) sig => Proxy n -> s -> Prog sig ()
+putP p s = callP p (Alg (Put_ s ()))
+
+type Get s = Alg (Get_ s)
+
+pattern Get :: Member (Get s) effs => (s -> k) -> Effs effs m k
+pattern Get k <- (prj -> Just (Alg (Get_ k)))
+  where Get k = inj (Alg (Get_ k))
+
+{-# INLINE get #-}
+get :: Member (Get s) sig => Prog sig s
+get = call (Alg (Get_ id))
+
+{-# INLINE getP #-}
+getP :: Member (WithName n (Get s)) sig => Proxy n -> Prog sig s
+getP p = callP p (Alg (Get_ id))
+@
+If the extension RequiredTypeArguments is available (GHC >= 9.10.1), smart constructors
+for named operation calls with names passed as explicit type arguments are also generated:
+@
+putN :: forall n -> Member (WithName n (Put s)) sig => s -> Prog sig ()
+putN p s = callN p (Alg (Put_ s ()))
+
+getN :: forall n -> Member (WithName n (Get s)) sig => Prog sig s
+getN p = callN p (Alg (Get_ id))
+@
+
+@
 -- Scp-style base functor
 newtype Once_ k = Once_ k
   deriving Functor
@@ -51,6 +95,9 @@ $(makeScp ''Once_)
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE RecordWildCards #-}
+#if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
+{-# LANGUAGE RequiredTypeArguments #-}
+#endif
 
 module Control.Effect.Internal.TH (
     makeAlg, makeAlgType, makeAlgPattern, makeAlgSmart,
@@ -65,6 +112,8 @@ import Control.Effect.Internal.AlgTrans.Type
 import Control.Effect.Internal.Forward
 import Control.Effect.Family.Algebraic
 import Control.Effect.Family.Scoped
+import Control.Effect.WithName
+import Data.Proxy
 import Data.Char
 import Data.List
 import Control.Monad
@@ -84,13 +133,37 @@ import Language.Haskell.TH
 --------------------------------------------------------------------------------
 -- Alg generators
 --------------------------------------------------------------------------------
-data AlgPieces = AlgPieces
-  { apTySyn  :: Dec
-  , apPat    :: Dec
-  , apPragma :: Dec
+
+data FunPieces = FunPieces
+  { apPragma :: Dec
   , apSig    :: Dec
   , apFun    :: Dec
   }
+
+data AlgPieces = AlgPieces
+  { apTySyn       :: Dec
+  , apPat         :: Dec
+  , apSmart       :: FunPieces
+  , apProxySmart  :: FunPieces
+#if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
+  , apNamedSmart  :: FunPieces
+#endif
+  }
+
+class ToDecs a where
+  toDecs :: a -> [Dec]
+
+instance ToDecs Dec where
+  toDecs d = [d]
+
+instance ToDecs FunPieces where
+  toDecs (FunPieces {..}) = [apPragma, apSig, apFun]
+
+instance ToDecs AlgPieces where
+  toDecs (AlgPieces {..}) = [apTySyn] ++ [apPat] ++ toDecs apSmart ++ toDecs apProxySmart
+#if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
+    ++ toDecs apNamedSmart
+#endif
 
 makeAlgPieces :: Name -> Q AlgPieces
 makeAlgPieces baseName = do
@@ -139,18 +212,33 @@ makeAlgPieces baseName = do
       effStr  = dropTrailingUnderscore baseStr
       effName = mkName effStr
       funName = mkName (lowerHead effStr)
+      proxyFunName = mkName (lowerHead effStr ++ "P")
+#if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
+      namedFunName = mkName (lowerHead effStr ++ "N")
+#endif
 
   let effTySyn :: Dec
       effTySyn = TySynD effName (map plainTVCompat freshParams)
                    (AppT (ConT ''Alg)
                      (applyType (ConT baseName) (map VarT freshParams)))
 
-  sigName <- newName "sig"
+  sigName  <- newName "sig"
+  nameName <- newName "name"
   let effTy   = applyType (ConT effName) (map VarT freshParams)
       memberC = AppT (AppT (ConT ''Member) effTy) (VarT sigName)
       progRes = AppT (AppT (ConT ''Prog) (VarT sigName)) retTy'
       smartTy = ForallT (map plainTVForall (freshParams ++ [sigName])) [memberC]
                         (funType prefixTys' progRes)
+      namedEffTy   = AppT (AppT (ConT ''WithName) (VarT nameName)) effTy
+      namedMemberC = AppT (AppT (ConT ''Member) namedEffTy) (VarT sigName)
+      proxyTy      = AppT (ConT ''Proxy) (VarT nameName)
+      proxySmartTy = ForallT (map plainTVForall ([nameName] ++ freshParams ++ [sigName])) [namedMemberC]
+                        (funType (proxyTy : prefixTys') progRes)
+#if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
+      namedSmartTy = ForallVisT [plainTV nameName]
+                       (ForallT (map plainTVForall (freshParams ++ [sigName])) [namedMemberC]
+                        (funType prefixTys' progRes))
+#endif
 
   xVars <- mapM (\i -> newName ("x" ++ show i)) [1 .. length prefixTys']
   kVar  <- newName "k"
@@ -166,6 +254,7 @@ makeAlgPieces baseName = do
       patDecl = PatSynD (mkName effStr) patArgs patDir pat
 
   argNames <- mapM (\i -> newName ("a" ++ show i)) [1 .. length prefixTys']
+  pName <- newName "p"
   let smartLhs = Clause (map VarP argNames)
                         (NormalB (VarE 'call `AppE`
                                    (ConE 'Alg `AppE`
@@ -175,9 +264,33 @@ makeAlgPieces baseName = do
       smartSig = SigD funName smartTy
       smartFun = FunD funName [smartLhs]
       pragma   = PragmaD (InlineP funName Inline FunLike AllPhases)
+      proxySmartLhs = Clause (map VarP (pName : argNames))
+                       (NormalB (AppE (AppE (VarE 'callP) (VarE pName))
+                                      (ConE 'Alg `AppE` applyExp (ConE conName)
+                                        (map VarE argNames ++ [contExpr]))))
+                       []
+      proxySmartSig = SigD proxyFunName proxySmartTy
+      proxySmartFun = FunD proxyFunName [proxySmartLhs]
+      proxyPragma   = PragmaD (InlineP proxyFunName Inline FunLike AllPhases)
+#if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
+      namedSmartLhs = Clause (map VarP (pName : argNames))
+                       (NormalB (AppE (AppE (VarE 'callN) (VarE pName))
+                                      (ConE 'Alg `AppE` applyExp (ConE conName)
+                                        (map VarE argNames ++ [contExpr]))))
+                       []
+      namedSmartSig = SigD namedFunName namedSmartTy
+      namedSmartFun = FunD namedFunName [namedSmartLhs]
+      namedPragma   = PragmaD (InlineP namedFunName Inline FunLike AllPhases)
+#endif
 
-  pure AlgPieces{ apTySyn = effTySyn, apPat = patDecl, apPragma = pragma
-                , apSig = smartSig, apFun = smartFun }
+
+  pure AlgPieces{ apTySyn      = effTySyn, apPat = patDecl
+                , apSmart      = FunPieces pragma smartSig smartFun
+                , apProxySmart = FunPieces proxyPragma proxySmartSig proxySmartFun
+#if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
+                , apNamedSmart = FunPieces namedPragma namedSmartSig namedSmartFun
+#endif
+                }
 
 --------------------------------------------------------------------------------
 -- makeAlg: generate Alg-style effect boilerplate from a base functor
@@ -215,9 +328,7 @@ makeAlgPieces baseName = do
 -- put s = call (Alg (Put_ s ()))
 -- @
 makeAlg :: Name -> Q [Dec]
-makeAlg baseName = do
-  AlgPieces{..} <- makeAlgPieces baseName
-  pure [apTySyn, apPat, apPragma, apSig, apFun]
+makeAlg baseName = fmap toDecs $ makeAlgPieces baseName
 
 -- | Generate only the Alg-style /type synonym/.
 makeAlgType :: Name -> Q [Dec]
@@ -231,12 +342,15 @@ makeAlgPattern baseName = do
   AlgPieces{..} <- makeAlgPieces baseName
   pure [apPat]
 
--- | Generate only the Alg-style smart constructor (with @INLINE@ and explicit type).
+-- | Generate only the Alg-style smart constructors (with @INLINE@ and explicit type).
 makeAlgSmart :: Name -> Q [Dec]
 makeAlgSmart baseName = do
   AlgPieces{..} <- makeAlgPieces baseName
-  pure [apPragma, apSig, apFun]
-
+#if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
+  pure (toDecs apSmart ++ toDecs apNamedSmart ++ toDecs apProxySmart)
+#else
+  pure (toDecs apSmart ++ toDecs apProxySmart)
+#endif
 
 --------------------------------------------------------------------------------
 -- Scp generators

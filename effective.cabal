@@ -23,6 +23,9 @@ common common
   default-language: GHC2021
   default-extensions:
     DataKinds
+  if impl(ghc >=9.10.1)
+    default-extensions: RequiredTypeArguments
+
 
   ghc-options:
   --cpp-options: -DINDEXED
