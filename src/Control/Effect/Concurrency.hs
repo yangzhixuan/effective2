@@ -64,15 +64,15 @@ import Data.HFunctor
 
 -- | Algebra for the resumption-based handler of t`Par`, t`Act`, and t`Res`.
 resumpAlg :: (Action a, Monad m) => Algebra '[Act a, Par, Res a] (C.CResT a m)
+resumpAlg (Act a p) = prefix a (return p)
 resumpAlg eff
-  | Just (Alg (Act a p)) <- prj eff = prefix a (return p)
   | Just (Scp (Par l r)) <- prj eff = C.par l r
   | Just (Scp (Res a p)) <- prj eff = C.res a p
 
 -- | Algebra for the resumption-based handler of t`JPar`, t`Act`, and t`Res`.
 jresumpAlg :: (Action a, Monad m) => Algebra '[Act a, JPar, Res a] (C.CResT a m)
+jresumpAlg (Act a p) = prefix a (return p)
 jresumpAlg eff
-  | Just (Alg (Act a p)) <- prj eff = prefix a (return p)
   | Just (Distr (JPar l r) c) <- prj eff = fmap (\(x, y) -> c (JPar x y)) (C.jpar l r)
   | Just (Scp (Res a p)) <- prj eff = C.res a p
 
@@ -137,19 +137,19 @@ ccsByQSem = (interpretM alg ||> R.reader M.empty) ||> E.except where
                              , E.Throw String, Alg IO
                              ] m
                  -> Algebra '[Act (CCSAction n), Res (CCSAction n)] m
-  alg oalg op
-    | Just (Alg (Act (Action n) p))   <- prj op =
+  alg oalg (Act (Action n) p) =
         eval oalg $ do m <- R.ask @(QSemMap n)
                        case M.lookup n m of
                          Just (s1, s2) -> do io (QSem.waitQSem s1); io (QSem.signalQSem s2)
                          Nothing  -> E.throw "Channel used before creation!"
                        return p
-    | Just (Alg (Act (CoAction n) p)) <- prj op =
+  alg oalg (Act (CoAction n) p) =
         eval oalg $ do m <- R.ask @(QSemMap n)
                        case M.lookup n m of
                          Just (s1, s2) -> do io (QSem.signalQSem s1); io (QSem.waitQSem s2)
                          Nothing  -> E.throw "Channel used before creation!"
                        return p
+  alg oalg op
     | Just (Scp (Res a p)) <- prj op =
         do (m, s1, s2) <- eval oalg $
               do m <- R.ask @(QSemMap n)

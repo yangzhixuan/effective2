@@ -11,11 +11,16 @@ Stability   : experimental
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE CPP #-}
 
 module Control.Effect.Writer (
   -- * Syntax
   -- ** Operations
   tell,
+  tellP,
+#if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
+  tellN,
+#endif
   censor,
 
   -- ** Signatures
@@ -52,26 +57,8 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Reader
 import qualified Control.Monad.Trans.Writer as W
 
--- | Underlying signature for `tell`.
-data Tell_ w k where
-  Tell_ :: w -> k -> Tell_ w k
-  deriving Functor
-
-$(makeAlg ''Tell_)
-
-{-
--- | Signature for `tell`.
-type Tell w = Alg (Tell_ w)
-
-pattern Tell :: (Member (Tell w) sig, Monoid w) => w -> k -> Effs sig m k
-pattern Tell w k <- (prj -> Just (Alg (Tell_ w k)))
-  where Tell w k = inj (Alg (Tell_ w k))
-
--- | @`tell` w@ produces the output @w@.
-{-# INLINE tell #-}
-tell :: (Member (Tell w) sig, Monoid w) => w -> Prog sig ()
-tell w = call (Alg (Tell_ w ()))
--}
+-- | The operation of writing an element of type @w@.
+$(makeGen [e| tell :: forall w. w -> () |])
 
 -- | The algebra transformer for the `writer` handler.
 writerAT :: Monoid w => AlgTrans '[Tell w] '[] '[W.WriterT w] Monad

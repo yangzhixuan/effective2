@@ -16,6 +16,10 @@ module Control.Effect.Reader (
   -- * Syntax
   -- ** Operations
   ask,
+  askP,
+#if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
+  askN,
+#endif
   asks,
   local,
 
@@ -44,32 +48,11 @@ import Control.Effect.Internal.AlgTrans
 import Control.Effect.Family.Algebraic
 import Control.Effect.Family.Scoped
 import Data.Functor.Unary
-import Control.Effect.Internal.TH
 
 import qualified Control.Monad.Trans.Reader as R
 
--- | Underlying signature for asking for the environment.
-data Ask_ r k where
-  Ask_ :: (r -> k) -> Ask_ r k
-  deriving Functor
-
--- The following can be generated with:
-$(makeAlg ''Ask_)
-
-{-
--- | Signature for asking for the environment.
-type Ask r = Alg (Ask_ r)
-
-pattern Ask :: Member (Ask r) sig => (r -> k) -> Effs sig m k
-pattern Ask k <- (prj -> Just (Alg (Ask_ k)))
-  where Ask k = inj (Alg (Ask_ k))
-
--- | Fetch the value of the environment.
-{-# INLINE ask #-}
-ask :: Member (Ask r) sig => Prog sig r
-ask = call (Alg (Ask_ id))
--}
-
+-- | The operation of asking the environment (of type @r@).
+$(makeGen [e| ask :: forall r. r |])
 
 -- | Retrieve a function of the current environment.
 {-# INLINE asks #-}

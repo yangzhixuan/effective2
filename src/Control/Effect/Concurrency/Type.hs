@@ -8,6 +8,8 @@ Stability   : experimental
 This module provides some shared definitions around the effect of concurrency.
 -}
 
+{-# LANGUAGE TemplateHaskell #-}
+
 module Control.Effect.Concurrency.Type where
 
 import Data.Functor.Unary
@@ -51,16 +53,11 @@ getActionName (CoAction a) = a
 
 -- * Effect signatures
 
--- | The signature for the operation of performaing an action (of type @a@).
-type Act a = Alg (Act_ a)
-
--- | The underlying first-order signature for the operation of performaing an action (of type @a@).
-data Act_ a x = Act a x deriving Functor
-
--- | Perform an action of type @a@.
-{-# INLINE act #-}
-act :: Member (Act a) sig => a -> Prog sig ()
-act a = call (Alg (Act a ()))
+$(makeGen [e| act :: forall a. a -> () |])
+-- Generated smart constructor has type:
+-- @
+-- act :: Member (Act a) sig => a -> Prog sig ()
+-- @
 
 -- | The signature for parallel composition.
 type Par = Scp Par_
