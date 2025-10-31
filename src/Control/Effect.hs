@@ -106,7 +106,7 @@ module Control.Effect
 
   -- * Template Haskell
   , makeGen, makeGenFrom
-  ,          makeAlgFrom
+  , makeAlg, makeAlgFrom
   , makeScp
   ) where
 
