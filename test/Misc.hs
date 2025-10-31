@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, CPP #-}
+{-# LANGUAGE TemplateHaskell, CPP, ViewPatterns #-}
 module Main where
 
 import Hedgehog
@@ -8,6 +8,7 @@ import Control.Effect
 import Control.Effect.State
 import Control.Effect.Nondet
 import Control.Effect.WithName
+import Control.Effect.Internal.TH
 
 
 type E = ["a" :@ Put Int, "a" :@ Get Int, "b" :@ Put Int, "b" :@ Get Int]
@@ -60,6 +61,29 @@ example_Once = property $
     p :: Members '[Choose, Empty, "a" :@ Once] sig => Prog sig Int
     p = do x <- onceN "a" ((return 0) <|> (return 5))
            (return (x + 1)) <|> (return (x + 2))
+
+data Flip_ k = Flip_ k Float k deriving Functor
+
+$(makeAlgFrom ''Flip_)
+
+-- >>> :t Main.flip
+-- Main.flip :: Member Flip sig => Prog sig x -> Float -> Prog sig x -> Prog sig x
+-- >>> :t Main.flipP
+-- Main.flipP
+--   :: Member (WithName name Flip) sig =>
+--      Proxy name -> Prog sig x -> Float -> Prog sig x -> Prog sig x
+-- >>> :t Main.flipN
+-- Main.flipN
+--   :: forall (name :: Symbol) ->
+--      forall (sig :: [Effect]) x.
+--      Member (WithName name Flip) sig =>
+--      Prog sig x -> Float -> Prog sig x -> Prog sig x
+
+-- >>> :t Main.Flip
+-- Main.Flip :: Member (Alg Flip_) sigs => a -> Float -> a -> Effs sigs f a
+-- >>> :kind! Main.Flip
+-- Main.Flip :: (* -> *) -> * -> *
+-- = Alg Flip_
 
 main :: IO ()
 main = defaultMain [checkParallel $$(discover)]

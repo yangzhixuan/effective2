@@ -17,7 +17,7 @@ import Control.Effect
 import Control.Effect.Family.Algebraic
 import Control.Effect.Internal.TH
 
-$(makeGenOp [e| put :: forall s. s -> () |])
+$(makeGen [e| put :: forall s. s -> () |])
 
 -- The Template-Haskell splicing above generates the following code.
 {-
@@ -47,7 +47,7 @@ putN :: forall n -> Member (WithName n (Put s)) sig => s -> Prog sig ()
 putN p s = callN p (Alg (Put_ s ()))
 -}
 
-$(makeGenOp [e| get :: forall s. s |])
+$(makeGen [e| get :: forall s. s |])
 
 {-
 -- | Underlying signature for getting a value from the state.

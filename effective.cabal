@@ -22,7 +22,7 @@ source-repository head
 common common
   default-language: GHC2021
   default-extensions:
-    DataKinds
+    DataKinds, CPP, ViewPatterns, PatternSynonyms
   if impl(ghc >=9.10.1)
     default-extensions: RequiredTypeArguments
 
@@ -195,11 +195,13 @@ test-suite plugin
     StagedGen
 
 test-suite misc
+  import: common
   type:          exitcode-stdio-1.0
   main-is:       Misc.hs
   default-language: GHC2021
   default-extensions: DataKinds TemplateHaskell ImpredicativeTypes AllowAmbiguousTypes
   hs-source-dirs:  test
+  ghc-options: -ddump-splices
   build-depends:
     base               >= 4.16 && < 4.22,
     effective,
