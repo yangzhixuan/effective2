@@ -105,9 +105,9 @@ module Control.Effect
   , Proxy (..)
 
   -- * Template Haskell
-  , makeAlg, makeAlgType, makeAlgPattern, makeAlgSmart
-  , makeScp, makeScpType, makeScpPattern, makeScpSmart
-  , makeGenOp
+  , makeGen, makeGenFrom
+  ,          makeAlgFrom
+  , makeScp
   ) where
 
 import Control.Effect.Internal.Prog
