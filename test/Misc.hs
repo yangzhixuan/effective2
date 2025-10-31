@@ -62,28 +62,34 @@ example_Once = property $
     p = do x <- onceN "a" ((return 0) <|> (return 5))
            (return (x + 1)) <|> (return (x + 2))
 
-data Flip_ k = Flip_ k Float k deriving Functor
+-- data Flip_ k = Flip_ k Float k deriving Functor
 
-$(makeAlgFrom ''Flip_)
+$(makeAlg [e| flip :: Float -> 2 |])
 
 -- >>> :t Main.flip
--- Main.flip :: Member Flip sig => Prog sig x -> Float -> Prog sig x -> Prog sig x
+-- Main.flip :: Member Flip sig => Float -> Prog sig x -> Prog sig x -> Prog sig x
 -- >>> :t Main.flipP
 -- Main.flipP
 --   :: Member (WithName name Flip) sig =>
---      Proxy name -> Prog sig x -> Float -> Prog sig x -> Prog sig x
+--      Proxy name -> Float -> Prog sig x -> Prog sig x -> Prog sig x
 -- >>> :t Main.flipN
 -- Main.flipN
 --   :: forall (name :: Symbol) ->
 --      forall (sig :: [Effect]) x.
 --      Member (WithName name Flip) sig =>
---      Prog sig x -> Float -> Prog sig x -> Prog sig x
+--      Float -> Prog sig x -> Prog sig x -> Prog sig x
 
 -- >>> :t Main.Flip
--- Main.Flip :: Member (Alg Flip_) sigs => a -> Float -> a -> Effs sigs f a
+-- Main.Flip :: Member (Alg Flip_) sigs => Float -> a -> a -> Effs sigs f a
 -- >>> :kind! Main.Flip
 -- Main.Flip :: (* -> *) -> * -> *
 -- = Alg Flip_
+
+data MyOp_ s k = MyOp_ k s k deriving Functor
+$(makeAlgFrom ''MyOp_)
+
+-- >>> :t myOp
+-- myOp :: Member (MyOp s) sig => Prog sig x -> s -> Prog sig x -> Prog sig x
 
 main :: IO ()
 main = defaultMain [checkParallel $$(discover)]
