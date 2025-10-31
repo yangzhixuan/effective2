@@ -6,7 +6,8 @@ import Hedgehog.Main
 
 import Control.Effect
 import Control.Effect.State
-import Control.Effect.IO
+import Control.Effect.Nondet
+import Control.Effect.WithName
 
 
 type E = ["a" :@ Put Int, "a" :@ Get Int, "b" :@ Put Int, "b" :@ Get Int]
@@ -52,6 +53,13 @@ prop_fib' = property $ p === 21 where
         (fib' 7)
 #endif
 
+example_Once :: Property
+example_Once = property $
+  handle (renameEff (Proxy @"a") (Proxy @Once) backtrack) p === [1, 2]
+  where
+    p :: Members '[Choose, Empty, "a" :@ Once] sig => Prog sig Int
+    p = do x <- onceN "a" ((return 0) <|> (return 5))
+           (return (x + 1)) <|> (return (x + 2))
 
 main :: IO ()
 main = defaultMain [checkParallel $$(discover)]
