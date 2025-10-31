@@ -41,7 +41,7 @@ fib' n = do sA <- getN "a"
             sB <- getN "b"
             putN "b" (sA + sB)
             putN "a" (sB :: Int)
-            fib (n - 1)
+            fib' (n - 1)
 
 prop_fib' :: Property
 prop_fib' = property $ p === 21 where
