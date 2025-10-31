@@ -110,15 +110,15 @@ makeAlgPieces :: Name -> Q AlgPieces
 makeAlgPieces baseName = do
   info <- reify baseName
   case info of
-    TyConI d -> makeAlgPiecesFromD baseName d
+    TyConI d -> makeAlgPiecesFromDec baseName d
     _ -> fail "makeAlg: expected the name of a data/newtype with a single constructor"
 
-makeAlgPiecesFromD :: Name -> Dec -> Q AlgPieces
-makeAlgPiecesFromD baseName dec = do
+makeAlgPiecesFromDec :: Name -> Dec -> Q AlgPieces
+makeAlgPiecesFromDec baseName dec = do
   (tvbs, conName, argTys) <- case dec of
     (DataD    [] _ tvbs _ [con] _) -> pure (tvbs, conNameOf con, conArgTys con)
     (NewtypeD [] _ tvbs _  con  _) -> pure (tvbs, conNameOf con, conArgTys con)
-    _ -> fail "makeAlg: expected data/newtype with a single constructor and without any constraints"
+    _ -> fail "makeAlg: expected data/newtype with a single constructor (without any constraints)"
   let tvNames = map tvbName tvbs
   when (null tvNames) $ fail "makeAlg: the base functor must be at least unary (… k)"
   let (paramNames, kName) = (init tvNames, last tvNames)
@@ -200,7 +200,7 @@ makeAlgPiecesFromD baseName dec = do
       patDecl = PatSynD (mkName effStr) patArgs patDir pat
 
   argNames <- mapM (\i -> newName ("a" ++ show i)) [1 .. length prefixTys']
-  pName <- newName "p"
+  nName <- newName "n"
   let smartLhs = Clause (map VarP argNames)
                         (NormalB (VarE 'call `AppE`
                                    (ConE 'Alg `AppE`
@@ -210,17 +210,19 @@ makeAlgPiecesFromD baseName dec = do
       smartSig = SigD funName smartTy
       smartFun = FunD funName [smartLhs]
       pragma   = PragmaD (InlineP funName Inline FunLike AllPhases)
-      proxySmartLhs = Clause (map VarP (pName : argNames))
-                       (NormalB (AppE (AppE (VarE 'callP) (VarE pName))
+
+      proxySmartLhs = Clause (map VarP (nName : argNames))
+                       (NormalB (AppE (AppE (VarE 'callP) (VarE nName))
                                       (ConE 'Alg `AppE` applyExp (ConE conName)
                                         (map VarE argNames ++ [contExpr]))))
                        []
       proxySmartSig = SigD proxyFunName proxySmartTy
       proxySmartFun = FunD proxyFunName [proxySmartLhs]
       proxyPragma   = PragmaD (InlineP proxyFunName Inline FunLike AllPhases)
+
 #if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
-      namedSmartLhs = Clause (map VarP (pName : argNames))
-                       (NormalB (AppE (AppE (VarE 'callN) (VarE pName))
+      namedSmartLhs = Clause (map VarP (nName : argNames))
+                       (NormalB (AppE (AppE (VarE 'callN) (VarE nName))
                                       (ConE 'Alg `AppE` applyExp (ConE conName)
                                         (map VarE argNames ++ [contExpr]))))
                        []
@@ -311,20 +313,19 @@ makeAlgSmart baseName = do
   pure (toDecs apSmart ++ toDecs apProxySmart)
 #endif
 
--- | Generate an algebraic operation from the type signature of a generic
--- operation (operations whose types have the shape @a1 -> ... -> an -> m b@).
+-- | Generate an algebraic operation from a type signature.
 -- For example, the following
 -- @
--- $(makeAlg' [e| put :: forall s. s -> () |])
+-- $(makeGenOp [e| put :: forall s. s -> () |])
 -- @
 -- generates all the boilerplate for the usual @put@ operation.
 --
 -- Note that the arugment should be the signature of the operation _as if it
 -- were a pure operation_.  There is no need to include @Member@ constraints or
 -- the monad @Prog@ in the signature. The argument isn't really the type of the
--- generated smart constructor, but is just for giving all the needed
--- information of an operation. The geneated smart constructor of course will
--- have the @Member@ constraint and the monad, such as
+-- generated smart constructor. It is just for giving all the needed information
+-- of an operation. The generated smart constructor of course will have the
+-- @Member@ constraint and the monad, such as
 -- @
 -- put :: Member Put sig => s -> Prog sig ()
 -- @
@@ -368,7 +369,7 @@ makeGenOp sigQ =
          d = DataD [] sigName tyParams Nothing
                [NormalC conName (paramFields ++ [contField])]
                [DerivClause Nothing [ConT ''Functor]]
-     pieces <- makeAlgPiecesFromD sigName d
+     pieces <- makeAlgPiecesFromDec sigName d
      pure (d : toDecs pieces)
   where
     splitArrs :: Type -> ([Type], Type)
@@ -384,18 +385,36 @@ data ScpPieces = ScpPieces
   , spPat    :: Dec
   , spSmart  :: FunPieces
   , spSmartM :: FunPieces
+  , spProxySmart :: FunPieces
+  , spNamedSmart :: FunPieces
   }
 
 instance ToDecs ScpPieces where
-  toDecs (ScpPieces{..}) = [spTySyn] ++ [spPat] ++ toDecs spSmart ++ toDecs spSmartM
+  toDecs (ScpPieces{..}) =
+       [spTySyn]
+    ++ [spPat]
+    ++ toDecs spSmart
+    ++ toDecs spSmartM
+    ++ toDecs spProxySmart
+#if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
+    ++ toDecs spNamedSmart
+#endif
 
 makeScpPieces :: Name -> Q ScpPieces
 makeScpPieces baseName = do
   info <- reify baseName
-  (tvbs, conName, _argTys) <- case info of
-    TyConI (DataD    _ _ tvbs _ [con] _) -> pure (tvbs, conNameOf con, conArgTys con)
-    TyConI (NewtypeD _ _ tvbs _  con  _) -> pure (tvbs, conNameOf con, conArgTys con)
-    _ -> fail "makeScp: expected data/newtype with a single constructor"
+  case info of
+    TyConI dec -> makeScpPiecesFromDec baseName dec
+    _          -> fail "makeScp: expected the name of a data/newtype declaration"
+
+-- TODO: this function only supports scoped operations that have exactly one scope, such
+-- as @once@. Generalise this.
+makeScpPiecesFromDec :: Name -> Dec -> Q ScpPieces
+makeScpPiecesFromDec baseName dec = do
+  (tvbs, conName, _argTys) <- case dec of
+    DataD    [] _ tvbs _ [con] _ -> pure (tvbs, conNameOf con, conArgTys con)
+    NewtypeD [] _ tvbs _  con  _ -> pure (tvbs, conNameOf con, conArgTys con)
+    _ -> fail "makeScp: expected data/newtype with a single constructor (without any contraints)"
 
   let tvNames = map tvbName tvbs
   when (null tvNames) $ fail "makeScp: the base functor must be at least unary (… k)"
@@ -407,6 +426,10 @@ makeScpPieces baseName = do
       effStr  = dropTrailingUnderscore baseStr
       effName = mkName effStr
       funName = mkName (lowerHead effStr)
+      proxyFunName = mkName (lowerHead effStr ++ "P")
+#if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
+      namedFunName = mkName (lowerHead effStr ++ "N")
+#endif
 
   -- type Eff params = Scp Base params
   let effTySyn :: Dec
@@ -415,8 +438,9 @@ makeScpPieces baseName = do
                      (applyType (ConT baseName) (map VarT freshParams)))
 
   -- Build: forall params a sig. Member (Eff params) sig => Prog sig a -> Prog sig a
-  sigName <- newName "sig"
-  aName   <- newName "a"
+  sigName  <- newName "sig"
+  aName    <- newName "a"
+  nameName <- newName "name"
 
   let effTy   = applyType (ConT effName) (map VarT freshParams)
       memberC = AppT (AppT (ConT ''Member) effTy) (VarT sigName)
@@ -424,6 +448,17 @@ makeScpPieces baseName = do
       resTy   = argTy
       smartTy = ForallT (map plainTVForall (freshParams ++ [aName, sigName])) [memberC]
                         (AppT (AppT ArrowT argTy) resTy)
+
+      namedEffTy   = AppT (AppT (ConT ''WithName) (VarT nameName)) effTy
+      namedMemberC = AppT (AppT (ConT ''Member) namedEffTy) (VarT sigName)
+      proxyTy      = AppT (ConT ''Proxy) (VarT nameName)
+      proxySmartTy = ForallT (map plainTVForall ([nameName] ++ freshParams ++ [aName, sigName]))
+                        [namedMemberC] (funType [proxyTy, argTy] resTy)
+#if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
+      namedSmartTy = ForallVisT [plainTV nameName]
+                       (ForallT (map plainTVForall (freshParams ++ [aName, sigName])) [namedMemberC]
+                         (funType [argTy] resTy))
+#endif
 
   -- Pattern: pattern Eff p <- (prj -> Just (Scp (Con p))) where Eff p = inj (Scp (Con p))
   pVar <- newName "p"
@@ -438,6 +473,7 @@ makeScpPieces baseName = do
       patDecl = PatSynD (mkName effStr) patArgs patDir pat
 
   -- Smart constructor: effName p = call (Scp (Con p))
+  nArg <- newName "n"
   pArg <- newName "p"
   let smartLhs = Clause [VarP pArg]
                         (NormalB (VarE 'call `AppE`
@@ -447,6 +483,26 @@ makeScpPieces baseName = do
       smartSig = SigD funName smartTy
       smartFun = FunD funName [smartLhs]
       pragma   = PragmaD (InlineP funName Inline FunLike AllPhases)
+
+      proxySmartLhs = Clause [VarP nArg, VarP pArg]
+                        (NormalB ((VarE 'callP `AppE` VarE nArg)
+                                    `AppE` (ConE 'Scp `AppE`
+                                               applyExp (ConE conName) [VarE pArg])))
+                        []
+      proxySmartSig = SigD proxyFunName proxySmartTy
+      proxySmartFun = FunD proxyFunName [proxySmartLhs]
+      proxyPragma   = PragmaD (InlineP proxyFunName Inline FunLike AllPhases)
+
+#if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
+      namedSmartLhs = Clause (map VarP [nArg, pArg])
+                       (NormalB ((VarE 'callN `AppE` VarE nArg)
+                                    `AppE` (ConE 'Scp `AppE`
+                                               applyExp (ConE conName) [VarE pArg])))
+                       []
+      namedSmartSig = SigD namedFunName namedSmartTy
+      namedSmartFun = FunD namedFunName [namedSmartLhs]
+      namedPragma   = PragmaD (InlineP namedFunName Inline FunLike AllPhases)
+#endif
 
   -- Monadic handler smart constructor: effNameM
   let funNameM = mkName (lowerHead effStr ++ "M")
@@ -475,7 +531,9 @@ makeScpPieces baseName = do
 
   pure ScpPieces{ spTySyn   = effTySyn, spPat = patDecl
                 , spSmart   = FunPieces pragma smartSig smartFun
-                , spSmartM  = FunPieces pragmaM smartMSig smartMFun 
+                , spSmartM  = FunPieces pragmaM smartMSig smartMFun
+                , spProxySmart = FunPieces proxyPragma proxySmartSig proxySmartFun
+                , spNamedSmart = FunPieces namedPragma namedSmartSig namedSmartFun
                 }
 
 
@@ -517,7 +575,12 @@ makeScpPattern baseName = do
 makeScpSmart :: Name -> Q [Dec]
 makeScpSmart baseName = do
   ScpPieces{..} <- makeScpPieces baseName
-  pure (toDecs spSmart ++ toDecs spSmartM)
+  pure (toDecs spSmart
+    ++ toDecs spSmartM
+#if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
+    ++ toDecs spNamedSmart
+#endif
+    ++ toDecs spProxySmart)
 
 --------------------------------------------------------------------------------
 -- Helpers
