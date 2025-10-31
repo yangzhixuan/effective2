@@ -14,21 +14,18 @@ For lazy state, import "Control.Effect.State.Lazy" instead.
 {-# LANGUAGE TypeFamilies #-}
 
 module Control.Effect.Nondet
-  ( Choose
+  ( module Control.Effect.Nondet.Type
+  , Choose
   , Choose_(Choose_)
-  , Nondet
   , Empty
   , Empty_(Empty_)
-  , Once
   , Once_ (..)
   , ListT (..)
-  , select
-  , selects
-  , once
   , list
   , nondet
   , nondet'
   , backtrack
+  , backtrack'
   , backtrackAlg
   , backtrackOnceAlg
   , Control.Applicative.Alternative(..)

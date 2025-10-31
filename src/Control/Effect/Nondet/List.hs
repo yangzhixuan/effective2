@@ -23,6 +23,7 @@ module Control.Effect.Nondet.List
   , once
   , list
   , backtrack
+  , backtrack'
   , backtrackAlg
   , backtrackOnceAlg
   ) where
