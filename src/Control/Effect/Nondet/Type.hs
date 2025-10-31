@@ -51,7 +51,15 @@ once p = call (Scp (Once_ p))
 onceM :: (Monad m, Member Once sig)
   => (forall a . Effs sig m a -> m a) -> m a -> m a
 onceM alg p = (alg . inj) (Scp (Once_ p))
+
+onceP :: Member (WithName name Once) sig => Proxy name -> Prog sig a -> Prog sig a
+onceP n p = callP n (Scp (Once_ p))
+
+onceN :: forall (name :: Symbol) -> forall a (sig :: [Effect]). Member (WithName name Once) sig =>
+     Prog sig a -> Prog sig a
+onceN n p = callN n (Scp (Once_ p))
 -}
+
 
 -- | `select` nondeterministically selects an element from a list.
 -- If the list is empty, the computation fails.
