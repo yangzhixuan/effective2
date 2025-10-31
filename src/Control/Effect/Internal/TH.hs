@@ -386,7 +386,9 @@ data ScpPieces = ScpPieces
   , spSmart  :: FunPieces
   , spSmartM :: FunPieces
   , spProxySmart :: FunPieces
+#if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
   , spNamedSmart :: FunPieces
+#endif
   }
 
 instance ToDecs ScpPieces where
@@ -533,7 +535,9 @@ makeScpPiecesFromDec baseName dec = do
                 , spSmart   = FunPieces pragma smartSig smartFun
                 , spSmartM  = FunPieces pragmaM smartMSig smartMFun
                 , spProxySmart = FunPieces proxyPragma proxySmartSig proxySmartFun
+#if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
                 , spNamedSmart = FunPieces namedPragma namedSmartSig namedSmartFun
+#endif
                 }
 
 
