@@ -7,6 +7,7 @@ Stability   : experimental
 -}
 
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE MonoLocalBinds #-}
 

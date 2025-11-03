@@ -372,7 +372,7 @@ makeGen sigQ =
      let (argTys, resTy) = splitArrs ty'
          sigName = mkName (upperHead (nameBase opName ++ "_"))
          conName = sigName
-         tyParams = fmap (fmap (const BndrReq)) tvBndrs ++ [PlainTV kName BndrReq]
+         tyParams = fmap (plainTVCompat . tyVarName) tvBndrs ++ [plainTVCompat kName]
          mkNormalField ty = (Bang NoSourceUnpackedness NoSourceStrictness, ty)
          paramFields = map mkNormalField argTys
          contField = mkNormalField $
@@ -432,7 +432,7 @@ makeAlgOrScpSigFunctor sigQ = do
       _ -> fail "makeAlgOrScpSigFunctor: the last type in the given signature should just be a number literal indicating the arity, like \"op :: ... -> 2\""
   let sigName = mkName (upperHead (nameBase opName ++ "_"))
       conName = sigName
-      tyParams = fmap (fmap (const BndrReq)) tvBndrs ++ [PlainTV kName BndrReq]
+      tyParams = fmap (plainTVCompat . tyVarName) tvBndrs ++ [plainTVCompat kName]
       mkNormalField ty = (Bang NoSourceUnpackedness NoSourceStrictness, ty)
       paramFields = map mkNormalField argTys
       contFields = replicate arity (mkNormalField (VarT kName))
@@ -936,6 +936,16 @@ plainTVCompat n = PlainTV n
 
 plainTVForall :: Name -> TyVarBndr
 plainTVForall n = PlainTV n
+#endif
+
+#if MIN_VERSION_template_haskell(2,17,0)
+tyVarName :: TyVarBndr a -> Name
+tyVarName (PlainTV n _)    = n
+tyVarName (KindedTV n _ _) = n
+#else
+tyVarName :: TyVarBndr -> Name
+tyVarName (PlainTV n)    = n
+tyVarName (KindedTV n _) = n
 #endif
 
 #if MIN_VERSION_template_haskell(2,18,0)
