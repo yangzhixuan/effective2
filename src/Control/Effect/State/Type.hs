@@ -14,8 +14,6 @@ Stability   : experimental
 module Control.Effect.State.Type where
 
 import Control.Effect
-import Control.Effect.Family.Algebraic
-import Control.Effect.Internal.TH
 
 $(makeGen [e| put :: forall s. s -> () |])
 

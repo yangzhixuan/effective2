@@ -15,18 +15,22 @@ Stability   : experimental
 module Control.Effect.Reader (
   -- * Syntax
   -- ** Operations
+-- | Read the value of the environment
   ask,
   askP,
-#if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
-  askN,
-#endif
   asks,
+
+-- | Execute a computation in a transformed environment
   local,
+  localP,
+  localM,
+#if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
+  askN, localN,
+#endif
 
   -- ** Signatures
-  pattern Ask,
-  Ask, Ask_(..),
-  Local, Local_(..),
+  Ask, Ask_(..), pattern Ask,
+  Local, Local_(..), pattern Local,
 
   -- * Semantics
   -- ** Handlers
@@ -61,24 +65,10 @@ asks :: Member (Ask r) sig
   -> Prog sig a
 asks f = fmap f ask
 
--- | Signature for 'local' operation
-type Local r = Scp (Local_ r)
-
--- | Underlying signature for 'local' operation
-data Local_ r k where
-  Local :: (r -> r) -> k -> Local_ r k
-  deriving Functor
+$(makeScp [e| local :: forall r. (r -> r) -> 1 |])
 
 instance Unary (Local_ r) where
-  get (Local _ x) = x
-
--- | Execute a computation in a transformed environment
-{-# INLINE local #-}
-local :: Member (Local r) sig
-  => (r -> r)    -- ^ Function to transform the environment
-  -> Prog sig a  -- ^ Computation to run in the transformed environment
-  -> Prog sig a
-local f p = call (Scp (Local f p))
+  get (Local_ _ x) = x
 
 -- | The `reader` handler supplies a static environment @r@ to the program
 -- that can be accessed with `ask`, and locally transformed with `local`.
@@ -104,12 +94,8 @@ reader' mr = handler run (\_ -> readerAlg) where
 {-# INLINE readerAlg #-}
 readerAlg
   :: Monad m => Algebra [Ask r, Local r] (R.ReaderT r m)
-readerAlg eff
-  | Just (Alg (Ask_ p)) <- prj eff =
-      do r <- R.ask
-         return (p r)
-  | Just (Scp (Local (f :: r -> r) p)) <- prj eff =
-      R.local f p
+readerAlg (Ask p)     = do r <- R.ask; return (p r)
+readerAlg (Local f p) = R.local f p
 
 readerAT :: AlgTrans '[Ask r, Local r] '[] '[R.ReaderT r] Monad
 readerAT = AlgTrans (\_ -> readerAlg)

@@ -16,7 +16,7 @@ including choice and failure.
 module Control.Effect.Nondet.List
   ( Choose
   , Empty
-  , nondet
+  , nondet, nondetAT
   , nondet'
   , Once
   , Once_ (..)

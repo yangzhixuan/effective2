@@ -17,11 +17,8 @@ module Control.Effect
   , Prog
   , Effs (Eff, Effs)
   , WithName, (:@)
-  , call
-  , callJ
-  , callK
-  , callM
-  , callM'
+  , call,  callJ,  callK
+  , callM, callJM, callKM
   , callP
 #if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
   , callN
@@ -51,9 +48,11 @@ module Control.Effect
 
   -- * Handler combinators
   , Handler (..)
-  , runner
   , handler
   , handler'
+  , Runner (..)
+  , runner'
+  , runner
   , identity
   , comp
   , weaken
@@ -80,6 +79,7 @@ module Control.Effect
   , compAT
   , weakenAT
   , algTrans1
+  , algTrans'
   , fuseAT, fuseAT'
   , pipeAT
   , passAT
@@ -113,6 +113,7 @@ module Control.Effect
 import Control.Effect.Internal.Prog
 import Control.Effect.Internal.Effs
 import Control.Effect.Internal.Handler
+import Control.Effect.Internal.Runner
 import Control.Effect.Internal.AlgTrans
 import Control.Effect.Internal.AlgTrans.Type
 import Control.Effect.Internal.Forward

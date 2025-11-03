@@ -22,7 +22,7 @@ source-repository head
 common common
   default-language: GHC2021
   default-extensions:
-    DataKinds, CPP, ViewPatterns, PatternSynonyms
+    DataKinds, CPP, ViewPatterns, PatternSynonyms, TemplateHaskell
   if impl(ghc >=9.10.1)
     default-extensions: RequiredTypeArguments
 
