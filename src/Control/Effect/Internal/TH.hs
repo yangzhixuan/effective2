@@ -765,9 +765,9 @@ makeScpPiecesFromDec baseName dec = do
       , spSmart      = smart
       , spProxySmart = proxySmart
       , spSmartM     = smartM
-    #if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
+#if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
       , spNamedSmart = namedSmart
-    #endif
+#endif
   }
 
 -- | Generate the full Scp-style bundle from a scoped base functor @T_@.
