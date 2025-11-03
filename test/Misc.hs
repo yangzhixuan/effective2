@@ -91,5 +91,17 @@ $(makeAlgFrom ''MyOp_)
 -- >>> :t myOp
 -- myOp :: Member (MyOp s) sig => Prog sig x -> s -> Prog sig x -> Prog sig x
 
+$(makeScp [e| tryCatch :: 2 |])
+
+-- >>> :t tryCatch
+-- tryCatch :: Member TryCatch sig => Prog sig x -> Prog sig x -> Prog sig x
+-- >>> :t tryCatchM
+-- tryCatchM :: Member TryCatch sig => Algebra sig m -> m x -> m x -> m x
+-- >>> :t tryCatchP
+-- tryCatchP
+--   :: Member (WithName name TryCatch) sig =>
+--      Proxy name -> Prog sig x -> Prog sig x -> Prog sig x
+
+
 main :: IO ()
 main = defaultMain [checkParallel $$(discover)]

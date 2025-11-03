@@ -105,8 +105,8 @@ module Control.Effect
   , Proxy (..)
 
   -- * Template Haskell
-  , makeGen, makeGenFrom
-  , makeAlg, makeAlgFrom
+  , makeGen
+  , makeAlg
   , makeScp
   ) where
 

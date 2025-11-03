@@ -201,7 +201,7 @@ test-suite misc
   default-language: GHC2021
   default-extensions: DataKinds TemplateHaskell ImpredicativeTypes AllowAmbiguousTypes
   hs-source-dirs:  test
-  ghc-options: -ddump-splices
+  -- ghc-options: -ddump-splices
   build-depends:
     base               >= 4.16 && < 4.22,
     effective,
