@@ -577,9 +577,9 @@ makeAlgPiecesFromDec baseName dec = do
       , apPat        = patDecl
       , apSmart      = smart
       , apProxySmart = proxySmart
-    #if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
+#if MIN_VERSION_GLASGOW_HASKELL(9,10,1,0)
       , apNamedSmart = namedSmart
-    #endif
+#endif
   }
 
 -- | Generate only the /type synonym/ for an algebraic operation.
