@@ -148,7 +148,7 @@ test-suite docs
     hedgehog           >= 1.5  && < 1.6,
     transformers       >= 0.4  && < 0.7,
     containers         >= 0.6    && < 0.9,
-  build-tool-depends:
+  build-tool-depends: markdown-unlit:markdown-unlit
   other-modules:
     Error,
     Nondet,
