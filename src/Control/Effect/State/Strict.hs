@@ -39,13 +39,13 @@ import Data.Tuple (swap)
 -- | The `state` handler deals with stateful operations and
 -- returns the final state @s@.
 {-# INLINE state #-}
-state :: s -> Handler [Put s, Get s] '[] '[Strict.StateT s] '[(,) s]
+state :: s -> Handler [Put s, Get s] '[] '[Strict.StateT s] a (s, a)
 state s = handler' (fmap swap . flip Strict.runStateT s) stateAlg
 
 -- | The `state_` handler deals with stateful operations and silenty
 -- discards the final state.
 {-# INLINE state_ #-}
-state_ :: s -> Handler [Put s, Get s] '[] '[Strict.StateT s] '[]
+state_ :: s -> Handler [Put s, Get s] '[] '[Strict.StateT s] a a
 state_ s = handler' (flip Strict.evalStateT s) stateAlg
 
 -- | An algebra transformer that interprets t'Get' and t'Put' using the strict t'Strict.StateT'.

@@ -89,18 +89,18 @@ pattern Choose x y <- (prj -> Just (Scp (Choose_ x y )))
 -- for any monad @m@ to provide semantics.
 {-# INLINE alternative #-}
 alternative
-  :: forall t f
+  :: forall t f a
   .  (forall m . Monad m => Alternative (t m))
   => (forall m . Monad m => (forall a . t m a -> m (f a)))
-  -> Handler '[Empty, Choose] '[] '[t] '[f]
+  -> Handler '[Empty, Choose] '[] '[t] a (f a)
 alternative run = handler' run alternativeAlg
 
 -- | An alternative definition of `alternative`.
 alternative'
-  :: forall t f
+  :: forall t f a
   .  (forall m . Monad m => Alternative (t m))
   => (forall m . Monad m => (forall a . t m a -> m (f a)))
-  -> Handler '[Empty, Choose] '[] '[t] '[f]
+  -> Handler '[Empty, Choose] '[] '[t] a (f a)
 alternative' run =  emptyAlgT #: chooseAlgT #: runner run
 
 -- | The algebra transformer underlying the 'alternative' handler. This uses an

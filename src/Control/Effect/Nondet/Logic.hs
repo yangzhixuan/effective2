@@ -34,13 +34,13 @@ import Control.Effect.Nondet.Type
 
 import Control.Monad.Logic hiding (once)
 
-list :: Handler [Empty, Choose] '[] '[LogicT] '[[]]
+list :: Handler [Empty, Choose] '[] '[LogicT] a [a]
 list = alternative observeAllT
 
 -- | The `nondet` handler transforms nondeterministic effects t`Empty` and t`Choose`
 -- into the t`LogicT` monad transformer, which collects all possible results.
 {-# INLINE nondet #-}
-nondet :: Handler [Empty, Nondet] '[] '[LogicT] '[[]]
+nondet :: Handler [Empty, Nondet] '[] '[LogicT] a [a]
 nondet = handler' observeAllT nondetAlg
 
 -- | `nondetAlg` defines the semantics of backtracking for the t`Empty`,
@@ -88,5 +88,5 @@ backtrackAlg' oalg = (getAT alternativeAT oalg) # backtrackOnceAlg oalg
 -- | `backtrack` is a handler that transforms nondeterministic effects
 -- t`Empty`, t`Choose`, and t`Once` into the t`ListT` monad transformer,
 -- supporting backtracking.
-backtrack :: Handler [Empty, Choose, Once] '[] '[LogicT] '[[]]
+backtrack :: Handler [Empty, Choose, Once] '[] '[LogicT] a [a]
 backtrack = handler' observeAllT backtrackAlg'

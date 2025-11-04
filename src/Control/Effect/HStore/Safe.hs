@@ -118,7 +118,7 @@ type HSEffs w = '[Put w, Get w, New w]
 -- | The handler of higher-order store. This is not exported because currently
 -- effective does not have a world-indexed handdler API. Users of higher-order
 -- store now can only use functions such as `handleHSM` exported by this module.
-hstore :: Handler (HSEffs w) '[] '[St.StateT Mem] '[]
+hstore :: Handler (HSEffs w) '[] '[St.StateT Mem] a a
 hstore = handler' (flip St.evalStateT M.empty) (\_ -> hstoreAlg)
 
 hstoreAlg :: forall m w.

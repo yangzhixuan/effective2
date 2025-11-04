@@ -125,7 +125,7 @@ type family Apply (fs :: [k -> k]) (a :: k) where
 
 -- | For all closed type-level lists @fs1@ and @fs2@, the type @Apply fs1 (Apply fs2 a)@
 -- and @@Apply (fs1 :++ fs2) a@ will be exactly the same, but GHC doesn't know this, so
--- whenever we need this, we will need to manually assume this as a constraint @Assoc fs1 fs2 a@,
+-- whenever we need this, we will need to manually assume this as a constraint @Assoc a1 a2 a3 a@,
 -- which is going to be automatically discharged when @fs1@ and @fs2@ are substituted by closed lists.
 
 class (Apply fs1 (Apply fs2 a) ~ Apply (fs1 :++ fs2) a) => Assoc fs1 fs2 a where

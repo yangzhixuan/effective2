@@ -53,11 +53,11 @@ evalIO = eval ioAlg
 -- effects are then interpreted in `IO` using their standard semantics, but
 -- IO effects are not forwarded along the handler.
 handleIO
-  :: forall effs ts fs a
+  :: forall effs ts a b
   . ( Monad (Apply ts IO)
     , HFunctor (Effs effs) )
-  => Handler effs '[Alg IO] ts fs
-  -> Prog effs a -> IO (Apply fs a)
+  => Handler effs '[Alg IO] ts a b
+  -> Prog effs a -> IO b
 handleIO = handleM' @effs ioAlg
 
 type HandleIO# effs oeffs xeffs =
@@ -74,7 +74,7 @@ type HandleIO# effs oeffs xeffs =
 -- This function is useful when you want to use some non-algebraic operations
 -- that come with the IO-monad. Otherwise `handleIO` should be used.
 handleIO'
-  :: forall xeffs ioeff effs oeffs ts fs a
+  :: forall xeffs ioeff effs oeffs ts a b
   . ( Injects oeffs ioeff
     , ForwardsM xeffs ts
     , Monad (Apply ts IO)
@@ -82,6 +82,6 @@ handleIO'
     , HandleIO# effs oeffs xeffs )
   => Proxy xeffs
   -> Algebra ioeff IO
-  -> Handler effs oeffs ts fs
-  -> Prog (effs `Union` xeffs) a -> IO (Apply fs a)
+  -> Handler effs oeffs ts a b
+  -> Prog (effs `Union` xeffs) a -> IO b
 handleIO' p ioAlg h = handleMFwds p ioAlg h
