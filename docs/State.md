@@ -15,8 +15,6 @@ import Control.Effect
 import Control.Effect.State
 import Control.Effect.Maybe
 import Control.Monad (replicateM_)
-import Control.Monad.Trans.State.Strict (StateT)
-import Control.Monad.Trans.Maybe
 
 import Control.Effect.Reader
 

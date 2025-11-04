@@ -6,7 +6,8 @@ description:         Effect handlers library for algebraic, scoped, and other ef
 license:             BSD-3-Clause
 license-file:        LICENSE
 author:              Nicolas Wu
-maintainer:          n.wu@imperial.ac.uk
+maintainer:          Nicolas Wu   <n.wu@imperial.ac.uk>
+                     Zhixuan Yang <zhixuan.yang@protonmail.com>
 -- copyright:
 category:            Control
 build-type:          Simple
@@ -131,8 +132,6 @@ test-suite readme
     base               >= 4.16 && < 4.22,
     effective,
     hedgehog           >= 1.5  && < 1.6,
-    transformers       >= 0.4  && < 0.7,
-    containers         >= 0.6    && < 0.9,
   build-tool-depends: markdown-unlit:markdown-unlit
 
 test-suite docs
@@ -146,8 +145,6 @@ test-suite docs
     base               >= 4.16 && < 4.22,
     effective,
     hedgehog           >= 1.5  && < 1.6,
-    transformers       >= 0.4  && < 0.7,
-    containers         >= 0.6    && < 0.9,
   build-tool-depends: markdown-unlit:markdown-unlit
   other-modules:
     Error,
@@ -165,8 +162,6 @@ test-suite concur
   build-depends:
     base               >= 4.16 && < 4.22,
     effective,
-    containers         >= 0.6  && < 0.9,
-    transformers       >= 0.4  && < 0.7,
 
 test-suite hostore
   type:          exitcode-stdio-1.0
@@ -178,8 +173,6 @@ test-suite hostore
   build-depends:
     base               >= 4.16 && < 4.22,
     effective,
-    containers         >= 0.6  && < 0.9,
-    transformers       >= 0.4  && < 0.7,
 
 test-suite staged
   type:          exitcode-stdio-1.0
@@ -190,7 +183,6 @@ test-suite staged
   build-depends:
     base               >= 4.16 && < 4.22,
     effective,
-    containers         >= 0.6  && < 0.9,
     template-haskell   >= 2.18 && < 2.24,
     transformers       >= 0.4  && < 0.7,
 
@@ -207,7 +199,6 @@ test-suite plugin
   build-depends:
     base               >= 4.16 && < 4.22,
     effective,
-    containers         >= 0.6  && < 0.9,
     template-haskell   >= 2.18 && < 2.24,
     transformers       >= 0.4  && < 0.7,
 
@@ -226,9 +217,7 @@ test-suite misc
     base               >= 4.16 && < 4.22,
     effective,
     hedgehog           >= 1.5  && < 1.6,
-    containers         >= 0.6  && < 0.9,
     template-haskell   >= 2.18 && < 2.24,
-    transformers       >= 0.4  && < 0.7,
 
 test-suite eval
   import:        common
@@ -241,5 +230,4 @@ test-suite eval
   build-depends:
     base               >= 4.16 && < 4.22,
     effective,
-    containers         >= 0.6  && < 0.9,
     transformers       >= 0.4  && < 0.7,
