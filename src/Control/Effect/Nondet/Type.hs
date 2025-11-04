@@ -44,8 +44,4 @@ selects []      =  empty
 selects (x:xs)  =  return (x, xs)  <|> do  (y, ys) <- selects xs
                                            return (y, x:ys)
 
-data Search_ k where
-  Search_ :: k -> Search_ k
-  deriving Functor
-
-$(makeScp ''Search_)
+$(makeScp [e| search :: 1 |])

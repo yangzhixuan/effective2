@@ -231,6 +231,7 @@ test-suite misc
     transformers       >= 0.4  && < 0.7,
 
 test-suite eval
+  import:        common
   type:          exitcode-stdio-1.0
   ghc-options:   -threaded
   main-is:       Eval.hs

@@ -86,28 +86,28 @@ type family RenameAll (name :: Symbol) (effs :: [Effect]) :: [Effect] where
 -- The implementation is based on unsafe coercision but it is actually safe because
 -- @Effs effs f x@ and @Effs (Rename name eff effs) f x@ will always have the exactly
 -- the same representation, although GHC doesn't see this.
-renameEff :: Proxy name -> Proxy eff -> Handler effs oeffs ts fs
-          -> Handler (Rename name eff effs) oeffs ts fs
+renameEff :: Proxy name -> Proxy eff -> Handler effs oeffs ts a b
+          -> Handler (Rename name eff effs) oeffs ts a b
 renameEff p q = unsafeCoerce
 
 -- | Rename all input effects.
-renameEffs :: Proxy name -> Handler effs oeffs ts fs
-           -> Handler (RenameAll name effs) oeffs ts fs
+renameEffs :: Proxy name -> Handler effs oeffs ts a b
+           -> Handler (RenameAll name effs) oeffs ts a b
 renameEffs p = unsafeCoerce
 
 -- | Rename a single member in the output effects.
-renameOEff :: Proxy name -> Proxy eff -> Handler effs oeffs ts fs
-           -> Handler effs (Rename name eff oeffs) ts fs
+renameOEff :: Proxy name -> Proxy eff -> Handler effs oeffs ts a b
+           -> Handler effs (Rename name eff oeffs) ts a b
 renameOEff p q = unsafeCoerce
 
 -- | Rename all output effects.
-renameOEffs :: Proxy name -> Handler effs oeffs ts fs
-            -> Handler effs (RenameAll name oeffs) ts fs
+renameOEffs :: Proxy name -> Handler effs oeffs ts a b
+            -> Handler effs (RenameAll name oeffs) ts a b
 renameOEffs p = unsafeCoerce
 
 -- | Rename all input and output effects.
-renameIOEffs :: Proxy name -> Handler effs oeffs ts fs
-             -> Handler (RenameAll name effs) (RenameAll name oeffs) ts fs
+renameIOEffs :: Proxy name -> Handler effs oeffs ts a b
+             -> Handler (RenameAll name effs) (RenameAll name oeffs) ts a b
 renameIOEffs p = unsafeCoerce
 
 renameEffAT :: Proxy name -> Proxy eff -> AlgTrans effs oeffs ts cs

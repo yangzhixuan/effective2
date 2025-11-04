@@ -76,10 +76,6 @@ handler'
   -> Handler effs oeffs ts a b
 handler' run alg = Handler (Runner (\_ -> run)) (AlgTrans (\oalg -> alg oalg))
 
-
-
-
-
 runner
   :: forall ts a b. (forall m . Monad m => Apply ts m a -> m b)
   -> Handler '[] '[] ts a b

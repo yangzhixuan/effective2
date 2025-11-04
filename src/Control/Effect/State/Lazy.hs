@@ -40,10 +40,6 @@ import qualified Control.Monad.Trans.State.Lazy as Lazy
 state :: s -> Handler [Put s, Get s] '[] '[Lazy.StateT s] a (s, a)
 state s = Handler (stateRun s) stateAT
 
--- | An alternative definition of `state` using a runner and handler.
-state' :: s -> Handler [Put s, Get s] '[] '[Lazy.StateT s] a (s, a)
-state' s = stateAT #: runner (stateRun s)
-
 -- | The `state_` handler deals with stateful operations and silenty
 -- discards the final state.
 state_ :: s -> Handler [Put s, Get s] '[] '[Lazy.StateT s] a a
@@ -55,5 +51,5 @@ stateAT = algTrans' $ \case
   Put s p -> do Lazy.put s; return p
   Get   p -> do s <- Lazy.get; return (p s)
 
-stateRun :: s -> Runner '[] '[Lazy.StateT s] '[(,) s] Monad
+stateRun :: s -> Runner '[] '[Lazy.StateT s] a (s, a) Monad
 stateRun s = runner' $ fmap (\ ~(x, y) -> (y, x)) . flip Lazy.runStateT s
