@@ -135,6 +135,26 @@ test-suite readme
     containers         >= 0.6    && < 0.9,
   build-tool-depends: markdown-unlit:markdown-unlit
 
+test-suite docs
+  import:        common
+  type:          exitcode-stdio-1.0
+  ghc-options:   -threaded -pgmL markdown-unlit
+  main-is:       Main.hs
+  default-language: GHC2021
+  hs-source-dirs:  docs
+  build-depends:
+    base               >= 4.16 && < 4.22,
+    effective,
+    hedgehog           >= 1.5  && < 1.6,
+    transformers       >= 0.4  && < 0.7,
+    containers         >= 0.6    && < 0.9,
+  build-tool-depends:
+  other-modules:
+    Error,
+    Nondet,
+    Parser,
+    State,
+
 test-suite concur
   type:          exitcode-stdio-1.0
   ghc-options:   -threaded
