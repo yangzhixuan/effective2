@@ -49,7 +49,8 @@ evalExpr :: Prog [Var, Add] Int -> Maybe Int
 evalExpr p = runIdentity . runMaybeT . flip runContT return $
   evalAT' (exprAT [("x", 3)] `pipeAT` exceptAT) p
 
-h env = (except |> expr env)
+h :: [(String, Int)] -> Handler '[Var, Add] '[] [ContT Int, MaybeT] Int (Maybe Int)
+h env = expr env ||> except
 
 -- evalExpr' :: [(String, Int)] -> Progs [Var, Add, Catch] Int -> Maybe Int
 -- evalExpr' env p = handle (expr env |> except) p
@@ -77,6 +78,11 @@ test1 = evalExpr ex
 -- Nothing
 test2 :: Maybe Int
 test2 = evalExpr ex2
+
+-- >>> test3
+-- Just 6
+test3 :: Maybe Int
+test3 = handle (h [("x", 3)]) ex
 
 main :: IO()
 main = return ()
