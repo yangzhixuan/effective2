@@ -149,6 +149,8 @@ test-suite docs
     Nondet,
     Parser,
     State,
+    Staging,
+    StagingHelper,
 
 test-suite concur
   type:          exitcode-stdio-1.0

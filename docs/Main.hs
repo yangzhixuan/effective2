@@ -7,6 +7,7 @@ import Error
 import Nondet
 import State
 import Parser
+import Staging
 -- import Graded ()
 
 main :: IO ()
