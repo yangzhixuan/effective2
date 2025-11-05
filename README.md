@@ -5,11 +5,12 @@ Effective
 
 The `effective` library is an effect handlers library for Haskell that is
 designed to allow users to define and interpret their own languages and
-effects. This library incorporates support for:
+effects. The distinctive features of this library are
 
-* Algebraic, scoped, and other higher-order effects.
-* Modular effect handlers.
-* Staged effectful programming using Typed Template Haskell.
+* higher-order effects (encompassing algebraic, scoped, hefty, and
+  other families of effectful operations);
+* a flexible API for modularly fusing effect handlers;
+* a sub-library for runtime-overhead-free effect handling via staging.
 
 
 README
@@ -22,7 +23,8 @@ cd effective
 cabal test readme
 cabal repl readme
 ```
-This should test some properties and then bring you into `ghci` where you can follow the examples.[^Imports]
+This should test some properties and then bring you into `ghci` where
+ you can follow the examples.[^Imports]
 
 
 A Tiny Calculator
@@ -37,80 +39,64 @@ evaluates a tiny expression language:
 data Expr = Lit Int | Var String | Add Expr Expr
   deriving Show
 ```
-The calculator program takes these expressions and, using an operation
-`lookup` that finds the value of a literal, will output the result:
+We are going to implement the calculator with a user-defined effect of looking
+up a variable. Such an effect is created simply by putting the
+following Template Haskell splice at the top level of a `.hs` file:
+```haskell ignore
+$(makeGen [e| lookup :: forall key val. key -> val |])
+```
+which generates an effect `Lookup key val :: Effect` (parameterised by two type
+variables `key` and `val`) and a function for invoking the operation in
+effectful programs:
+```haskell ignore
+-- request the value of a key
+lookup :: key -> val ! '[Lookup key val]
+```
+A pattern `Lookup` is also generated, which will be used when we handle the `lookup` operation:
+```haskell ignore
+-- Pattern for matching Lookup operations
+pattern Lookup :: Member (Lookup key val) eff
+               => key -> (val -> k) -> Effs eff m k
+```
+
+With these ingredients, our calculator program takes expressions and,
+using the operation `lookup`, compute the result:
 ```haskell
-calc :: Expr -> Progs '[Lookup String Int] Int
+calc :: Expr -> Int ! '[Lookup String Int]
 calc (Lit n)   = return n
 calc (Var x)   = lookup x
 calc (Add a b) = do x <- calc a ; y <- calc b ; return (x + y)
 ```
-This `calc` program relies on an implementation of `lookup` to
-provide the values of the variables.
 
-The `lookup` operation is created by the user simply by writing:
-```haskell ignore
-data Lookup_ key val k = Lookup_ key (val -> k)
-  deriving Functor
-$(makeAlg ''Lookup)
-```
-This has the effect of creating the following code:
-```haskell
--- Underlying signature functor
-data Lookup_ key val k = Lookup_ key (val -> k)
-  deriving Functor
-
--- Effect synonym
-type Lookup key val = Alg (Lookup_ key val)
-
--- Bidirectional pattern for matching/injecting Lookup operations
-pattern Lookup :: Member (Lookup key val) eff
-               => key -> (val -> k) -> Effs eff m k
-pattern Lookup k f <- (prj -> Just (Alg (Lookup_ k f)))
-  where
-    Lookup k f = inj (Alg (Lookup_ k f))
-
--- Smart constructor: request the value of a key
-lookup :: Member (Lookup key val) sig => key -> Prog sig val
-lookup k = call (Alg (Lookup_ k id))
-```
-We can give a pure interpretation of `lookup` directly, by passing
-in an environment association list:
+We can handle the operation `lookup` by looking up in a given environment
+association list:
 ```haskell
 lookupEnv :: [(String, Int)] -> Handler '[Lookup String Int] '[] '[] a a
 lookupEnv env = interpret $ \(Lookup var k) ->
   return (k (maybe 0 id (Prelude.lookup var env)))
 ```
-Then, executing this code means using `handle`:
+where `interpret` builds a handler of the effects `effs` (in this case
+the effects `'[Lookup String Int]`) by translating them to the effects
+`oeffs` (in this case no effects `'[]`)
+```haskell ignore
+interpret :: (...)
+  => (forall m x . Effs effs m x -> Prog oeffs x)
+  -> Handler effs oeffs '[] a a
+```
+Then, handlers are applied to programs using `handle`:
 ```haskell
 runEval :: [(String, Int)] -> Expr -> Int
 runEval env e = handle (lookupEnv env) (calc e)
+
+-- ghci> runEval [("x", 18), ("y", 24)] (Add (Var "x") (Var "y"))
+-- 42
 ```
 
-Although this code works, it is not ideal because when a value is not
-found in the environment, we simply return `0`. A better
-alternative would be to perform another lookup, so that a different handler
-can ask for the information:
-```
-lookupEnv' :: [(String, Int)] -> Handler '[Lookup String Int] '[Lookup String Int] '[] a a
-lookupEnv' env = interpret $ \(Lookup var k) ->
-  case Prelude.lookup env of
-    Nothing  -> lookup var >>= k
-    Just val -> return (k val)
-```
-
-One way to deal with a lookup is simply to fail whenever we ask for information:
-
-
-
-
-
-
-
-
-
-
-A different handler to interact with `Lookup` can use `State`:
+The power of effect handlers is that we can give different interpretations
+to the same program by writing different handlers. For example, suppose
+we are interested in finding all the variable names in an `Expr`. We can write
+a handler that translate `lookup` operations to operations that manipulate
+a mutable state of a list of variable names.
 ```haskell
 freeVars :: Handler '[Lookup String Int] '[Get [String], Put [String]] '[] a a
 freeVars = interpret $ \(Lookup x k) -> do
@@ -118,44 +104,65 @@ freeVars = interpret $ \(Lookup x k) -> do
   put (if elem x xs then xs else (insert x xs))
   return (k (0 :: Int))
 ```
-But this is not very satisfactory: we had to return 0 into each
-continuation, and the output value is not the calculation we want.
+When this handler sees a `lookup` operation, it performs `get` and `put` (which
+are defined in `Control.Effect.State`) to update the state, and it simply
+returns `0` as the result of the lookup. In the type of this handler, the first
+type index `'[Lookup String Int]`, which we call the _input effects_, records
+the effects that are handled, and the second type index `'[Get [String], Put [String]]`,
+which we call the _output effects_, records the effects that are
+generated by this handler.
+
+The effects of `Get` and `Put` have a handler `state` (taking an initial state
+as its argument) pre-defined in the library, and we can use it together with
+`freeVars` by
 ```haskell
 exampleVars :: ([String], Int)
-exampleVars = handle (freeVars |> state [])
+exampleVars = handle (freeVars ||> state [])
                      (calc (Add (Var "x") (Var "y")))
 
 -- ghci> exampleVars
 -- (["x","y"],0)
 ```
-A better solution is to find an appropriate value for the continuation `k`,
-and so another lookup can be performed:
+In the code above, `(||>)` is the _pipe_ combinator of handlers: it takes
+two handlers `h1` and `h2` and combines them into a handler `h1 ||> h2`
+that has the same input effects as `h1` but the output effects of `h1` are
+handled by `h2`. More precisely, the output effects of `h1 ||> h2` are the
+output effects of `h1` _subtracted by_ the input effects of `h2`, and then
+unioned with the output effects of `h2`.
+
+
+For another example, we can change `freeVar` so that a `lookup` operation
+is re-generated after modifying the mutable state. Thus the output effects
+will include `Lookup` as a member too:
 ```haskell
 freeVars' :: Handler '[Lookup String Int] '[Get [String], Put [String], Lookup String Int] '[] a a
 freeVars' = interpret $ \(Lookup x k) -> do
-  n <- lookup x
   xs <- get @[String]
   put (if elem x xs then xs else (insert x xs))
+  n <- lookup x
   return (k (n :: Int))
 ```
 This new `lookup` inside the code block is not the one that is handled by
 `freeVars'`, but will instead be picked up by whatever handler follows.
-
 For instance, we can feed in the environment we want as before:
 ```haskell
 exampleVars' :: ([String], Int)
-exampleVars' = handle (freeVars' |> state [] |> lookupEnv [("x", 18), ("y", 24)])
+exampleVars' = handle ((freeVars' ||> state []) ||> lookupEnv [("x", 18), ("y", 24)])
                       (calc (Add (Var "x") (Var "y")))
 
 exampleVars'' :: ([String], Int)
-exampleVars'' = handle (freeVars' |> lookupEnv [("x", 18), ("y", 24)] |> state [])
+exampleVars'' = handle ((freeVars' ||> lookupEnv [("x", 18), ("y", 24)]) ||> state [])
                        (calc (Add (Var "x") (Var "y")))
 
 -- ghci> exampleVars'
 -- (["x","y"],42)
+--
+-- ghci> exampleVars''
+-- (["x","y"],42)
 ```
-Better still we, can now create a new handler that uses the result
-of the free variables in the state to query the user for the values they want:
+
+For a final example, we can create a new handler that queries the user by IO
+when it first sees a variable, and remembers the value in the state.
 ```haskell
 queryVars :: Handler '[Lookup String Int] '[Get [(String, Int)], Put [(String, Int)], Alg IO] '[] a a
 queryVars = interpret $ \(Lookup var k) -> do
@@ -166,26 +173,12 @@ queryVars = interpret $ \(Lookup var k) -> do
                    put (insert (var, val) env)
                    return (k val)
     Just val -> return (k val)
-
-queryVarsIO :: Handler '[Lookup String Int] '[Alg IO] '[] a a
-queryVarsIO = interpret $ \(Lookup var k) -> do
-    io (Prelude.putStrLn ("Enter a value for " ++ var))
-    (val :: Int) <- read <$> io (Prelude.getLine)
-    return (k val)
-
--- queryVarsCached  :: Handler '[Lookup String Int] '[Lookup String Int, Get [(String, Int)], Put [(String, Int)]] '[] a a
--- quaryVarsCached = intepret $ \(Lookup var k) -> do
---   env <- get
---   case Prelude.lookup var env of
---     Nothing ->  do val <- lookup var
---                    put (insert (var, val) env)
---                    return (k val)
---     Just val -> undefined -- as with cachedFX'
 ```
-
+To use a handler that outputs `IO`, we need to use the function `handleIO`
+rather than `handle`:
 ```haskell
 exampleVars''' :: IO ([(String, Int)], Int)
-exampleVars''' = handleIO (queryVars |> state ([] :: [(String, Int)]))
+exampleVars''' = handleIO (queryVars ||> state ([] :: [(String, Int)]))
                           (calc (Add (Var "x") (Var "y")))
 
 -- ghci> exampleVars'''
@@ -195,10 +188,6 @@ exampleVars''' = handleIO (queryVars |> state ([] :: [(String, Int)]))
 -- 24
 -- ([("x",18),("y",24)],42)
 
-
--- exampleVars'''' :: IO ([(String, Int)], Int)
--- exampleVars'''' = handleIO (lookupEnv [("x", 18), ("y", 24)] |> queryVars)
---                            (calc (Add (Var "x") (Var "y")))
 ```
 
 Working with IO
@@ -1281,6 +1270,8 @@ import Hedgehog (Property, Group(..), discover, property, forAll, checkParallel,
 import Hedgehog.Main (defaultMain)
 import Hedgehog.Gen hiding (map, maybe)
 import Hedgehog.Range
+
+$(makeGen [e| lookup :: forall key val. key -> val |])
 
 props :: Group
 -- props = $$(discover)

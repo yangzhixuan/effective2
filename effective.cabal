@@ -11,8 +11,6 @@ maintainer:          Nicolas Wu   <n.wu@imperial.ac.uk>
 -- copyright:
 category:            Control
 build-type:          Simple
-extra-source-files:
-  README.md
 extra-doc-files:
   ChangeLog.md
 
